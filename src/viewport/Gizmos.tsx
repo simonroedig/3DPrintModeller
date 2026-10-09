@@ -227,15 +227,26 @@ export function SelectionGizmos() {
   );
 }
 
+const VIEW_AXIS: Record<string, THREE.Vector3 | null> = {
+  iso: null,
+  top: new THREE.Vector3(0, 0, 1),
+  front: new THREE.Vector3(0, 1, 0),
+  right: new THREE.Vector3(1, 0, 0),
+};
+
 function ResizeHandles({ body, snap, get, unit }: { body: Body; snap: number; unit: Unit; get: () => RootState }) {
+  const view = useStore((s) => s.view);
   const specs = handleSpecs(body.shape);
   const m = bodyMatrix(body);
   const q = new THREE.Quaternion(...body.quaternion);
+  const axis = VIEW_AXIS[view];
   return (
     <>
       {specs.map((spec) => {
         const wp = new THREE.Vector3(...spec.pos).applyMatrix4(m);
         const wd = new THREE.Vector3(...spec.dir).applyQuaternion(q);
+        // a handle pointing at the viewer cannot be dragged – hide it in the 2D views
+        if (axis && Math.abs(wd.dot(axis)) > 0.9) return null;
         return (
           <Handle
             key={spec.id}

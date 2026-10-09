@@ -95,8 +95,8 @@ export function BodyView({ body }: { body: Body }) {
   if (!geo || !edges) return null;
 
   const color = new THREE.Color(body.color);
-  const emissive = selected ? ACCENT : color;
-  const emissiveIntensity = selected ? 0.28 : hover && tool === "select" ? 0.12 : 0;
+  const emissive = body.hole && selected ? ACCENT : color;
+  const emissiveIntensity = selected ? (body.hole ? 0.3 : 0.2) : hover && tool === "select" ? 0.1 : 0;
 
   const onPointerDown = (e: ThreeEvent<PointerEvent>) => {
     if (e.button !== 0 || pointerState.overHandle) return;
@@ -218,7 +218,7 @@ export function startMoveDrag(
         }
         const raw: Vec3 = [p.x - hit.x, p.y - hit.y, p.z - hit.z];
         for (let a = 0; a < 3; a++) if (!axes.includes(a)) raw[a] = 0;
-        const thr = worldPerPixel(state, p) * 9;
+        const thr = worldPerPixel(state, p) * 12;
         const { delta, guides } = snapMove(startBox, raw, axes, others, e.altKey ? 0 : doc.settings.snap, e.altKey ? 0 : thr);
         translateBodies(ids, delta, startPos);
         const names = ["X", "Y", "Z"];
