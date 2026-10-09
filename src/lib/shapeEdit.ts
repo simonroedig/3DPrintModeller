@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import type { Body, Shape, Vec3 } from "../types";
+import type { Body, Feature, Shape, Vec3 } from "../types";
 import { bodyMatrix, localBox, polyBounds } from "./geom";
 import { snapTo } from "./units";
 
@@ -40,9 +40,132 @@ export function resizeLocal(shape: Shape, axis: number, size: number): Shape | n
       const cur = (shape.max[axis] - shape.min[axis]) * shape.scale;
       return cur > 0 ? { ...shape, scale: (shape.scale * s) / cur } : null;
     }
-    case "group":
-      return null;
+    case "group": {
+      const box = localBox(shape);
+      const cur = box.max.getComponent(axis) - box.min.getComponent(axis);
+      if (cur <= 0) return null;
+      const f: Vec3 = [1, 1, 1];
+      f[axis] = s / cur;
+      return scaleGroupShape(shape, box.min.toArray() as Vec3, f).shape;
+    }
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* scaling combined bodies                                              */
+/* ------------------------------------------------------------------ */
+
+const mulV = (a: Vec3, b: Vec3): Vec3 => [a[0] * b[0], a[1] * b[1], a[2] * b[2]];
+const norm = (v: Vec3): Vec3 => {
+  const l = Math.hypot(...v) || 1;
+  return [v[0] / l, v[1] / l, v[2] / l];
+};
+const r6 = (v: number) => Math.round(v * 1e6) / 1e6;
+
+/** moves feature references along with a scaling about `anchor` (fillet radii etc. stay as they are) */
+export function scaleFeaturesAbout(features: Feature[], anchor: Vec3, f: Vec3): Feature[] {
+  if (f.every((k) => Math.abs(k - 1) < 1e-12)) return features;
+  const P = (p: Vec3): Vec3 => [anchor[0] + (p[0] - anchor[0]) * f[0], anchor[1] + (p[1] - anchor[1]) * f[1], anchor[2] + (p[2] - anchor[2]) * f[2]];
+  const D = (d: Vec3) => norm(mulV(d, f));
+  const N = (n: Vec3) => norm([n[0] / f[0], n[1] / f[1], n[2] / f[2]]);
+  return features.map((ft) => {
+    if (ft.type === "fillet" || ft.type === "chamfer") return { ...ft, edges: ft.edges.map((e) => ({ mid: P(e.mid), dir: D(e.dir) })) };
+    if (ft.type === "push") return { ...ft, face: { center: P(ft.face.center), normal: N(ft.face.normal) } };
+    if (ft.type !== "tilt") return ft;
+    return { ...ft, face: { center: P(ft.face.center), normal: N(ft.face.normal) }, hinge: { mid: P(ft.hinge.mid), dir: D(ft.hinge.dir) } };
+  });
+}
+
+/** factors given along the parent's axes, expressed along the body's own axes (null if not 90°-aligned) */
+function localFactors(body: Pick<Body, "quaternion">, f: Vec3): Vec3 | null {
+  const out: Vec3 = [1, 1, 1];
+  for (let a = 0; a < 3; a++) {
+    const l = alignedLocalAxis(body as Body, a);
+    if (l === null) return null;
+    out[l] = f[a];
+  }
+  return out;
+}
+
+/**
+ * Scales a body (placed in its parent frame) about `anchor` by per-axis factors.
+ * Everything stays parametric: sizes and positions change, round parts stay round.
+ */
+export function scaleBodyAbout(body: Body, anchor: Vec3, f: Vec3): { body: Body; approx: boolean } {
+  const m = bodyMatrix(body);
+  const inv = m.clone().invert();
+  const lf = localFactors(body, f);
+  const before = localBox(body.shape).applyMatrix4(m);
+  const center = before.getCenter(new THREE.Vector3());
+  const target = new THREE.Vector3(...anchor).add(center.clone().sub(new THREE.Vector3(...anchor)).multiply(new THREE.Vector3(...f)));
+  if (!lf) {
+    // freely rotated part: only its position follows
+    const d = target.sub(center);
+    return { body: { ...body, position: [r6(body.position[0] + d.x), r6(body.position[1] + d.y), r6(body.position[2] + d.z)] }, approx: true };
+  }
+  let shape: Shape = body.shape;
+  let approx = false;
+  let features = body.features;
+  if (shape.kind === "group") {
+    const localAnchor = new THREE.Vector3(...anchor).applyMatrix4(inv).toArray() as Vec3;
+    const r = scaleGroupShape(shape, localAnchor, lf);
+    shape = r.shape;
+    approx = r.approx;
+    features = scaleFeaturesAbout(features, localAnchor, lf);
+    // the children moved inside the group's own frame: nothing to shift
+    return { body: { ...body, shape, features }, approx };
+  }
+  // round parts stay round: across their axis they only grow as much as the smaller stretch allows
+  const k = shape.kind;
+  if (k === "cylinder" || k === "tube" || k === "cone") {
+    const r = Math.min(lf[0], lf[1]);
+    approx ||= Math.abs(lf[0] - lf[1]) > 1e-9;
+    lf[0] = lf[1] = r;
+  } else if (k === "sphere") {
+    const r = Math.min(...lf);
+    approx ||= Math.max(...lf) - r > 1e-9;
+    lf[0] = lf[1] = lf[2] = r;
+  }
+  const lb = localBox(shape);
+  for (let l = 0; l < 3; l++) {
+    if (Math.abs(lf[l] - 1) < 1e-12) continue;
+    const size = (lb.max.getComponent(l) - lb.min.getComponent(l)) * lf[l];
+    const next = resizeLocal(shape, l, size);
+    if (next) shape = next;
+    else approx = true;
+  }
+  features = scaleFeaturesAbout(features, [0, 0, 0], lf);
+  // keep the part centred where the scaling puts it
+  const after = localBox(shape).applyMatrix4(m).getCenter(new THREE.Vector3());
+  const d = target.sub(after);
+  return {
+    body: { ...body, shape, features, position: [r6(body.position[0] + d.x), r6(body.position[1] + d.y), r6(body.position[2] + d.z)] },
+    approx,
+  };
+}
+
+/** scales a combined body about its local box (min corner; x/y centre when proportional) – features follow */
+export function scaleGroup(body: Body, f: Vec3, centred = false): Partial<Body> | null {
+  if (body.shape.kind !== "group") return null;
+  const box = localBox(body.shape);
+  const anchor = box.min.toArray() as Vec3;
+  if (centred) {
+    const c = box.getCenter(new THREE.Vector3());
+    anchor[0] = c.x;
+    anchor[1] = c.y;
+  }
+  const r = scaleGroupShape(body.shape, anchor, f);
+  return { shape: r.shape, features: scaleFeaturesAbout(body.features, anchor, f) };
+}
+
+export function scaleGroupShape(shape: Extract<Shape, { kind: "group" }>, anchor: Vec3, f: Vec3) {
+  let approx = false;
+  const children = shape.children.map((c) => {
+    const r = scaleBodyAbout(c, anchor, f);
+    approx ||= r.approx;
+    return r.body;
+  });
+  return { shape: { ...shape, children }, approx };
 }
 
 /** Which local axis of the body is aligned with the given world axis (only for 90° rotations). */
@@ -59,6 +182,14 @@ export function alignedLocalAxis(body: Body, worldAxis: number): number | null {
 export function resizeWorld(body: Body, worldAxis: number, size: number): Partial<Body> | null {
   const l = alignedLocalAxis(body, worldAxis);
   if (l === null) return null;
+  if (body.shape.kind === "group") {
+    const f: Vec3 = [1, 1, 1];
+    const box = localBox(body.shape);
+    const cur = box.max.getComponent(l) - box.min.getComponent(l);
+    if (cur <= 0) return null;
+    f[l] = Math.max(size, MIN) / cur;
+    return scaleGroup(body, f);
+  }
   const shape = resizeLocal(body.shape, l, size);
   if (!shape) return null;
   const m = bodyMatrix(body);
@@ -76,7 +207,11 @@ export interface HandleSpec {
   dir: Vec3;
   label: string;
   /** returns the new shape plus a local shift of the origin */
-  apply: (t: number, snap: number) => { shape: Shape; shift: Vec3; value: number };
+  apply: (
+    t: number,
+    snap: number,
+    uniform?: boolean,
+  ) => { shape: Shape; shift: Vec3; value: number; mapFeatures?: (features: Feature[]) => Feature[] };
 }
 
 /** handle on the bottom face that grows a height parameter downwards */
@@ -211,8 +346,42 @@ export function handleSpecs(shape: Shape): HandleSpec[] {
         bottomHandle(shape, [(pb.minX + pb.maxX) / 2, (pb.minY + pb.maxY) / 2, 0], sn),
       ];
     }
+    case "group": {
+      const box = localBox(shape);
+      const lo = box.min.toArray() as Vec3;
+      const hi = box.max.toArray() as Vec3;
+      const mid = box.getCenter(new THREE.Vector3()).toArray() as Vec3;
+      const side = (axis: 0 | 1 | 2, neg: boolean): HandleSpec => {
+        const cur = hi[axis] - lo[axis];
+        const pos: Vec3 = [...mid];
+        pos[axis] = neg ? lo[axis] : hi[axis];
+        const dir: Vec3 = [0, 0, 0];
+        dir[axis] = neg ? -1 : 1;
+        return {
+          id: `${neg ? "-" : "+"}${axis}`,
+          pos,
+          dir,
+          label: ["Breite", "Tiefe", "Höhe"][axis],
+          apply: (t, snap, uniform) => {
+            const v = sn(cur + t, snap);
+            const k = v / Math.max(cur, MIN);
+            // the opposite face stays put; proportional scaling keeps the part centred and on the bed
+            const anchor: Vec3 = [mid[0], mid[1], lo[2]];
+            anchor[axis] = neg ? hi[axis] : lo[axis];
+            const f: Vec3 = uniform ? [k, k, k] : [1, 1, 1];
+            f[axis] = k;
+            return {
+              shape: scaleGroupShape(shape, anchor, f).shape,
+              shift: [0, 0, 0],
+              value: v,
+              mapFeatures: (features) => scaleFeaturesAbout(features, anchor, f),
+            };
+          },
+        };
+      };
+      return [side(0, false), side(0, true), side(1, false), side(1, true), side(2, false), side(2, true)];
+    }
     case "imported":
-    case "group":
       return [];
   }
 }

@@ -13,7 +13,12 @@ export type Shape =
   | { kind: "sphere"; d: number }
   | { kind: "tube"; d: number; t: number; h: number }
   | { kind: "prism"; points: Vec2[]; h: number }
-  | { kind: "group"; children: Body[] }
+  /**
+   * combination of child bodies (in the group's frame):
+   * union = solids fused, holes cut · subtract = like union, the first child is the base and the others are holes ·
+   * intersect = common volume of the solids · group = solids kept as separate pieces
+   */
+  | { kind: "group"; children: Body[]; op?: BoolOp }
   /** solid `part` of an imported file (see Doc.assets); min/max = its bounds before scaling */
   | {
       kind: "imported";
@@ -25,6 +30,8 @@ export type Shape =
       /** "mesh": large triangle mesh kept as is (move/rotate/export only, no CAD operations) */
       mode?: "mesh";
     };
+
+export type BoolOp = "union" | "subtract" | "intersect" | "group";
 
 export type ShapeKind = Shape["kind"];
 

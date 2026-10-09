@@ -5,7 +5,6 @@ import {
   Circle,
   CircleDot,
   CircleHelp,
-  Combine,
   Cone,
   Cylinder,
   Download,
@@ -28,7 +27,7 @@ import { cancelWork, stalledFor, useMeshes } from "../cad/client";
 import {
   addPrimitive,
   fitView,
-  groupSelection,
+  combineSelection,
   redo,
   setSettings,
   setTool,
@@ -44,6 +43,7 @@ import {
 import { SNAP_OPTIONS } from "../lib/units";
 import type { Unit } from "../types";
 import { openProject, pickImportFiles, saveProject } from "./files";
+import { OPS } from "./ops";
 
 export function TopBar() {
   const canUndo = useStore((s) => s.past.length > 0);
@@ -150,13 +150,21 @@ export function ToolRail() {
       <RailLabel>Ändern</RailLabel>
       <ToolButton icon={<SquareRoundCorner size={19} />} label="Kanten & Flächen bearbeiten (auch Doppelklick)" kbd="F" on={tool === "edit"} onClick={t("edit")} />
       <ToolButton icon={<ArrowDownToLine size={19} />} label="Fläche aufs Druckbett legen" kbd="L" on={tool === "layflat"} onClick={t("layflat")} />
+      {OPS.filter((o) => o.op !== "group").map((o) => (
+        <ToolButton
+          key={o.op}
+          icon={<span className={selCount >= 2 ? "" : "opacity-40"}>{o.icon(19)}</span>}
+          label={`${o.label}: ${o.tip}`}
+          kbd={o.kbd}
+          onClick={() => combineSelection(o.op)}
+        />
+      ))}
       <ToolButton
-        icon={<Combine size={19} className={selCount >= 2 ? "" : "opacity-40"} />}
-        label="Vereinen (Gruppieren)"
-        kbd="Strg G"
-        onClick={groupSelection}
+        icon={<Ungroup size={19} className={hasGroup ? "" : "opacity-40"} />}
+        label="Trennen: kombinierten Körper wieder in seine Teile zerlegen"
+        kbd="Strg ⇧ G"
+        onClick={ungroupSelection}
       />
-      <ToolButton icon={<Ungroup size={19} className={hasGroup ? "" : "opacity-40"} />} label="Gruppe trennen" kbd="Strg ⇧ G" onClick={ungroupSelection} />
     </nav>
   );
 }

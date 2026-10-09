@@ -348,7 +348,9 @@ label:has(> input[type="checkbox"]) {
   padding: 5px 8px;
   border-radius: 6px;
   font-size: 12px;
-  white-space: nowrap;
+  width: max-content;
+  max-width: 300px;
+  line-height: 1.35;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
   animation: callout-in 0.12s ease-out;
 }

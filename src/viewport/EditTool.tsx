@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
+import { axisColorOf } from "../lib/planes";
 import { useThree } from "@react-three/fiber";
 import { Line } from "@react-three/drei";
 import type { Body, MeshData, Vec3 } from "../types";
@@ -318,7 +319,7 @@ function EditPicker() {
               dir={n}
               arrow
               both
-              color="#22c55e"
+              color={axisColorOf(n)}
               title="Ziehen: Fläche verschieben"
               onDown={(ev) => {
                 const d0 = faceOp.distance;

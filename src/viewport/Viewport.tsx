@@ -9,6 +9,7 @@ import { SketchTool, SketchView } from "./Sketching";
 import { SelectionGizmos, SketchGizmos } from "./Gizmos";
 import { EditTool } from "./EditTool";
 import { InsetRenderer, InsetScene } from "./PlaneInset";
+import { ViewHoverIndicator } from "./ViewHover";
 
 THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
 
@@ -87,6 +88,7 @@ export function Viewport() {
         <SketchGizmos />
         <EditTool />
         <Guides />
+        <ViewHoverIndicator />
       </group>
       <InsetRenderer />
     </Canvas>

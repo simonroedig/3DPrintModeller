@@ -5,6 +5,7 @@ function geomShape(shape: Shape): unknown {
   if (shape.kind !== "group") return shape;
   return {
     kind: "group",
+    op: shape.op ?? "union",
     children: shape.children.map((c) => ({
       s: geomShape(c.shape),
       f: geomFeatures(c.features),

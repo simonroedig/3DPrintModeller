@@ -14,6 +14,7 @@ import {
   makeThreePointArc,
   assembleWire,
   makeFace,
+  makeCompound,
   Vector,
   type Shape3D,
   type Edge,
@@ -168,6 +169,7 @@ function buildBase(shape: Shape): Shape3D {
       return shape.scale === 1 ? solid : solid.clone().scale(shape.scale, [0, 0, 0]);
     }
     case "group": {
+      const op = shape.op ?? "union";
       const solids: Shape3D[] = [];
       const holes: Shape3D[] = [];
       for (const child of shape.children) {
@@ -175,7 +177,9 @@ function buildBase(shape: Shape): Shape3D {
         (child.hole ? holes : solids).push(placed);
       }
       if (solids.length === 0) return fuseAll(holes);
-      let result = fuseAll(solids);
+      // "subtract" stores its tools as holes, so it builds like a union
+      let result =
+        op === "intersect" ? commonAll(solids) : op === "group" && solids.length > 1 ? (makeCompound(solids) as Shape3D) : fuseAll(solids);
       if (holes.length) {
         const tool = fuseAll(holes);
         const cut = result.cut(tool);
@@ -186,6 +190,18 @@ function buildBase(shape: Shape): Shape3D {
       return result;
     }
   }
+}
+
+function commonAll(shapes: Shape3D[]): Shape3D {
+  let result = shapes[0];
+  for (let i = 1; i < shapes.length; i++) {
+    const next = result.intersect(shapes[i]);
+    result.delete();
+    shapes[i].delete();
+    result = next;
+  }
+  if (!result.faces.length) throw new Error("Die Teile überschneiden sich nicht – die Schnittmenge ist leer");
+  return result;
 }
 
 function fuseAll(shapes: Shape3D[]): Shape3D {

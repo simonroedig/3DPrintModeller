@@ -51,8 +51,16 @@ export function localBox(shape: Shape): THREE.Box3 {
       return b.set(new THREE.Vector3(...shape.min).multiplyScalar(k), new THREE.Vector3(...shape.max).multiplyScalar(k));
     }
     case "group": {
+      // holes and subtracted tools do not add to the outside of the result
+      const solids = shape.children.filter((c) => !c.hole);
+      const parts = solids.length ? solids : shape.children;
       b.makeEmpty();
-      for (const c of shape.children) b.union(worldBox(c));
+      if (shape.op === "intersect" && solids.length > 1) {
+        b.copy(worldBox(solids[0]));
+        for (const c of solids.slice(1)) b.intersect(worldBox(c));
+        return b;
+      }
+      for (const c of parts) b.union(worldBox(c));
       return b;
     }
   }

@@ -220,6 +220,7 @@ export function BodyView({ body }: { body: Body }) {
           depthWrite={false}
         />
       </lineSegments>
+      {body.shape.kind === "group" && selected && tool === "select" && <GroupGhosts body={body} />}
       {faceGeo && (
         <mesh geometry={faceGeo} renderOrder={4}>
           <meshBasicMaterial color={planePick ? "#38bdf8" : "#facc15"} transparent opacity={0.55} depthWrite={false} polygonOffset polygonOffsetFactor={-2} polygonOffsetUnits={-2} />
@@ -276,5 +277,36 @@ export function startMoveDrag(
       },
     },
     ev,
+  );
+}
+
+/** parts of a combined body that are not visible in the result: subtracted tools, holes, the focused part */
+function GroupGhosts({ body }: { body: Body }) {
+  const focus = useStore((s) => (s.groupFocus?.groupId === body.id ? s.groupFocus.childId : null));
+  if (body.shape.kind !== "group") return null;
+  const op = body.shape.op ?? "union";
+  return (
+    <>
+      {body.shape.children.map((c) =>
+        c.id === focus || c.hole || op === "intersect" ? <GhostPart key={c.id} part={c} focused={c.id === focus} /> : null,
+      )}
+    </>
+  );
+}
+
+function GhostPart({ part, focused }: { part: Body; focused: boolean }) {
+  const { mesh } = useBodyMesh(`ghost:${part.id}`, part);
+  const { geo, edges } = useGeometry(mesh);
+  if (!geo || !edges) return null;
+  const color = focused ? "#f59e0b" : part.hole ? "#fb7185" : "#94a3b8";
+  return (
+    <group position={part.position} quaternion={part.quaternion}>
+      <mesh geometry={geo} renderOrder={5}>
+        <meshBasicMaterial color={color} transparent opacity={focused ? 0.16 : 0.08} depthWrite={false} side={THREE.DoubleSide} />
+      </mesh>
+      <lineSegments geometry={edges} renderOrder={6}>
+        <lineBasicMaterial color={color} transparent opacity={focused ? 0.95 : 0.55} depthTest={false} depthWrite={false} />
+      </lineSegments>
+    </group>
   );
 }

@@ -10,9 +10,9 @@ import {
   Box,
   ChevronDown,
   ChevronRight,
+  ChevronUp,
   Circle,
   CircleDot,
-  Combine,
   Cone,
   Copy,
   Cylinder,
@@ -22,6 +22,7 @@ import {
   Globe,
   Hexagon,
   Layers,
+  LogOut,
   RotateCcw,
   RotateCw,
   Square,
@@ -31,15 +32,20 @@ import {
   TriangleRight,
   Ungroup,
 } from "lucide-react";
-import type { Body, Shape, ShapeKind, Sketch, SketchShape, TiltFeature, Vec2 } from "../types";
+import type { Body, BoolOp, Shape, ShapeKind, Sketch, SketchShape, TiltFeature, Vec2, Vec3 } from "../types";
 import {
   alignSelection,
   deleteSelection,
   dropToBed,
   duplicateSelection,
   extrudeSketch,
-  groupSelection,
+  combineSelection,
+  extractGroupChild,
   KIND_LABEL,
+  OP_NAME,
+  setGroupBase,
+  setGroupOp,
+  updateGroupChild,
   removeFeature,
   rotateSelection,
   select,
@@ -56,11 +62,13 @@ import {
   updateSketch,
   useStore,
 } from "../store/store";
-import { eulerDeg, polyBounds, polygonArea, unionBox } from "../lib/geom";
+import { bodyMatrix, eulerDeg, localBox, polyBounds, polygonArea, unionBox } from "../lib/geom";
+import { scaleGroup, scaleGroupShape } from "../lib/shapeEdit";
+import { OPS } from "./ops";
 import { geometryKey } from "../cad/key";
 import { assetPayload, useMeshes } from "../cad/client";
 import { fmtLen, SNAP_OPTIONS } from "../lib/units";
-import { ORIENT_LABEL, PLANE_AXIS, PLANE_AXIS_NAME } from "../lib/planes";
+import { ORIENT_LABEL, PLANE_AXIS, PLANE_AXIS_NAME, viewAxis } from "../lib/planes";
 import { LenField, NumField, Seg } from "./fields";
 
 const ICON: Record<ShapeKind, ReactNode> = {
@@ -238,7 +246,7 @@ function BodyProps({ body }: { body: Body }) {
       <div className="px-3.5 pt-3 pb-3">
         <div className="flex items-center gap-2 text-ink-400 text-[11px] mb-1">
           <span style={{ color: body.hole ? "#94a3b8" : body.color }}>{ICON[body.shape.kind]}</span>
-          {KIND_LABEL[body.shape.kind]}
+          {body.shape.kind === "group" ? OP_NAME[body.shape.op ?? "union"] : KIND_LABEL[body.shape.kind]}
           {body.shape.kind === "group" && ` · ${body.shape.children.length} Teile`}
         </div>
         <NameField value={body.name} onChange={(name) => updateBody(body.id, { name })} />
@@ -275,6 +283,8 @@ function BodyProps({ body }: { body: Body }) {
       <Section title="Abmessungen">
         <ShapeParams body={body} />
       </Section>
+
+      {body.shape.kind === "group" && <GroupParts body={body as GroupBody} />}
 
       <Section
         title="Position"
@@ -383,9 +393,9 @@ function RotateButtons() {
   );
 }
 
-function ShapeParams({ body }: { body: Body }) {
+function ShapeParams({ body, onShape }: { body: Body; onShape?: (shape: Shape) => void }) {
   const s = body.shape;
-  const set = (shape: Shape) => setBodyShape(body.id, shape);
+  const set = onShape ?? ((shape: Shape) => setBodyShape(body.id, shape));
   const min = 0.05;
   switch (s.kind) {
     case "box":
@@ -473,7 +483,7 @@ function ShapeParams({ body }: { body: Body }) {
       const tris = payload?.format === "mesh" ? (payload.parts[s.part]?.indices.length ?? 0) / 3 : 0;
       const k = s.scale;
       const dims = [0, 1, 2].map((a) => (s.max[a] - s.min[a]) * k);
-      const scaleTo = (f: number) => setBodyShape(body.id, { ...s, scale: f });
+      const scaleTo = (f: number) => set({ ...s, scale: f });
       return (
         <>
           <div className="grid grid-cols-3 gap-1.5">
@@ -519,16 +529,164 @@ function ShapeParams({ body }: { body: Body }) {
       );
     }
     case "group":
-      return (
-        <div className="text-ink-400 text-[12px]">
-          Vereinte Gruppe aus {s.children.length} Teilen. Zum Ändern der Einzelmaße <b>trennen</b>, anpassen und erneut vereinen.
-        </div>
-      );
+      return <GroupDims body={body} onShape={onShape} />;
   }
+}
+
+type GroupBody = Body & { shape: Extract<Shape, { kind: "group" }> };
+
+/** outer size of a combined body; changing it scales all parts (round parts stay round) */
+function GroupDims({ body, onShape }: { body: Body; onShape?: (shape: Shape) => void }) {
+  useMeshes((s) => s.meshes);
+  const [pct, setPct] = useState(100);
+  if (body.shape.kind !== "group") return null;
+  const box = localBox(body.shape);
+  const dims = [0, 1, 2].map((a) => box.max.getComponent(a) - box.min.getComponent(a));
+  const apply = (f: Vec3, centred = false) => {
+    if (onShape) {
+      // nested part: no own features to carry along
+      const b = localBox(body.shape);
+      const anchor = b.min.toArray() as Vec3;
+      onShape(scaleGroupShape(body.shape as GroupBody["shape"], anchor, f).shape);
+      return;
+    }
+    const patch = scaleGroup(body, f, centred);
+    if (patch) updateBody(body.id, patch);
+  };
+  return (
+    <>
+      <div className="grid grid-cols-3 gap-1.5">
+        {(["B", "T", "H"] as const).map((l, a) => (
+          <LenField
+            key={l}
+            label={l}
+            mm={dims[a]}
+            min={0.05}
+            title={`${["Breite", "Tiefe", "Höhe"][a]} – skaliert alle Teile in dieser Richtung`}
+            onChange={(v) => {
+              const f: Vec3 = [1, 1, 1];
+              f[a] = v / Math.max(dims[a], 1e-6);
+              apply(f);
+            }}
+          />
+        ))}
+      </div>
+      <div className="flex items-center gap-1.5 mt-1.5">
+        <div className="w-[130px]">
+          <NumField label="Skalieren" value={pct} suffix="%" step={5} min={1} onChange={setPct} />
+        </div>
+        <button
+          className="btn !h-7 !px-2 text-[12px]"
+          disabled={Math.abs(pct - 100) < 1e-9}
+          title="Alles proportional skalieren (bleibt mittig auf dem Bett)"
+          onClick={() => {
+            const k = pct / 100;
+            apply([k, k, k], true);
+            setPct(100);
+          }}
+        >
+          Anwenden
+        </button>
+      </div>
+      <div className="text-[11px] text-ink-500 mt-1.5 leading-snug">Ziehen an den Griffen skaliert ebenfalls · mit Shift proportional.</div>
+    </>
+  );
+}
+
+const ROLE: Record<string, { label: string; cls: string }> = {
+  base: { label: "Basis", cls: "bg-accent/25 text-sky-200" },
+  tool: { label: "wird abgezogen", cls: "bg-rose-500/20 text-rose-300" },
+  solid: { label: "Volumen", cls: "bg-ink-700 text-ink-300" },
+  hole: { label: "Loch", cls: "bg-ink-700 text-ink-300" },
+};
+
+/** the parts inside a combined body: operation, roles, and each part's own dimensions/position */
+function GroupParts({ body }: { body: GroupBody }) {
+  const op = body.shape.op ?? "union";
+  const focus = useStore((s) => s.groupFocus);
+  const open = focus?.groupId === body.id ? focus.childId : null;
+  const setOpen = (childId: string | null) => useStore.setState({ groupFocus: childId ? { groupId: body.id, childId } : null });
+  const rotated = body.quaternion.some((v, i) => Math.abs(v - (i === 3 ? 1 : 0)) > 1e-9);
+  return (
+    <Section title="Teile & Verknüpfung">
+      <div className="seg w-full mb-2 !flex">
+        {OPS.map((o) => (
+          <button key={o.op} className={`flex-1 ${op === o.op ? "on" : ""}`} title={o.tip} onClick={() => setGroupOp(body.id, o.op as BoolOp)}>
+            {o.short}
+          </button>
+        ))}
+      </div>
+      <div className="flex flex-col gap-1">
+        {body.shape.children.map((c, i) => {
+          const role = op === "subtract" ? (i === 0 ? "base" : "tool") : c.hole ? "hole" : "solid";
+          const isOpen = open === c.id;
+          const cm = bodyMatrix(c);
+          const cb = localBox(c.shape).applyMatrix4(cm);
+          const off = rotated ? [0, 0, 0] : body.position;
+          return (
+            <div key={c.id} className={`rounded-md border ${isOpen ? "border-amber-400/60 bg-ink-850" : "border-ink-750"}`}>
+              <div className="flex items-center gap-1.5 h-8 px-2 cursor-pointer" onClick={() => setOpen(isOpen ? null : c.id)}>
+                {isOpen ? <ChevronUp size={13} className="text-ink-400" /> : <ChevronDown size={13} className="text-ink-400" />}
+                <span style={{ color: c.hole ? "#94a3b8" : c.color }}>{ICON[c.shape.kind]}</span>
+                <span className="truncate flex-1 text-[12px]">{c.name}</span>
+                <span className={`text-[10px] px-1.5 rounded ${ROLE[role].cls}`}>{ROLE[role].label}</span>
+              </div>
+              {isOpen && (
+                <div className="px-2 pb-2 pt-0.5 flex flex-col gap-1.5">
+                  <ShapeParams body={c} onShape={(shape) => updateGroupChild(body.id, c.id, { shape })} />
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {(["X", "Y", "Z"] as const).map((l, a) => (
+                      <LenField
+                        key={l}
+                        label={l}
+                        mm={cb.min.getComponent(a) + off[a]}
+                        title={rotated ? "Position innerhalb des gedrehten Körpers" : "Position (Unterkante / linke / vordere Kante)"}
+                        onChange={(v) => {
+                          const p: Vec3 = [...c.position];
+                          p[a] += v - (cb.min.getComponent(a) + off[a]);
+                          updateGroupChild(body.id, c.id, { position: p });
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <div className="flex gap-1.5">
+                    {op === "subtract" && i > 0 && (
+                      <button className="btn flex-1 !h-7 text-[12px]" title="Dieses Teil wird zur Basis, alles andere wird davon abgezogen" onClick={() => setGroupBase(body.id, c.id)}>
+                        Als Basis
+                      </button>
+                    )}
+                    {op !== "subtract" && op !== "intersect" && (
+                      <button className="btn flex-1 !h-7 text-[12px]" onClick={() => updateGroupChild(body.id, c.id, { hole: !c.hole })}>
+                        {c.hole ? "Als Volumen" : "Als Loch"}
+                      </button>
+                    )}
+                    <button className="btn flex-1 !h-7 text-[12px]" title="Aus dem Körper herauslösen – bleibt an seinem Platz" onClick={() => extractGroupChild(body.id, c.id)}>
+                      <LogOut size={13} /> Herauslösen
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="text-[11px] text-ink-500 mt-2 leading-snug">
+        {op === "subtract"
+          ? "Die abgezogenen Teile sind unsichtbar, aber da: Teil aufklappen zum Ändern – es wird im Modell orange angezeigt."
+          : op === "intersect"
+            ? "Übrig bleibt nur, was alle Teile gemeinsam haben."
+            : op === "group"
+              ? "Teile bleiben getrennte Volumen und bewegen sich gemeinsam."
+              : "Teile sind zu einem Körper verschmolzen; Löcher werden abgezogen."}
+      </div>
+    </Section>
+  );
 }
 
 function MultiProps({ bodies }: { bodies: Body[] }) {
   useStore((s) => s.doc);
+  const selection = useStore((s) => s.selection);
+  const ordered = selection.map((id) => bodies.find((b) => b.id === id)).filter((b): b is Body => !!b);
   const box = unionBox(bodies);
   const unit = useStore((s) => s.doc.settings.unit);
   const AlignRow = ({ axis, label, icons }: { axis: 0 | 1 | 2; label: string; icons: ReactNode[] }) => (
@@ -548,10 +706,18 @@ function MultiProps({ bodies }: { bodies: Body[] }) {
         <div className="text-[11px] text-ink-500 mt-0.5">
           {fmtLen(box.max.x - box.min.x, unit)} × {fmtLen(box.max.y - box.min.y, unit)} × {fmtLen(box.max.z - box.min.z, unit)}
         </div>
-        <button className="btn primary w-full mt-3 !h-9" onClick={groupSelection}>
-          <Combine size={16} /> Vereinen <span className="opacity-60 text-[11px]">Strg+G</span>
-        </button>
-        <div className="text-[11px] text-ink-500 mt-1.5">Vereint alle Teile zu einem Körper; Löcher werden abgezogen. Danach lassen sich auch die Übergangskanten runden.</div>
+        <div className="grid grid-cols-2 gap-1.5 mt-3">
+          {OPS.map((o, i) => (
+            <button key={o.op} className={`btn !h-9 ${i === 0 ? "primary" : ""}`} title={o.tip + (o.kbd ? ` (${o.kbd})` : "")} onClick={() => combineSelection(o.op)}>
+              {o.icon(16)} {o.label}
+            </button>
+          ))}
+        </div>
+        <div className="text-[11px] text-ink-500 mt-2 leading-snug">
+          Reihenfolge zählt beim Abziehen: <b className="text-ink-300">{ordered[0]?.name}</b> ist die Basis
+          {ordered.length > 1 && <>, {ordered.slice(1).map((b) => b.name).join(", ")} {ordered.length > 2 ? "werden" : "wird"} abgezogen</>}.
+          Nichts geht verloren – alle Teile bleiben im Ergebnis erhalten und änderbar.
+        </div>
       </div>
       <Section title="Ausrichten">
         <div className="flex flex-col gap-1.5">
@@ -649,7 +815,10 @@ function SketchProps({ sketch }: { sketch: Sketch }) {
           </button>
         </div>
         <div className="text-[11px] text-ink-500 mt-2">
-          {view === "top" ? "Tipp: In der 3D-Ansicht kannst du auch am grünen Pfeil ziehen." : "Oder am grünen Pfeil in der Ansicht ziehen."} Negative Höhe extrudiert nach unten.
+          {viewAxis(view) === PLANE_AXIS[sketch.plane.orient]
+            ? "Tipp: In der 3D-Ansicht kannst du auch am Pfeil ziehen."
+            : "Oder am Pfeil in der Ansicht ziehen."}{" "}
+          Negative Höhe extrudiert in die Gegenrichtung.
         </div>
       </Section>
       <Section title="Aktionen">
@@ -707,7 +876,7 @@ function DocProps() {
           <li>
             Skizze zeichnen (<kbd>R</kbd>/<kbd>C</kbd>/<kbd>P</kbd>) – Maße direkt im Panel oder am Label anpassen.
           </li>
-          <li>Extrudieren: Höhe eingeben oder am grünen Pfeil ziehen.</li>
+          <li>Extrudieren: Höhe eingeben oder am Pfeil ziehen.</li>
           <li>Teile aneinander ziehen – sie rasten an Flächen ein (pinke Linien).</li>
           <li>
             Mehrere wählen und vereinen (<kbd>Strg</kbd>+<kbd>G</kbd>).

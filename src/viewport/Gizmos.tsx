@@ -10,7 +10,7 @@ import { handleSpecs, resizeWorld } from "../lib/shapeEdit";
 import { fmtLen, fmtNum, parseLen, snapTo } from "../lib/units";
 import { pointerState, startAxisDrag, worldPerPixel } from "./interaction";
 import { startScrub } from "../ui/fields";
-import { fromPlane2D, planeBasis, planeOrigin, planeQuat, PLANE_AXIS, viewAxis } from "../lib/planes";
+import { AXIS_COLOR, axisColorOf, fromPlane2D, planeBasis, planeOrigin, planeQuat, PLANE_AXIS, viewAxis } from "../lib/planes";
 
 /* ------------------------------------------------------------------ */
 
@@ -42,6 +42,7 @@ export function Handle({
   onDown,
   arrow = false,
   both = false,
+  grip = false,
   title,
 }: {
   position: Vec3 | THREE.Vector3;
@@ -51,6 +52,8 @@ export function Handle({
   arrow?: boolean;
   /** double-headed arrow centred on the position (drag either way) */
   both?: boolean;
+  /** short arrow sitting on a face: shows which way the face can be pulled */
+  grip?: boolean;
   title?: string;
 }) {
   const [hover, setHover] = useState(false);
@@ -89,7 +92,35 @@ export function Handle({
           release();
         }}
       >
-        {arrow && both ? (
+        {grip ? (
+          <>
+            <mesh renderOrder={22}>
+              <sphereGeometry args={[4 * s, 14, 10]} />
+              <meshBasicMaterial color="#f8fafc" depthTest={false} transparent />
+            </mesh>
+            <mesh position={[0, 11 * s, 0]} renderOrder={21}>
+              <cylinderGeometry args={[2.2 * s, 2.2 * s, 20 * s, 8]} />
+              <meshBasicMaterial color={c} depthTest={false} transparent />
+            </mesh>
+            <mesh position={[0, 27 * s, 0]} renderOrder={21}>
+              <coneGeometry args={[7.5 * s, 16 * s, 16]} />
+              <meshBasicMaterial color={c} depthTest={false} transparent />
+            </mesh>
+            {/* dark rim so the arrow reads on any body colour */}
+            <mesh position={[0, 11 * s, 0]} renderOrder={20}>
+              <cylinderGeometry args={[3.6 * s, 3.6 * s, 20 * s, 8]} />
+              <meshBasicMaterial color="#0b0e14" depthTest={false} transparent opacity={0.75} />
+            </mesh>
+            <mesh position={[0, 27 * s, 0]} renderOrder={20}>
+              <coneGeometry args={[9.5 * s, 20 * s, 16]} />
+              <meshBasicMaterial color="#0b0e14" depthTest={false} transparent opacity={0.75} />
+            </mesh>
+            <mesh position={[0, 17, 0]}>
+              <cylinderGeometry args={[11, 11, 42, 8]} />
+              <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+            </mesh>
+          </>
+        ) : arrow && both ? (
           <>
             <mesh renderOrder={21}>
               <sphereGeometry args={[4.5 * s, 16, 12]} />
@@ -236,12 +267,12 @@ export function SelectionGizmos() {
     if (!single) return;
     const patch = resizeWorld(single, axis, v);
     if (!patch) {
-      toast(single.shape.kind === "group" ? "Gruppen lassen sich nicht skalieren – trenne sie zuerst" : "Nur bei 90°-Drehungen direkt editierbar", "error");
+      toast("Nur bei 90°-Drehungen direkt editierbar", "error");
       return;
     }
     updateBodies({ [single.id]: patch });
   };
-  const editable = single && single.shape.kind !== "group";
+  const editable = !!single;
 
   return (
     <group>
@@ -275,7 +306,9 @@ function ResizeHandles({ body, snap, get, unit }: { body: Body; snap: number; un
             key={spec.id}
             position={wp}
             dir={wd}
-            title={spec.label}
+            grip
+            color={axisColorOf(wd)}
+            title={body.shape.kind === "group" ? `${spec.label} (Shift: proportional)` : spec.label}
             onDown={(e) => {
               const p0 = body.position;
               beginTx();
@@ -285,9 +318,9 @@ function ResizeHandles({ body, snap, get, unit }: { body: Body; snap: number; un
                 wp,
                 wd,
                 (t, ev) => {
-                  const r = spec.apply(t, ev.altKey ? 0 : snap);
+                  const r = spec.apply(t, ev.altKey ? 0 : snap, ev.shiftKey);
                   const sh = new THREE.Vector3(...r.shift).applyQuaternion(q);
-                  setBodyShape(body.id, r.shape, [p0[0] + sh.x, p0[1] + sh.y, p0[2] + sh.z]);
+                  setBodyShape(body.id, r.shape, [p0[0] + sh.x, p0[1] + sh.y, p0[2] + sh.z], r.mapFeatures?.(body.features));
                   useStore.setState({ dragInfo: `${spec.label} ${fmtLen(r.value, unit)}` });
                 },
                 () => {
@@ -402,7 +435,7 @@ function SketchGizmo({ sketch }: { sketch: Sketch }) {
           position={origin}
           dir={n}
           arrow
-          color="#22c55e"
+          color={AXIS_COLOR[PLANE_AXIS[plane.orient]]}
           title="Ziehen zum Extrudieren"
           onDown={(e) => {
             const ok = startAxisDrag(
@@ -432,7 +465,7 @@ function SketchGizmo({ sketch }: { sketch: Sketch }) {
         <>
           <PlaneGroup plane={plane}>
             <mesh geometry={extrudeGeo} position={[0, 0, h < 0 ? h : 0]}>
-              <meshStandardMaterial color="#22c55e" transparent opacity={0.45} depthWrite={false} />
+              <meshStandardMaterial color={AXIS_COLOR[PLANE_AXIS[plane.orient]]} transparent opacity={0.45} depthWrite={false} />
             </mesh>
           </PlaneGroup>
           <DimLabel position={W(cx, cy, h + Math.sign(h) * 6)} mm={Math.abs(h)} prefix="H" />

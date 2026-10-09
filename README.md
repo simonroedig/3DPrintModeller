@@ -26,7 +26,7 @@ zwischen vereinten Teilen.
   und Flächen (blau) auf.
   - Kante anklicken → Pfeil **raus ziehen = Rundung, rein ziehen = Fase**. Klappt an äußeren und inneren Kanten
     (z. B. Übergänge vereinter Teile).
-  - Fläche anklicken → **Verschieben** (grüner Pfeil, nach außen/innen) oder **Neigen**: Kante wählen, um die gekippt wird,
+  - Fläche anklicken → **Verschieben** (Pfeil, nach außen/innen) oder **Neigen**: Kante wählen, um die gekippt wird,
     dann Keil dazu oder weg per Winkel oder Ziehen.
   - Alles bleibt nachträglich im Panel änderbar.
 - **Zahlen ziehen** wie in Adobe-Programmen: Feld-Beschriftung (oder Maß-Label im 3D) links/rechts ziehen.

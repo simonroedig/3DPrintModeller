@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import * as THREE from "three";
-import type { Asset, Body, Doc, EdgeRef, PlaneOrient, SketchPlane, FaceRef, Feature, Quat, Settings, Shape, ShapeKind, Sketch, SketchShape, Unit, Vec2, Vec3 } from "../types";
+import type { Asset, Body, BoolOp, Doc, EdgeRef, PlaneOrient, SketchPlane, FaceRef, Feature, Quat, Settings, Shape, ShapeKind, Sketch, SketchShape, Unit, Vec2, Vec3 } from "../types";
 import { DEFAULT_SNAP, fmtLen } from "../lib/units";
 import { idbGet, idbSet } from "../lib/persist";
 import { fromPlane2D, orientForView, PLANE_AXIS, PLANE_AXIS_NAME, planeQuat } from "../lib/planes";
@@ -82,6 +82,8 @@ export interface State {
   planePick: boolean;
   /** the sketch plane is being dragged in the plane preview */
   planeDrag: boolean;
+  /** part of a combined body opened in the panel (shown in the viewport) */
+  groupFocus: { groupId: string; childId: string } | null;
 }
 
 const STORAGE_KEY = "printmodeller.doc.v1";
@@ -134,6 +136,7 @@ export const useStore = create<State>(() => ({
   sketchPlanes: { top: 0, front: 0, back: 0, right: 0, left: 0 },
   planePick: false,
   planeDrag: false,
+  groupFocus: null,
 }));
 
 const get = useStore.getState;
@@ -328,7 +331,7 @@ export function selectedBodies() {
 }
 
 export function select(ids: string[]) {
-  set({ selection: ids, ...noEdit });
+  set({ selection: ids, ...noEdit, groupFocus: null });
 }
 
 export function setTool(tool: Tool) {
@@ -688,33 +691,120 @@ function insertCopies(src: Body[]) {
   set({ selection: copies.map((c) => c.id), ...noEdit });
 }
 
-export function groupSelection() {
+export const OP_NAME: Record<BoolOp, string> = { union: "Vereinigung", subtract: "Differenz", intersect: "Schnittmenge", group: "Gruppe" };
+
+/** selected bodies in the order they were picked (for subtracting, the first one is the base) */
+export function orderedSelection(): Body[] {
+  const { doc, selection } = get();
+  return selection.map((id) => doc.bodies.find((b) => b.id === id)).filter((b): b is Body => !!b);
+}
+
+/** children roles for an operation: subtract = first is the base, the rest are cut away */
+function rolesFor(op: BoolOp, children: Body[], from?: BoolOp): Body[] {
+  if (op === "subtract") return children.map((c, i) => ({ ...c, hole: i > 0 }));
+  if (op === "intersect" || from === "subtract") return children.map((c) => ({ ...c, hole: false }));
+  return children;
+}
+
+/**
+ * Combines the selection into one body. Nothing is lost: the parts live on inside the result
+ * (subtracted tools included) and stay editable in the panel or after "Trennen".
+ */
+export function combineSelection(op: BoolOp) {
   const doc = get().doc;
-  const bodies = selectedBodies();
+  const bodies = orderedSelection();
   if (bodies.length < 2) {
-    toast("Wähle mindestens zwei Körper (Shift + Klick) zum Vereinen");
+    toast(
+      op === "subtract"
+        ? "Erst den Körper wählen, von dem abgezogen wird, dann mit Shift+Klick die Teile, die weg sollen"
+        : "Wähle mindestens zwei Körper (Shift + Klick)",
+    );
     return;
   }
   if (bodies.some(isMeshBody)) {
-    toast("Mesh-Körper (große STL/3MF/OBJ) können nicht vereint werden – erst im Panel in einen CAD-Körper umwandeln", "error");
+    toast("Mesh-Körper (große STL/3MF/OBJ) können nicht kombiniert werden – erst im Panel in einen CAD-Körper umwandeln", "error");
     return;
   }
-  const solids = bodies.filter((b) => !b.hole);
+  const children = rolesFor(op, bodies.map((b) => ({ ...b, hidden: false })));
+  const base = children.find((c) => !c.hole) ?? children[0];
   const group: Body = {
     id: uid(),
-    name: nextName(doc, "Gruppe"),
-    shape: { kind: "group", children: bodies.map((b) => ({ ...b, hidden: false })) },
+    name: nextName(doc, OP_NAME[op]),
+    shape: { kind: "group", children, op },
     position: [0, 0, 0],
     quaternion: [0, 0, 0, 1],
-    hole: solids.length === 0,
-    color: (solids[0] ?? bodies[0]).color,
+    hole: children.every((c) => c.hole),
+    color: base.color,
     features: [],
   };
-  const firstIdx = doc.bodies.findIndex((b) => b.id === bodies[0].id);
+  const firstIdx = Math.min(...bodies.map((b) => doc.bodies.indexOf(b)));
   const rest = doc.bodies.filter((b) => !bodies.includes(b));
   rest.splice(Math.min(firstIdx, rest.length), 0, group);
   commit({ ...doc, bodies: rest });
-  set({ selection: [group.id], ...noEdit });
+  set({ selection: [group.id], ...noEdit, groupFocus: null });
+  if (op === "subtract")
+    toast(`Von „${bodies[0].name}“ abgezogen – die abgezogenen Teile bleiben erhalten und sind im Panel änderbar`);
+}
+
+export const groupSelection = () => combineSelection("union");
+
+function groupOf(id: string) {
+  const g = getBody(id);
+  return g && g.shape.kind === "group" ? (g as Body & { shape: Extract<Shape, { kind: "group" }> }) : null;
+}
+
+export function setGroupOp(id: string, op: BoolOp) {
+  const g = groupOf(id);
+  if (!g) return;
+  const from = g.shape.op ?? "union";
+  if (from === op) return;
+  const children = rolesFor(op, g.shape.children, from);
+  const name = g.name.startsWith(OP_NAME[from]) ? OP_NAME[op] + g.name.slice(OP_NAME[from].length) : g.name;
+  updateBody(id, { name, shape: { ...g.shape, op, children }, hole: children.every((c) => c.hole) });
+}
+
+/** subtract: makes `childId` the body everything else is cut from */
+export function setGroupBase(id: string, childId: string) {
+  const g = groupOf(id);
+  if (!g) return;
+  const child = g.shape.children.find((c) => c.id === childId);
+  if (!child) return;
+  const ordered = [child, ...g.shape.children.filter((c) => c !== child)];
+  const children = rolesFor("subtract", ordered);
+  updateBody(id, { shape: { ...g.shape, op: "subtract", children }, color: child.color, hole: false });
+}
+
+export function updateGroupChild(id: string, childId: string, patch: Partial<Body>) {
+  const g = groupOf(id);
+  if (!g) return;
+  const children = g.shape.children.map((c) => (c.id === childId ? { ...c, ...patch } : c));
+  updateBody(id, { shape: { ...g.shape, children }, hole: children.every((c) => c.hole) });
+}
+
+/** takes one part out of a combined body (it keeps its place in the world) */
+export function extractGroupChild(id: string, childId: string) {
+  const doc = get().doc;
+  const g = groupOf(id);
+  if (!g) return;
+  const child = g.shape.children.find((c) => c.id === childId);
+  if (!child) return;
+  const rest = g.shape.children.filter((c) => c !== child);
+  const gq = new THREE.Quaternion(...g.quaternion);
+  const p = new THREE.Vector3(...child.position).applyQuaternion(gq).add(new THREE.Vector3(...g.position));
+  const out: Body = { ...child, position: [round6(p.x), round6(p.y), round6(p.z)], quaternion: cleanQuat(gq.clone().multiply(new THREE.Quaternion(...child.quaternion))) };
+  let bodies: Body[];
+  if (rest.length === 1 && !g.features.length) {
+    // a combination of one part is just that part
+    const only = rest[0];
+    const q = new THREE.Vector3(...only.position).applyQuaternion(gq).add(new THREE.Vector3(...g.position));
+    const single: Body = { ...only, position: [round6(q.x), round6(q.y), round6(q.z)], quaternion: cleanQuat(gq.clone().multiply(new THREE.Quaternion(...only.quaternion))) };
+    bodies = doc.bodies.flatMap((b) => (b.id === id ? [single, out] : [b]));
+  } else {
+    const children = rolesFor(g.shape.op ?? "union", rest, g.shape.op);
+    bodies = doc.bodies.flatMap((b) => (b.id === id ? [{ ...g, shape: { ...g.shape, children } }, out] : [b]));
+  }
+  commit({ ...doc, bodies });
+  set({ selection: [out.id], ...noEdit, groupFocus: null });
 }
 
 export function ungroupSelection() {
@@ -795,10 +885,10 @@ export function loadDocument(doc: Doc) {
   fitView();
 }
 
-export function setBodyShape(id: string, shape: Shape, position?: Vec3) {
+export function setBodyShape(id: string, shape: Shape, position?: Vec3, features?: Feature[]) {
   const b = getBody(id);
   if (!b) return;
-  updateBody(id, position ? { shape, position } : { shape });
+  updateBody(id, { shape, ...(position ? { position } : {}), ...(features ? { features } : {}) });
 }
 
 export function alignSelection(axis: 0 | 1 | 2, mode: "min" | "center" | "max") {
