@@ -1,7 +1,8 @@
 import { useState, type ReactNode } from "react";
 import { Download, LoaderCircle, X } from "lucide-react";
 import type { ExportFormat, ExportQuality, Unit } from "../types";
-import { loadSpeakerExample, newDocument, useStore } from "../store/store";
+import { useStore } from "../store/store";
+import { createEmptyProject, createExampleProject } from "../store/projects";
 import { exportModel } from "../cad/client";
 import { DEFAULT_SNAP, SNAP_OPTIONS } from "../lib/units";
 import { download } from "./files";
@@ -77,16 +78,16 @@ export function StartDialog() {
         ))}
       </div>
       <div className="flex items-center gap-2 mt-6">
-        <button className="btn primary !h-9 !px-4" onClick={() => newDocument(unit, snap)}>
+        <button className="btn primary !h-9 !px-4" onClick={() => createEmptyProject(unit, snap)}>
           Leeres Projekt starten
         </button>
-        <button className="btn !h-9" onClick={() => loadSpeakerExample(unit)} title="Zwei Keile + Steg als Lautsprecher-Ständer">
+        <button className="btn !h-9" onClick={() => createExampleProject(unit)} title="Zwei Keile + Steg als Lautsprecher-Ständer">
           Beispiel: Lautsprecher-Keil
         </button>
         <div className="flex-1" />
         {hasDoc && (
           <button className="btn ghost !h-9" onClick={close}>
-            Zurück zum Projekt
+            Abbrechen
           </button>
         )}
       </div>
@@ -210,14 +211,14 @@ export function ExportDialog() {
 
 const KEYS: [string, string][] = [
   ["V", "Auswählen & Verschieben"],
-  ["R / C / P", "Rechteck / Kreis / Polygon skizzieren"],
+  ["R / C / P", "Rechteck / Kreis / Polygon skizzieren – in der Ebene der aktuellen Ansicht (3D = Boden)"],
   ["F", "Kanten & Flächen bearbeiten (auch Doppelklick auf einen Körper)"],
   ["L", "Fläche aufs Druckbett legen"],
   ["1 – 6", "3D / Oben / Vorne / Hinten / Links / Rechts"],
   ["Leertaste", "Zwischen Oben und 3D wechseln"],
   ["0", "Alles einpassen"],
-  ["Strg + G", "Vereinen (gruppieren)"],
-  ["Strg + Shift + G", "Gruppe trennen"],
+  ["Strg + G", "Vereinen (Abziehen, Schnittmenge, Gruppieren: linke Leiste / Panel)"],
+  ["Strg + Shift + G", "Kombinierten Körper trennen"],
   ["Strg + D", "Duplizieren"],
   ["Strg + C / V", "Kopieren / Einfügen"],
   ["Strg + Z / Strg + Shift + Z", "Rückgängig / Wiederholen"],
@@ -227,9 +228,10 @@ const KEYS: [string, string][] = [
   ["Q / E", "Auswahl um 90° um Z drehen"],
   ["H", "Auswahl zwischen Volumen und Loch umschalten"],
   ["Alt beim Ziehen", "Raster & Einrasten aus"],
-  ["Feld-Beschriftung ziehen", "Zahl per Links/Rechts-Ziehen ändern (Shift ×10, Alt ×0,1)"],
+  ["Shift beim Ziehen", "Griffe vereinter Körper: proportional skalieren"],
+  ["Zahlenfeld ziehen", "Zahl per Links/Rechts-Ziehen ändern (Shift ×10, Alt ×0,1) – Klick zum Tippen"],
   ["Esc", "Abbrechen / Werkzeug beenden / Auswahl aufheben"],
-  ["Strg + S / Strg + O", "Projekt speichern / öffnen (Öffnen nimmt auch STEP/STL/3MF/OBJ)"],
+  ["Strg + S / Strg + O", "Projektdatei herunterladen / als neues Projekt öffnen (nimmt auch STEP/STL/3MF/OBJ)"],
   ["Datei ins Fenster ziehen", "STEP, STL, 3MF oder OBJ importieren"],
 ];
 
@@ -253,8 +255,10 @@ export function HelpDialog() {
         ))}
       </div>
       <div className="mt-4 text-[12px] text-ink-400 leading-relaxed">
-        Maus: Linke Taste auswählen, ziehen und zeichnen · Rechte Taste halten drehen (in den 2D-Ansichten verschieben) · Mittlere Taste verschieben · Rad zoomen. Zahlenfelder verstehen
-        Rechnungen wie <code>120/2</code> oder <code>2cm+5</code>. Projekte werden automatisch im Browser gespeichert.
+        Maus: Linke Taste auswählen, ziehen und zeichnen · Rechte Taste halten drehen (aus einer 2D-Ansicht geht es dabei in 3D weiter) ·
+        Mittlere Taste verschieben · Rad zoomen. Die Skizzenebene stellst du oben rechts ein (ziehen, eintippen oder auf eine Fläche
+        klicken). Zahlenfelder verstehen Rechnungen wie <code>120/2</code> oder <code>2cm+5</code>. Alle Projekte werden automatisch im
+        Browser gespeichert – unten in der Projektleiste wechseln, anlegen, umbenennen (Doppelklick), kopieren oder löschen.
       </div>
     </Modal>
   );

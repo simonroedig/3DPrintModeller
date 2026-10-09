@@ -9,6 +9,7 @@ import { ExportDialog, HelpDialog, StartDialog } from "./ui/Dialogs";
 import { useShortcuts } from "./ui/shortcuts";
 import { TooltipLayer } from "./ui/Tooltip";
 import { PlanePanel } from "./ui/PlanePanel";
+import { ProjectBar } from "./ui/ProjectBar";
 
 export function App() {
   useShortcuts();
@@ -51,6 +52,7 @@ export function App() {
         </main>
         <Sidebar />
       </div>
+      <ProjectBar />
       <StatusBar />
       {startDialog && <StartDialog />}
       {exportOpen && <ExportDialog />}

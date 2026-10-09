@@ -11,17 +11,32 @@ zwischen vereinten Teilen.
 ## Funktionen
 
 - **Einheit & Raster beim Start wählen** (mm / cm / Zoll). Alles rastet auf das Raster, `Alt` beim Ziehen = frei.
-- **Ansichten** 3D / Oben / Vorne / Rechts (Tasten `1`–`4`, `0` = einpassen). 2D-Ansichten sind orthografisch.
-- **Skizzen** in der Draufsicht: Rechteck (Ecke→Ecke oder aus der Mitte), Kreis (Mittelpunkt oder Ecke→Ecke),
-  Polygon/Linienzug (Shift = 15°-Schritte). Maße live beim Zeichnen, danach exakt im Panel oder per Klick aufs Maß-Label.
-- **Extrudieren** per Höheneingabe oder am grünen Pfeil ziehen – auch direkt als Loch.
+- **Ansichten** 3D / Oben / Vorne / Hinten / Links / Rechts (Tasten `1`–`6`, `Leertaste` = Oben ↔ 3D, `0` = einpassen).
+  2D-Ansichten sind orthografisch. Beim Überfahren der Ansichts-Buttons leuchtet im Modell die Seite auf, von der aus
+  diese Ansicht schaut (in der Achsfarbe: X rot, Y grün, Z blau). Rechte Maustaste in einer 2D-Ansicht dreht direkt in 3D weiter.
+- **Skizzen in jeder Ebene**: gezeichnet wird in der Ebene der aktuellen Ansicht (Vorne/Hinten/Links/Rechts, in 3D auf dem Boden).
+  Rechteck (Ecke→Ecke oder aus der Mitte), Kreis (Mittelpunkt oder Ecke→Ecke), Polygon/Linienzug (Shift = 15°-Schritte).
+  Maße live beim Zeichnen, danach exakt im Panel oder per Klick aufs Maß-Label. Nach dem Zeichnen ist wieder der Auswahl-Pfeil aktiv.
+- **Skizzenebene oben rechts**: kleine 3D-Vorschau, die zeigt, wo die Ebene im Raum liegt. Links/rechts ziehen verschiebt sie live
+  (rastet bündig an Flächen anderer Körper ein), Mausrad = ein Rasterschritt, exakte Eingabe, Liste „Bündig mit Fläche …“ oder
+  Fadenkreuz-Button und dann eine Fläche im Modell anklicken – die Skizze liegt genau darauf (die Ansicht dreht sich passend mit).
+- **Extrudieren** per Höheneingabe oder am Pfeil ziehen – auch direkt als Loch.
 - **Grundkörper**: Quader, Zylinder, **Keil** (mit Winkel-Eingabe), Kegel, Kugel, Rohr – jeweils auch als Loch (Shift+Klick).
 - **Verschieben mit Einrasten**: Körper rasten an Flächen anderer Körper ein (bündig, anliegend, mittig) und am Druckbett.
   Pinke Hilfslinien zeigen, woran gerade eingerastet wurde.
-- **Griffe** an den Flächen zum Ziehen der Maße, Maß-Labels (X/Y/Z) direkt editierbar.
+- **Griffe** an den Flächen zum Ziehen der Maße – Pfeile in der Farbe ihrer Achse, die die Zugrichtung zeigen.
+  Maß-Labels (X/Y/Z) direkt editierbar.
 - **Drehen** in 90°-Schritten um X/Y/Z (bleibt auf dem Bett liegen), freie Winkel im Panel,
   **„Fläche aufs Bett legen“**: Fläche anklicken → das Teil liegt flach darauf.
-- **Vereinen** (`Strg+G`): Volumen werden vereinigt, Löcher abgezogen – danach lassen sich auch die Übergangskanten runden.
+- **Boolesche Operationen** (linke Leiste oder Panel bei Mehrfachauswahl):
+  - **Vereinen** (`Strg+G`): ein echter Körper, Löcher werden abgezogen – danach lassen sich auch die Übergangskanten runden.
+  - **Abziehen**: vom zuerst gewählten Körper werden alle weiteren abgezogen. Die Werkzeuge bleiben unsichtbar erhalten
+    (bei Auswahl als Umriss sichtbar), lassen sich im Panel aufklappen und ändern, die Basis lässt sich tauschen.
+  - **Schnittmenge**: nur das gemeinsame Volumen bleibt.
+  - **Gruppieren**: nur zusammenfassen, die Teile bleiben getrennte Volumen.
+  - Die Art lässt sich nachträglich umschalten, Teile lassen sich herauslösen, `Strg+Shift+G` trennt wieder alles.
+  - Kombinierte Körper sind **skalierbar** (Griffe, Maßfelder oder Prozent; Shift an den Griffen = proportional) –
+    parametrisch, d. h. runde Teile bleiben rund und alles bleibt exakt.
 - **Kanten & Flächen bearbeiten** (`F` oder Doppelklick auf einen Körper): Beim Darüberfahren leuchten Kanten (gelb)
   und Flächen (blau) auf.
   - Kante anklicken → Pfeil **raus ziehen = Rundung, rein ziehen = Fase**. Klappt an äußeren und inneren Kanten
@@ -29,7 +44,8 @@ zwischen vereinten Teilen.
   - Fläche anklicken → **Verschieben** (Pfeil, nach außen/innen) oder **Neigen**: Kante wählen, um die gekippt wird,
     dann Keil dazu oder weg per Winkel oder Ziehen.
   - Alles bleibt nachträglich im Panel änderbar.
-- **Zahlen ziehen** wie in Adobe-Programmen: Feld-Beschriftung (oder Maß-Label im 3D) links/rechts ziehen.
+- **Zahlen ziehen** wie in Adobe-Programmen: auf einem Zahlenfeld (oder Maß-Label im 3D) links/rechts ziehen, Klick zum Tippen.
+- **Tooltips** an allen Buttons (mit Tastenkürzel).
 - **Ausrichten** mehrerer Körper (Anfang/Mitte/Ende pro Achse).
 - **Export**: 3MF (empfohlen), STL (binär) oder STEP – mit wählbarer Tessellierungs-Qualität, wasserdichtes Netz,
   Volumen/Gewichts-Schätzung.
@@ -42,8 +58,10 @@ zwischen vereinten Teilen.
     exportieren); die Umwandlung lässt sich im Panel trotzdem starten.
   - Skalierung (cm→mm, Zoll→mm) im Panel.
 - Lange Berechnungen zeigen die Laufzeit und lassen sich unten rechts **abbrechen** (der CAD-Kern startet neu).
-- Rückgängig/Wiederholen, Kopieren/Einfügen, Projekt speichern/öffnen (JSON), automatisches Speichern im Browser
-  (IndexedDB, inkl. importierter Dateien).
+- **Projekte**: Leiste unten (einklappbar) mit allen Projekten samt Vorschaubild, Anzahl Körper und Änderungszeit –
+  wechseln, neu anlegen, umbenennen (Doppelklick), duplizieren, löschen. Alles wird automatisch im Browser gespeichert
+  (IndexedDB, inkl. importierter Dateien); ein Projekt aus früheren Versionen wird als „Mein Projekt“ übernommen.
+- Rückgängig/Wiederholen, Kopieren/Einfügen, Projektdatei herunterladen/öffnen (JSON).
 
 ## Bedienung (Kurzfassung)
 
@@ -53,6 +71,7 @@ zwischen vereinten Teilen.
 | `R` / `C` / `P` | Rechteck / Kreis / Polygon |
 | `F` | Kanten & Flächen bearbeiten |
 | `L` | Fläche aufs Bett legen |
+| `1`–`6` / `Leertaste` | Ansichten / Oben ↔ 3D |
 | `Strg+G` / `Strg+Shift+G` | Vereinen / Trennen |
 | `Strg+D` | Duplizieren |
 | `Q` / `E` | 90° um Z drehen |
@@ -60,7 +79,7 @@ zwischen vereinten Teilen.
 | Pfeiltasten / Bild↑↓ | Auswahl um einen Rasterschritt verschieben (Shift ×10) |
 | `Esc` | Abbrechen / Werkzeug beenden |
 
-Maus: links auswählen/ziehen/zeichnen, rechte Taste halten zum Drehen (in 2D-Ansichten verschieben), mittlere Taste verschieben, Rad zoomen.
+Maus: links auswählen/ziehen/zeichnen, rechte Taste halten zum Drehen (aus 2D-Ansichten geht es in 3D weiter), mittlere Taste verschieben, Rad zoomen.
 Zahlenfelder verstehen Rechnungen wie `120/2` oder `2cm+5`.
 
 ## Entwicklung
@@ -78,9 +97,9 @@ replicad + OpenCascade (WASM), fflate (3MF).
 ```
 src/
   cad/        CAD-Worker (OpenCascade), Mesh-Cache, STL/3MF-Writer
-  store/      Dokument, Auswahl, Undo/Redo, alle Modell-Operationen
+  store/      Dokument, Auswahl, Undo/Redo, alle Modell-Operationen, Projekte
   lib/        Einheiten, Geometrie-Helfer, Snapping, Resize-Logik
-  viewport/   3D-Ansicht: Kameras, Körper, Skizzen, Griffe, Fillet-Werkzeug
+  viewport/   3D-Ansicht: Kameras, Körper, Skizzen, Griffe, Kanten-Werkzeug, Ebenen-Vorschau
   ui/         Toolbar, Panels, Dialoge, Tastenkürzel
 ```
 

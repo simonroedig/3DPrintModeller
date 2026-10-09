@@ -2,7 +2,6 @@ import { create } from "zustand";
 import * as THREE from "three";
 import type { Asset, Body, BoolOp, Doc, EdgeRef, PlaneOrient, SketchPlane, FaceRef, Feature, Quat, Settings, Shape, ShapeKind, Sketch, SketchShape, Unit, Vec2, Vec3 } from "../types";
 import { DEFAULT_SNAP, fmtLen } from "../lib/units";
-import { idbGet, idbSet } from "../lib/persist";
 import { fromPlane2D, orientForView, PLANE_AXIS, PLANE_AXIS_NAME, planeQuat } from "../lib/planes";
 import { assetPayload, importAsset, isAssetRegistered, registerAsset, setRestartHandler } from "../cad/client";
 import { BREP_TRIANGLE_LIMIT } from "../cad/regions";
@@ -86,7 +85,8 @@ export interface State {
   groupFocus: { groupId: string; childId: string } | null;
 }
 
-const STORAGE_KEY = "printmodeller.doc.v1";
+/** quick snapshot of the open document (small documents only) for an instant first paint */
+export const STORAGE_KEY = "printmodeller.doc.v1";
 
 export const defaultSettings = (unit: Unit = "mm"): Settings => ({
   unit,
@@ -94,7 +94,7 @@ export const defaultSettings = (unit: Unit = "mm"): Settings => ({
   bed: { x: 256, y: 256 },
 });
 
-const emptyDoc = (unit: Unit = "mm"): Doc => ({ bodies: [], sketches: [], settings: defaultSettings(unit) });
+export const emptyDoc = (unit: Unit = "mm"): Doc => ({ bodies: [], sketches: [], settings: defaultSettings(unit) });
 
 function loadDoc(): Doc | null {
   try {
@@ -143,7 +143,7 @@ const get = useStore.getState;
 const set = useStore.setState;
 
 /** make every imported file of the document known to the CAD worker (before any meshing) */
-function syncAssets(doc: Doc) {
+export function syncAssets(doc: Doc) {
   for (const [id, asset] of Object.entries(doc.assets ?? {})) {
     if (isAssetRegistered(id)) continue;
     try {
@@ -158,7 +158,7 @@ set({ doc: keepHeavyMeshesAsMesh(get().doc) });
 setRestartHandler(() => syncAssets(get().doc));
 
 /** documents from older versions may hold huge meshes as CAD bodies – show those as plain meshes */
-function keepHeavyMeshesAsMesh(doc: Doc): Doc {
+export function keepHeavyMeshesAsMesh(doc: Doc): Doc {
   let changed = false;
   const fix = (b: Body): Body => {
     if (b.shape.kind === "group") {
@@ -178,40 +178,10 @@ function keepHeavyMeshesAsMesh(doc: Doc): Doc {
   return changed ? { ...doc, bodies } : doc;
 }
 
-let saveTimer: ReturnType<typeof setTimeout> | undefined;
-let hydrated = false;
+// imported files follow the document into the CAD worker (saving lives in store/projects.ts)
 useStore.subscribe((s, prev) => {
-  if (s.doc === prev.doc) return;
-  syncAssets(s.doc);
-  if (!hydrated) return;
-  clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    const doc = get().doc;
-    idbSet(STORAGE_KEY, doc).catch(() => {});
-    try {
-      // small documents also go to localStorage (fallback when IndexedDB is unavailable)
-      if (doc.assets && Object.keys(doc.assets).length) localStorage.removeItem(STORAGE_KEY);
-      else localStorage.setItem(STORAGE_KEY, JSON.stringify(doc));
-    } catch {
-      /* quota */
-    }
-  }, 400);
+  if (s.doc !== prev.doc) syncAssets(s.doc);
 });
-
-// the IndexedDB copy is authoritative (it can hold imported files)
-idbGet<Doc>(STORAGE_KEY)
-  .then((saved) => {
-    hydrated = true;
-    if (saved && Array.isArray(saved.bodies) && saved.settings) {
-      normalizeDoc(saved);
-      syncAssets(saved);
-      set({ doc: keepHeavyMeshesAsMesh(saved), startDialog: false, fitNonce: get().fitNonce + 1 });
-    } else if (!initialDoc) set({ startDialog: true });
-  })
-  .catch(() => {
-    hydrated = true;
-    if (!initialDoc) set({ startDialog: true });
-  });
 
 /* ------------------------------------------------------------------ */
 /* helpers                                                              */

@@ -1,5 +1,6 @@
 import type { Doc } from "../types";
-import { IMPORT_ACCEPT, importFiles, loadDocument, toast, useStore } from "../store/store";
+import { IMPORT_ACCEPT, importFiles, toast, useStore } from "../store/store";
+import { openDocumentAsProject, useProjects } from "../store/projects";
 import { detectFormat } from "../cad/importers";
 
 export function download(data: Uint8Array | string, filename: string, mime: string) {
@@ -16,7 +17,10 @@ export function download(data: Uint8Array | string, filename: string, mime: stri
 
 export function saveProject() {
   const doc = useStore.getState().doc;
-  download(JSON.stringify({ app: "PrintModeller", version: 1, doc }, null, 1), "projekt.pmodel.json", "application/json");
+  const { list, current } = useProjects.getState();
+  const name = list.find((p) => p.id === current)?.name ?? "projekt";
+  const file = name.replace(/[\\/:*?"<>|]+/g, "_").trim() || "projekt";
+  download(JSON.stringify({ app: "PrintModeller", version: 1, name, doc }, null, 1), `${file}.pmodel.json`, "application/json");
 }
 
 export function pickImportFiles() {
@@ -45,8 +49,9 @@ export function openProject() {
       const data = JSON.parse(await file.text());
       const doc: Doc = data.doc ?? data;
       if (!Array.isArray(doc.bodies) || !doc.settings) throw new Error("format");
-      loadDocument(doc);
-      toast(`„${file.name}“ geöffnet`);
+      // opened files become a project of their own
+      openDocumentAsProject(doc, typeof data.name === "string" ? data.name : file.name.replace(/(\.pmodel)?\.json$/i, ""));
+      toast(`„${file.name}“ als Projekt geöffnet`);
     } catch {
       toast("Datei konnte nicht gelesen werden", "error");
     }

@@ -8,7 +8,6 @@ import {
   Cone,
   Cylinder,
   Download,
-  FilePlus2,
   FileUp,
   FolderOpen,
   Globe,
@@ -61,13 +60,10 @@ export function TopBar() {
         </svg>
         <span className="font-semibold tracking-tight text-[14px]">PrintModeller</span>
       </div>
-      <button className="btn ghost" title="Neues Projekt" onClick={() => useStore.setState({ startDialog: true })}>
-        <FilePlus2 size={16} /> Neu
-      </button>
-      <button className="btn ghost" title="Projekt öffnen (Strg+O)" onClick={openProject}>
+      <button className="btn ghost" title="Projektdatei (.json) als neues Projekt öffnen (Strg+O)" onClick={openProject}>
         <FolderOpen size={16} /> Öffnen
       </button>
-      <button className="btn ghost" title="Projekt speichern (Strg+S)" onClick={saveProject}>
+      <button className="btn ghost" title="Projekt als Datei herunterladen (Strg+S) – im Browser wird ohnehin automatisch gespeichert" onClick={saveProject}>
         <Save size={16} /> Speichern
       </button>
       <button className="btn ghost" title="STEP, STL, 3MF oder OBJ importieren (oder Datei ins Fenster ziehen)" onClick={pickImportFiles}>
