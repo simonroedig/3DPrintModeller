@@ -36,9 +36,12 @@ zwischen vereinten Teilen.
 - **Import** von STEP, STL, 3MF und OBJ (Button „Importieren“ oder Datei ins Fenster ziehen). Jeder Volumenkörper
   wird ein eigener Körper und lässt sich wie alles andere verschieben, vereinen, bearbeiten und exportieren.
   - **STEP** (empfohlen) bringt die exakte CAD-Geometrie mit.
-  - **STL/3MF/OBJ** sind Dreiecksnetze: ebene Bereiche werden wieder zu echten Flächen zusammengefasst (lassen sich
-    verschieben, neigen, Kanten dazwischen runden), gekrümmte Bereiche bleiben facettiert. Skalierung (cm→mm, Zoll→mm)
-    im Panel.
+  - **STL/3MF/OBJ** sind Dreiecksnetze: bis ca. 12.000 Dreiecke werden sie in CAD-Körper umgewandelt – ebene Bereiche
+    werden wieder zu echten Flächen (verschieben, neigen, Kanten dazwischen runden), gekrümmte Bereiche bleiben
+    facettiert. Größere Netze werden als schnelles **Mesh-Objekt** geladen (verschieben, drehen, aufs Bett legen,
+    exportieren); die Umwandlung lässt sich im Panel trotzdem starten.
+  - Skalierung (cm→mm, Zoll→mm) im Panel.
+- Lange Berechnungen zeigen die Laufzeit und lassen sich unten rechts **abbrechen** (der CAD-Kern startet neu).
 - Rückgängig/Wiederholen, Kopieren/Einfügen, Projekt speichern/öffnen (JSON), automatisches Speichern im Browser
   (IndexedDB, inkl. importierter Dateien).
 

@@ -81,7 +81,8 @@ const fmt = (v: number) => {
   return Object.is(r, -0) ? "0" : String(r);
 };
 
-export function to3MF(parts: ExportPart[]): Uint8Array {
+/** @param together several parts become one object made of components (slicers keep them as one) */
+export function to3MF(parts: ExportPart[], together = false): Uint8Array {
   const objects: string[] = [];
   const items: string[] = [];
   parts.forEach((part, i) => {
@@ -100,6 +101,13 @@ export function to3MF(parts: ExportPart[]): Uint8Array {
     );
     items.push(`<item objectid="${id}"/>`);
   });
+  if (together && parts.length > 1) {
+    const id = parts.length + 1;
+    const comps = parts.map((_, i) => `<component objectid="${i + 1}"/>`).join("");
+    objects.push(`<object id="${id}" type="model" name="Model"><components>${comps}</components></object>`);
+    items.length = 0;
+    items.push(`<item objectid="${id}"/>`);
+  }
   const model =
     `<?xml version="1.0" encoding="UTF-8"?>\n` +
     `<model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">` +

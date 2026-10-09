@@ -216,14 +216,16 @@ export function Seg<T extends string>({
   options,
   onChange,
   accent,
+  disabled,
 }: {
   value: T;
   options: { value: T; label: ReactNode; title?: string }[];
   onChange: (v: T) => void;
   accent?: boolean;
+  disabled?: boolean;
 }) {
   return (
-    <div className={`seg ${accent ? "accent" : ""}`}>
+    <div className={`seg ${accent ? "accent" : ""} ${disabled ? "opacity-40 pointer-events-none" : ""}`}>
       {options.map((o) => (
         <button key={o.value} className={o.value === value ? "on" : ""} title={o.title} onClick={() => onChange(o.value)}>
           {o.label}

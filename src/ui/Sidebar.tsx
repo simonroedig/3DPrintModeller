@@ -49,6 +49,8 @@ import {
   setSettings,
   setTool,
   ungroupSelection,
+  convertMeshAsset,
+  isMeshBody,
   updateBody,
   updateFeature,
   updateSketch,
@@ -56,7 +58,7 @@ import {
 } from "../store/store";
 import { eulerDeg, polyBounds, polygonArea, unionBox } from "../lib/geom";
 import { geometryKey } from "../cad/key";
-import { useMeshes } from "../cad/client";
+import { assetPayload, useMeshes } from "../cad/client";
 import { fmtLen, SNAP_OPTIONS } from "../lib/units";
 import { LenField, NumField, Seg } from "./fields";
 
@@ -242,6 +244,7 @@ function BodyProps({ body }: { body: Body }) {
         <div className="flex items-center gap-2 mt-3">
           <Seg
             value={body.hole ? "hole" : "solid"}
+            disabled={isMeshBody(body)}
             onChange={(v) => updateBody(body.id, { hole: v === "hole" })}
             options={[
               { value: "solid", label: "Volumen", title: "Normaler, gedruckter Körper" },
@@ -303,7 +306,7 @@ function BodyProps({ body }: { body: Body }) {
         </button>
       </Section>
 
-      <Section
+      {!isMeshBody(body) && <Section
         title="Bearbeitungen"
         right={
           <button className="btn ghost !h-6 !px-1.5 normal-case tracking-normal text-[11px]" onClick={() => setTool("edit")}>
@@ -339,7 +342,7 @@ function BodyProps({ body }: { body: Body }) {
             ))}
           </div>
         )}
-      </Section>
+      </Section>}
 
       <Section title="Aktionen">
         <div className="grid grid-cols-2 gap-1.5">
@@ -465,6 +468,8 @@ function ShapeParams({ body }: { body: Body }) {
     }
     case "imported": {
       const asset = useStore.getState().doc.assets?.[s.asset];
+      const payload = assetPayload(s.asset);
+      const tris = payload?.format === "mesh" ? (payload.parts[s.part]?.indices.length ?? 0) / 3 : 0;
       const k = s.scale;
       const dims = [0, 1, 2].map((a) => (s.max[a] - s.min[a]) * k);
       const scaleTo = (f: number) => setBodyShape(body.id, { ...s, scale: f });
@@ -499,8 +504,16 @@ function ShapeParams({ body }: { body: Body }) {
           <div className="text-[11px] text-ink-500 mt-2 leading-snug">
             {asset?.format === "step"
               ? `Aus „${asset.name}“ (STEP) – exakte CAD-Geometrie.`
-              : `Aus „${asset?.name ?? "Datei"}“ (${asset?.format.toUpperCase()}) – ebene Flächen wurden zu CAD-Flächen zusammengefasst, Rundungen bleiben facettiert.`}
+              : s.mode === "mesh"
+                ? `Aus „${asset?.name ?? "Datei"}“ als Mesh (${tris.toLocaleString("de-DE")} Dreiecke): verschieben, drehen, aufs Bett legen und exportieren. Für Kanten, Flächen, Löcher und Vereinen in einen CAD-Körper umwandeln.`
+                : `Aus „${asset?.name ?? "Datei"}“ (${asset?.format.toUpperCase()}) – ebene Flächen wurden zu CAD-Flächen zusammengefasst, Rundungen bleiben facettiert.`}
           </div>
+          {s.mode === "mesh" && (
+            <button className="btn w-full mt-2" onClick={() => convertMeshAsset(s.asset)}>
+              In CAD-Körper umwandeln
+              {tris > 40_000 && <span className="text-amber-300 text-[11px]">· kann Minuten dauern</span>}
+            </button>
+          )}
         </>
       );
     }

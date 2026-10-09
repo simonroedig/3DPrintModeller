@@ -5,7 +5,7 @@ import { Line } from "@react-three/drei";
 import type { Body, MeshData, Vec3 } from "../types";
 import { geometryKey } from "../cad/key";
 import { useMeshes } from "../cad/client";
-import { noEdit, useStore } from "../store/store";
+import { isMeshBody, noEdit, useStore } from "../store/store";
 import { clearEditSelection, faceExtentFromHinge, selectFace } from "../store/edit";
 import { bodyMatrix } from "../lib/geom";
 import { fmtLen, snapTo } from "../lib/units";
@@ -111,7 +111,7 @@ function EditPicker() {
     const mat = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
     for (const b of bodies) {
       const m = base.get(b.id);
-      if (!m) continue;
+      if (!m || isMeshBody(b)) continue; // plain meshes offer no CAD edges/faces
       const g = new THREE.BufferGeometry();
       g.setAttribute("position", new THREE.BufferAttribute(m.positions, 3));
       g.setIndex(new THREE.BufferAttribute(m.indices, 1));

@@ -24,7 +24,7 @@ import {
   Undo2,
   Ungroup,
 } from "lucide-react";
-import { useMeshes } from "../cad/client";
+import { cancelWork, stalledFor, useMeshes } from "../cad/client";
 import {
   addPrimitive,
   fitView,
@@ -34,6 +34,7 @@ import {
   setTool,
   setUnit,
   setView,
+  toast,
   undo,
   ungroupSelection,
   useStore,
@@ -233,12 +234,32 @@ export function StatusBar() {
         : "Fahre über Kanten (gelb) oder Flächen (blau) und klicke · Tipp: berührende Teile erst vereinen (Strg+G), dann lassen sich die Übergänge runden",
     layflat: "Klicke eine ebene Fläche – das Teil wird so gedreht, dass sie flach auf dem Druckbett liegt",
   };
+  // tick while busy so the elapsed time and the cancel button show up
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!busy) return;
+    const t = setInterval(() => setTick((v) => v + 1), 1000);
+    return () => clearInterval(t);
+  }, [busy]);
+  const stalled = busy ? stalledFor() : 0;
   return (
     <footer className="h-7 shrink-0 flex items-center gap-3 px-3 text-[11.5px] text-ink-400 bg-ink-900 border-t border-ink-750">
       <span className="truncate flex-1">{hints[tool]}</span>
       <span className="flex items-center gap-1.5 shrink-0">
         <span className={`w-2 h-2 rounded-full ${!ready ? "bg-amber-400 animate-pulse" : busy ? "bg-sky-400 animate-pulse" : "bg-emerald-500"}`} />
-        {!ready ? "CAD-Kern lädt…" : busy ? "Berechne…" : "Bereit"}
+        {!ready ? "CAD-Kern lädt…" : busy ? `Berechne…${stalled > 3000 ? ` ${Math.round(stalled / 1000)} s` : ""}` : "Bereit"}
+        {busy > 0 && stalled > 4000 && (
+          <button
+            className="ml-1 px-2 h-5 rounded bg-red-600/80 hover:bg-red-600 text-white text-[11px]"
+            title="Berechnung abbrechen (der CAD-Kern wird neu gestartet)"
+            onClick={() => {
+              cancelWork();
+              toast("Berechnung abgebrochen");
+            }}
+          >
+            Abbrechen
+          </button>
+        )}
       </span>
     </footer>
   );

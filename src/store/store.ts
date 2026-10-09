@@ -3,7 +3,8 @@ import * as THREE from "three";
 import type { Asset, Body, Doc, EdgeRef, FaceRef, Feature, Quat, Settings, Shape, ShapeKind, Sketch, SketchShape, Unit, Vec2, Vec3 } from "../types";
 import { DEFAULT_SNAP } from "../lib/units";
 import { idbGet, idbSet } from "../lib/persist";
-import { importAsset, isAssetRegistered, registerAsset } from "../cad/client";
+import { assetPayload, importAsset, isAssetRegistered, registerAsset, setRestartHandler } from "../cad/client";
+import { BREP_TRIANGLE_LIMIT } from "../cad/regions";
 import { detectFormat, payloadFromAsset, toBase64 } from "../cad/importers";
 import { cleanQuat, localBox, polyBounds, polygonArea, quatFromEulerDeg, unionBox, worldBox } from "../lib/geom";
 
@@ -133,13 +134,36 @@ function syncAssets(doc: Doc) {
   for (const [id, asset] of Object.entries(doc.assets ?? {})) {
     if (isAssetRegistered(id)) continue;
     try {
-      registerAsset(id, payloadFromAsset(asset));
+      registerAsset(id, assetPayload(id) ?? payloadFromAsset(asset));
     } catch (err) {
       console.error("asset", asset.name, err);
     }
   }
 }
 syncAssets(get().doc);
+set({ doc: keepHeavyMeshesAsMesh(get().doc) });
+setRestartHandler(() => syncAssets(get().doc));
+
+/** documents from older versions may hold huge meshes as CAD bodies – show those as plain meshes */
+function keepHeavyMeshesAsMesh(doc: Doc): Doc {
+  let changed = false;
+  const fix = (b: Body): Body => {
+    if (b.shape.kind === "group") {
+      const children = b.shape.children.map(fix);
+      return children.some((c, i) => c !== (b.shape as { children: Body[] }).children[i]) ? { ...b, shape: { ...b.shape, children } } : b;
+    }
+    if (b.shape.kind !== "imported" || b.shape.mode === "mesh") return b;
+    const payload = assetPayload(b.shape.asset);
+    if (payload?.format !== "mesh") return b;
+    const tris = payload.parts.reduce((n, p) => n + p.indices.length / 3, 0);
+    if (tris <= BREP_TRIANGLE_LIMIT || payload.parts.length <= b.shape.part) return b;
+    changed = true;
+    const box = new THREE.Box3().setFromArray(payload.parts[b.shape.part].positions);
+    return { ...b, features: [], shape: { ...b.shape, mode: "mesh", min: box.min.toArray() as Vec3, max: box.max.toArray() as Vec3 } };
+  };
+  const bodies = doc.bodies.map(fix);
+  return changed ? { ...doc, bodies } : doc;
+}
 
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
 let hydrated = false;
@@ -167,7 +191,8 @@ idbGet<Doc>(STORAGE_KEY)
     hydrated = true;
     if (saved && Array.isArray(saved.bodies) && saved.settings) {
       saved.sketches ??= [];
-      set({ doc: saved, startDialog: false, fitNonce: get().fitNonce + 1 });
+      syncAssets(saved);
+      set({ doc: keepHeavyMeshesAsMesh(saved), startDialog: false, fitNonce: get().fitNonce + 1 });
     } else if (!initialDoc) set({ startDialog: true });
   })
   .catch(() => {
@@ -590,6 +615,10 @@ export function groupSelection() {
     toast("Wähle mindestens zwei Körper (Shift + Klick) zum Vereinen");
     return;
   }
+  if (bodies.some(isMeshBody)) {
+    toast("Mesh-Körper (große STL/3MF/OBJ) können nicht vereint werden – erst im Panel in einen CAD-Körper umwandeln", "error");
+    return;
+  }
   const solids = bodies.filter((b) => !b.hole);
   const group: Body = {
     id: uid(),
@@ -755,18 +784,24 @@ export async function importFiles(files: File[]) {
       const asset: Asset = { name: file.name, format, data: toBase64(bytes) };
       const payload = payloadFromAsset(asset, bytes);
       const triangles = payload.format === "mesh" ? payload.parts.reduce((n, p) => n + p.indices.length / 3, 0) : 0;
-      if (triangles > 150_000) {
-        throw new Error(
-          `${triangles.toLocaleString("de-DE")} Dreiecke sind zu viele für die Umwandlung – bitte mit geringerer Auflösung oder als STEP exportieren`,
-        );
-      }
-      toast(
-        format === "step"
-          ? `Importiere „${file.name}“ …`
-          : `Importiere „${file.name}“ – ${triangles.toLocaleString("de-DE")} Dreiecke werden in CAD-Flächen umgewandelt …`,
-      );
       const id = uid();
-      const parts = await importAsset(id, payload);
+      // big meshes stay plain meshes: converting them would block the CAD kernel for minutes
+      const asMesh = payload.format === "mesh" && triangles > BREP_TRIANGLE_LIMIT;
+      let parts: { min: Vec3; max: Vec3 }[];
+      if (asMesh && payload.format === "mesh") {
+        registerAsset(id, payload);
+        parts = payload.parts.map((p) => {
+          const b = new THREE.Box3().setFromArray(p.positions);
+          return { min: b.min.toArray() as Vec3, max: b.max.toArray() as Vec3 };
+        });
+      } else {
+        toast(
+          format === "step"
+            ? `Importiere „${file.name}“ …`
+            : `Importiere „${file.name}“ – ${triangles.toLocaleString("de-DE")} Dreiecke werden in CAD-Flächen umgewandelt …`,
+        );
+        parts = await importAsset(id, payload);
+      }
       if (!parts.length) throw new Error("keine Volumenkörper gefunden");
 
       // keep the parts' arrangement, sit them on the bed next to what is already there
@@ -786,7 +821,7 @@ export async function importFiles(files: File[]) {
       const bodies: Body[] = parts.map((p, i) => ({
         id: uid(),
         name: parts.length > 1 ? `${base} ${i + 1}` : base,
-        shape: { kind: "imported", asset: id, part: i, scale: 1, min: p.min, max: p.max },
+        shape: { kind: "imported", asset: id, part: i, scale: 1, min: p.min, max: p.max, ...(asMesh ? { mode: "mesh" as const } : {}) },
         position: offset,
         quaternion: [0, 0, 0, 1],
         hole: false,
@@ -799,6 +834,9 @@ export async function importFiles(files: File[]) {
       const maxDim = Math.max(size.x, size.y, size.z);
       toast(
         `„${file.name}“ importiert – ${parts.length} Körper` +
+          (asMesh
+            ? ` als Mesh (${triangles.toLocaleString("de-DE")} Dreiecke): verschieben, drehen, exportieren – für Kanten/Flächen/Vereinen mit weniger Auflösung oder als STEP exportieren`
+            : "") +
           (maxDim < 2 ? " · sehr klein: evtl. in Metern/Zoll exportiert → Skalierung im Panel anpassen" : ""),
       );
     } catch (err) {
@@ -806,3 +844,37 @@ export async function importFiles(files: File[]) {
     }
   }
 }
+
+export const isMeshBody = (b: Body) => b.shape.kind === "imported" && b.shape.mode === "mesh";
+
+/** Converts the mesh bodies of one imported file into CAD solids (slow for big meshes). */
+export async function convertMeshAsset(assetId: string) {
+  const payload = assetPayload(assetId);
+  if (!payload || payload.format !== "mesh") return;
+  toast(`Wandle ${triangleCountOf(payload).toLocaleString("de-DE")} Dreiecke in CAD-Flächen um … (unten rechts abbrechbar)`);
+  try {
+    const parts = await importAsset(assetId, payload);
+    const doc = get().doc;
+    const old = doc.bodies.filter((b) => b.shape.kind === "imported" && b.shape.asset === assetId && b.shape.mode === "mesh");
+    if (!old.length) return;
+    const tmpl = old[0];
+    const scale = tmpl.shape.kind === "imported" ? tmpl.shape.scale : 1;
+    const created: Body[] = parts.map((p, i) => ({
+      ...tmpl,
+      id: uid(),
+      name: parts.length > 1 ? `${tmpl.name} ${i + 1}` : tmpl.name,
+      shape: { kind: "imported", asset: assetId, part: i, scale, min: p.min, max: p.max },
+    }));
+    const firstIdx = doc.bodies.indexOf(tmpl);
+    const rest = doc.bodies.filter((b) => !old.includes(b));
+    rest.splice(Math.min(firstIdx, rest.length), 0, ...created);
+    commit({ ...doc, bodies: rest });
+    set({ selection: created.map((b) => b.id) });
+    toast("In CAD-Körper umgewandelt – Kanten, Flächen und Vereinen sind jetzt möglich");
+  } catch (err) {
+    toast(`Umwandlung fehlgeschlagen: ${(err as Error).message}`, "error");
+  }
+}
+
+const triangleCountOf = (p: { format: string; parts?: { indices: ArrayLike<number> }[] }) =>
+  (p.parts ?? []).reduce((n, x) => n + x.indices.length / 3, 0);

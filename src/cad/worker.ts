@@ -162,6 +162,7 @@ function buildBase(shape: Shape): Shape3D {
       return pen.close().sketchOnPlane("XY").extrude(shape.h) as Shape3D;
     }
     case "imported": {
+      if (shape.mode === "mesh") throw new Error("Mesh-Körper können nicht mit CAD-Operationen bearbeitet werden");
       const solid = importedParts(shape.asset)[shape.part];
       if (!solid) throw new Error("Importierte Datei fehlt");
       return shape.scale === 1 ? solid : solid.clone().scale(shape.scale, [0, 0, 0]);
@@ -698,10 +699,46 @@ function combine(bodies: Body[]): Shape3D | null {
   return result;
 }
 
-async function exportBodies(bodies: Body[], format: ExportFormat, quality: ExportQuality, separate: boolean) {
+const isMeshBody = (b: Body) => b.shape.kind === "imported" && b.shape.mode === "mesh";
+
+/** triangles of a mesh body in world coordinates */
+function meshBodyTriangles(b: Body): ExportPart | null {
+  if (b.shape.kind !== "imported") return null;
+  const payload = assets.get(b.shape.asset);
+  const part = payload?.format === "mesh" ? payload.parts[b.shape.part] : undefined;
+  if (!part) return null;
+  const k = b.shape.scale;
+  const [qx, qy, qz, qw] = b.quaternion;
+  const [px, py, pz] = b.position;
+  const src = part.positions;
+  const out = new Float32Array(src.length);
+  for (let i = 0; i < src.length; i += 3) {
+    const x = src[i] * k, y = src[i + 1] * k, z = src[i + 2] * k;
+    // v' = q v q*
+    const ix = qw * x + qy * z - qz * y, iy = qw * y + qz * x - qx * z, iz = qw * z + qx * y - qy * x, iw = -qx * x - qy * y - qz * z;
+    out[i] = ix * qw + iw * -qx + iy * -qz - iz * -qy + px;
+    out[i + 1] = iy * qw + iw * -qy + iz * -qx - ix * -qz + py;
+    out[i + 2] = iz * qw + iw * -qz + ix * -qy - iy * -qx + pz;
+  }
+  return { name: b.name, positions: out, indices: part.indices };
+}
+
+function meshVolume(p: ExportPart) {
+  let v = 0;
+  const P = p.positions, I = p.indices;
+  for (let t = 0; t < I.length; t += 3) {
+    const a = I[t] * 3, b = I[t + 1] * 3, c = I[t + 2] * 3;
+    v += (P[a] * (P[b + 1] * P[c + 2] - P[b + 2] * P[c + 1]) - P[a + 1] * (P[b] * P[c + 2] - P[b + 2] * P[c]) + P[a + 2] * (P[b] * P[c + 1] - P[b + 1] * P[c])) / 6;
+  }
+  return Math.abs(v);
+}
+
+async function exportBodies(allBodies: Body[], format: ExportFormat, quality: ExportQuality, separate: boolean) {
+  const meshParts = allBodies.filter((b) => !b.hidden && isMeshBody(b)).map(meshBodyTriangles).filter((p): p is ExportPart => !!p);
+  const bodies = allBodies.filter((b) => !isMeshBody(b));
   if (format === "step") {
     const shape = combine(bodies);
-    if (!shape) throw new Error("Nichts zu exportieren");
+    if (!shape) throw new Error(meshParts.length ? "Mesh-Körper (große STL/3MF/OBJ) lassen sich nicht als STEP exportieren" : "Nichts zu exportieren");
     const blob = shape.blobSTEP();
     const volume = measureVolume(shape);
     shape.delete();
@@ -724,8 +761,12 @@ async function exportBodies(bodies: Body[], format: ExportFormat, quality: Expor
     parts.push({ name: g.name, positions: m.vertices, indices: m.triangles });
     shape.delete();
   }
+  for (const p of meshParts) {
+    parts.push(p);
+    volume += meshVolume(p);
+  }
   if (!parts.length) throw new Error("Nichts zu exportieren");
-  return { data: format === "stl" ? toBinarySTL(parts) : to3MF(parts), volume };
+  return { data: format === "stl" ? toBinarySTL(parts) : to3MF(parts, !separate), volume };
 }
 
 /* ------------------------------------------------------------------ */

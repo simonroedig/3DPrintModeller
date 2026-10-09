@@ -15,7 +15,16 @@ export type Shape =
   | { kind: "prism"; points: Vec2[]; h: number }
   | { kind: "group"; children: Body[] }
   /** solid `part` of an imported file (see Doc.assets); min/max = its bounds before scaling */
-  | { kind: "imported"; asset: string; part: number; scale: number; min: Vec3; max: Vec3 };
+  | {
+      kind: "imported";
+      asset: string;
+      part: number;
+      scale: number;
+      min: Vec3;
+      max: Vec3;
+      /** "mesh": large triangle mesh kept as is (move/rotate/export only, no CAD operations) */
+      mode?: "mesh";
+    };
 
 export type ShapeKind = Shape["kind"];
 

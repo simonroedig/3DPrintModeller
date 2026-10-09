@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { applyEdit, clearEditSelection } from "../store/edit";
 import {
+  isMeshBody,
   copySelection,
   deleteSelection,
   duplicateSelection,
@@ -131,7 +132,7 @@ export function useShortcuts() {
           rotateSelection(2, -90);
           break;
         case "h":
-          if (sel.length) updateBodies(Object.fromEntries(sel.map((b) => [b.id, { hole: !b.hole }])));
+          if (sel.length) updateBodies(Object.fromEntries(sel.filter((b) => !isMeshBody(b)).map((b) => [b.id, { hole: !b.hole }])));
           break;
       }
     };
