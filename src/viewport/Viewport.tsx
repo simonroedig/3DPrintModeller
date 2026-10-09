@@ -8,6 +8,7 @@ import { BodyView } from "./BodyView";
 import { SketchTool, SketchView } from "./Sketching";
 import { SelectionGizmos, SketchGizmos } from "./Gizmos";
 import { EditTool } from "./EditTool";
+import { InsetRenderer, InsetScene } from "./PlaneInset";
 
 THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
 
@@ -74,14 +75,20 @@ export function Viewport() {
     >
       <CameraRig />
       <Lights />
-      <Ground />
+      <group userData={{ noInset: true }}>
+        <Ground />
+      </group>
       <Bodies />
       <Sketches />
       <SketchTool />
-      <SelectionGizmos />
-      <SketchGizmos />
-      <EditTool />
-      <Guides />
+      <InsetScene />
+      <group userData={{ noInset: true }}>
+        <SelectionGizmos />
+        <SketchGizmos />
+        <EditTool />
+        <Guides />
+      </group>
+      <InsetRenderer />
     </Canvas>
   );
 }

@@ -328,3 +328,58 @@ kbd {
 .dim-label.scrubbable {
   cursor: ew-resize;
 }
+
+/* clickable things get the hand cursor (Tailwind 4 resets buttons to the arrow) */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+select,
+input[type="checkbox"],
+label:has(> input[type="checkbox"]) {
+  cursor: pointer;
+}
+
+.app-tooltip {
+  position: fixed;
+  z-index: 100;
+  pointer-events: none;
+  background: #0b0d11;
+  border: 1px solid var(--color-ink-700);
+  color: var(--color-ink-100);
+  padding: 5px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  animation: callout-in 0.12s ease-out;
+}
+
+/* number fields: drag anywhere on an unfocused field to change the value */
+.field:not(:focus-within) input {
+  cursor: ew-resize;
+}
+
+/* sketch plane preview: the 3D inset is drawn by the main canvas right behind the transparent middle part */
+.plane-panel {
+  border: 1px solid var(--color-ink-700);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+.plane-panel .pp-bar {
+  background: rgba(21, 22, 26, 0.95);
+}
+.plane-inset {
+  cursor: ew-resize;
+  touch-action: none;
+  border-block: 1px solid rgba(255, 255, 255, 0.06);
+}
+.plane-snap-select {
+  height: 28px;
+  font-size: 12px;
+  padding: 0 6px;
+  border-radius: 7px;
+  background: var(--color-ink-900);
+  border: 1px solid var(--color-ink-700);
+  color: var(--color-ink-200);
+  cursor: pointer;
+}

@@ -1,7 +1,9 @@
 import { Check, LoaderCircle, TriangleAlert, X } from "lucide-react";
 import { geometryKey } from "../cad/key";
 import { useMeshes } from "../cad/client";
-import { setTool, useStore, type Tool } from "../store/store";
+import { currentSketchPlane, setTool, useStore, type Tool } from "../store/store";
+import { fmtLen } from "../lib/units";
+import { ORIENT_LABEL, PLANE_AXIS, PLANE_AXIS_NAME } from "../lib/planes";
 import { applyEdit, displayGeometry, hasPendingEdit } from "../store/edit";
 import { selectAllEdges } from "../viewport/EditTool";
 import { LenField, NumField, Seg } from "./fields";
@@ -39,7 +41,10 @@ export function ToolOptions() {
   const tool = useStore((s) => s.tool);
   const rectMode = useStore((s) => s.rectMode);
   const circleMode = useStore((s) => s.circleMode);
-  const sketchZ = useStore((s) => s.sketchZ);
+  useStore((s) => s.sketchPlanes);
+  useStore((s) => s.view);
+  const plane = currentSketchPlane();
+  const unit = useStore((s) => s.doc.settings.unit);
   if (tool === "select") return null;
 
   let content: React.ReactNode = null;
@@ -67,9 +72,9 @@ export function ToolOptions() {
           />
         )}
         {tool === "poly" && <span className="text-ink-300 text-[12px]">Klicken setzt Punkte · Klick auf Start / Enter schließt</span>}
-        <div className="w-[150px]">
-          <LenField label="Ebene Z" mm={sketchZ} onChange={(v) => useStore.setState({ sketchZ: v })} title="Höhe der Skizzenebene" />
-        </div>
+        <span className="text-ink-300 text-[12px]" title="Die Skizze liegt in der Ebene der aktuellen Ansicht (3D = Boden) · Lage oben rechts einstellen">
+          Ebene: {ORIENT_LABEL[plane.orient]} · {PLANE_AXIS_NAME[PLANE_AXIS[plane.orient]]} = {fmtLen(plane.value, unit)}
+        </span>
       </>
     );
   } else if (tool === "edit") {

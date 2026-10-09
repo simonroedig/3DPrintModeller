@@ -117,12 +117,8 @@ export function TopBar() {
 
 function ToolButton({ icon, label, kbd, on, onClick }: { icon: ReactNode; label: string; kbd?: string; on?: boolean; onClick: (e: React.MouseEvent) => void }) {
   return (
-    <button className={`tool-btn ${on ? "on" : ""}`} onClick={onClick} aria-label={label}>
+    <button className={`tool-btn ${on ? "on" : ""}`} onClick={onClick} aria-label={label} data-tip={kbd ? `${label} (${kbd})` : label}>
       {icon}
-      <span className="tip">
-        {label}
-        {kbd && <kbd>{kbd}</kbd>}
-      </span>
     </button>
   );
 }
@@ -165,11 +161,13 @@ export function ToolRail() {
   );
 }
 
-const VIEWS: { id: View; label: string; kbd: string }[] = [
+export const VIEWS: { id: View; label: string; kbd: string }[] = [
   { id: "iso", label: "3D", kbd: "1" },
   { id: "top", label: "Oben", kbd: "2" },
   { id: "front", label: "Vorne", kbd: "3" },
-  { id: "right", label: "Rechts", kbd: "4" },
+  { id: "back", label: "Hinten", kbd: "4" },
+  { id: "left", label: "Links", kbd: "5" },
+  { id: "right", label: "Rechts", kbd: "6" },
 ];
 
 export function ViewSwitcher() {
@@ -179,36 +177,28 @@ export function ViewSwitcher() {
   useEffect(() => {
     if (!flashNonce) return;
     setFlashedView(useStore.getState().view);
-    const t = setTimeout(() => setFlashedView(null), 3500);
+    const t = setTimeout(() => setFlashedView(null), 2200);
     return () => clearTimeout(t);
   }, [flashNonce]);
-  // the hint is only relevant until the user picks a view themselves
   const flash = flashedView !== null && flashedView === view;
-  const current = VIEWS.find((v) => v.id === view)!;
   return (
-    <div className="absolute top-3 right-3 flex flex-col items-end gap-2 z-10">
-      <div className="flex items-center gap-2">
-        <div className="seg accent overlay-card !rounded-[9px] !p-[3px]">
-          {VIEWS.map((v) => (
-            <button
-              key={`${v.id}-${v.id === view && flash ? flashNonce : 0}`}
-              className={`${view === v.id ? "on" : ""} ${v.id === view && flash ? "view-flash" : ""} ${v.id === "iso" && flash && view !== "iso" ? "ring-1 ring-sky-400/70" : ""}`}
-              title={`${v.label}-Ansicht (${v.kbd})`}
-              onClick={() => setView(v.id)}
-            >
-              {v.label}
-            </button>
-          ))}
-        </div>
-        <button className="btn overlay-card !h-[32px]" title="Alles einpassen (0)" onClick={fitView}>
-          <Scan size={15} />
-        </button>
+    <div className="absolute top-3 right-3 flex items-center gap-2 z-10">
+      <div className="seg accent overlay-card !rounded-[9px] !p-[3px]" onMouseLeave={() => useStore.setState({ viewHover: null })}>
+        {VIEWS.map((v) => (
+          <button
+            key={`${v.id}-${v.id === view && flash ? flashNonce : 0}`}
+            className={`${view === v.id ? "on" : ""} ${v.id === view && flash ? "view-flash" : ""}`}
+            title={`${v.label}-Ansicht (${v.kbd})`}
+            onMouseEnter={() => useStore.setState({ viewHover: v.id })}
+            onClick={() => setView(v.id)}
+          >
+            {v.label}
+          </button>
+        ))}
       </div>
-      {flash && (
-        <div className="callout overlay-card !border-sky-500/60 px-3 py-1.5 text-[12px] text-ink-100">
-          Ansicht gewechselt: <b>{current.label}</b> · zurück mit <b>3D</b> oder Taste <kbd>1</kbd>
-        </div>
-      )}
+      <button className="btn overlay-card !h-[32px]" title="Alles einpassen (0)" onClick={fitView}>
+        <Scan size={15} />
+      </button>
     </div>
   );
 }

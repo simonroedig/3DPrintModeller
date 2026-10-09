@@ -1,15 +1,16 @@
 import { create } from "zustand";
 import * as THREE from "three";
-import type { Asset, Body, Doc, EdgeRef, FaceRef, Feature, Quat, Settings, Shape, ShapeKind, Sketch, SketchShape, Unit, Vec2, Vec3 } from "../types";
-import { DEFAULT_SNAP } from "../lib/units";
+import type { Asset, Body, Doc, EdgeRef, PlaneOrient, SketchPlane, FaceRef, Feature, Quat, Settings, Shape, ShapeKind, Sketch, SketchShape, Unit, Vec2, Vec3 } from "../types";
+import { DEFAULT_SNAP, fmtLen } from "../lib/units";
 import { idbGet, idbSet } from "../lib/persist";
+import { fromPlane2D, orientForView, PLANE_AXIS, PLANE_AXIS_NAME, planeQuat } from "../lib/planes";
 import { assetPayload, importAsset, isAssetRegistered, registerAsset, setRestartHandler } from "../cad/client";
 import { BREP_TRIANGLE_LIMIT } from "../cad/regions";
 import { detectFormat, payloadFromAsset, toBase64 } from "../cad/importers";
 import { cleanQuat, localBox, polyBounds, polygonArea, quatFromEulerDeg, unionBox, worldBox } from "../lib/geom";
 
 export type Tool = "select" | "rect" | "circle" | "poly" | "edit" | "layflat";
-export type View = "iso" | "top" | "front" | "right";
+export type View = "iso" | "top" | "front" | "back" | "right" | "left";
 
 export interface Guide {
   a: Vec3;
@@ -67,13 +68,20 @@ export interface State {
   faceOp: FaceOp;
   /** bumps when the view changed on its own (so the UI can point it out) */
   viewFlash: number;
+  /** view button under the mouse – the viewport shows where that view looks from */
+  viewHover: View | null;
   guides: Guide[];
   dragInfo: string | null;
   startDialog: boolean;
   exportOpen: boolean;
   helpOpen: boolean;
   toasts: Toast[];
-  sketchZ: number;
+  /** plane position (along its axis) per sketch orientation */
+  sketchPlanes: Record<PlaneOrient, number>;
+  /** next click on a flat face of a body sets the sketch plane */
+  planePick: boolean;
+  /** the sketch plane is being dragged in the plane preview */
+  planeDrag: boolean;
 }
 
 const STORAGE_KEY = "printmodeller.doc.v1";
@@ -92,8 +100,7 @@ function loadDoc(): Doc | null {
     if (!raw) return null;
     const d = JSON.parse(raw) as Doc;
     if (!Array.isArray(d.bodies) || !d.settings) return null;
-    d.sketches ??= [];
-    return d;
+    return normalizeDoc(d);
   } catch {
     return null;
   }
@@ -116,6 +123,7 @@ export const useStore = create<State>(() => ({
   fillet: { type: "fillet", radius: 0 },
   faceOp: emptyFaceOp(),
   viewFlash: 0,
+  viewHover: null,
   guides: [],
   dragInfo: null,
   // decided once the IndexedDB copy has been checked (see hydrate below)
@@ -123,7 +131,9 @@ export const useStore = create<State>(() => ({
   exportOpen: false,
   helpOpen: false,
   toasts: [],
-  sketchZ: 0,
+  sketchPlanes: { top: 0, front: 0, back: 0, right: 0, left: 0 },
+  planePick: false,
+  planeDrag: false,
 }));
 
 const get = useStore.getState;
@@ -190,7 +200,7 @@ idbGet<Doc>(STORAGE_KEY)
   .then((saved) => {
     hydrated = true;
     if (saved && Array.isArray(saved.bodies) && saved.settings) {
-      saved.sketches ??= [];
+      normalizeDoc(saved);
       syncAssets(saved);
       set({ doc: keepHeavyMeshesAsMesh(saved), startDialog: false, fitNonce: get().fitNonce + 1 });
     } else if (!initialDoc) set({ startDialog: true });
@@ -323,15 +333,8 @@ export function select(ids: string[]) {
 
 export function setTool(tool: Tool) {
   const s = get();
-  const patch: Partial<State> = { tool, ...noEdit };
-  const sketching = (t: Tool) => t === "rect" || t === "circle" || t === "poly";
-  // sketches live on the XY plane: look at it from the top when starting to sketch
-  if (sketching(tool) && !sketching(s.tool) && s.view !== "top") {
-    patch.view = "top";
-    patch.fitNonce = s.fitNonce + 1;
-    patch.viewFlash = s.viewFlash + 1;
-  }
-  set(patch);
+  if (s.tool === tool && !s.edgeSel && !s.faceSel) return;
+  set({ tool, ...noEdit, planePick: false });
 }
 
 export function setView(view: View) {
@@ -403,46 +406,123 @@ export function addPrimitive(kind: Exclude<ShapeKind, "group" | "prism" | "impor
   set({ selection: [body.id], tool: "select", ...noEdit });
 }
 
-export function addSketch(shape: SketchShape) {
-  const doc = get().doc;
-  const sketch: Sketch = { id: uid(), name: nextName(doc, "Skizze"), z: get().sketchZ, shape };
-  commit({ ...doc, sketches: [...doc.sketches, sketch] });
-  set({ selection: [sketch.id], ...noEdit });
+/** plane new sketches are drawn on: follows the current view (3D view → floor) */
+export function currentSketchPlane(): SketchPlane {
+  const s = get();
+  const orient = orientForView(s.view);
+  return { orient, value: s.sketchPlanes[orient] };
 }
 
-export function updateSketch(id: string, shape: SketchShape, z?: number) {
+export function setSketchPlaneValue(orient: PlaneOrient, value: number) {
+  set({ sketchPlanes: { ...get().sketchPlanes, [orient]: value } });
+}
+
+export const isSketchTool = (t: Tool) => t === "rect" || t === "circle" || t === "poly";
+
+/** the plane the plane preview controls: the next sketch's (while drawing) or the selected sketch's */
+export function planeTarget(s: State = get()): { plane: SketchPlane; sketch: Sketch | null } | null {
+  if (isSketchTool(s.tool)) return { plane: currentSketchPlane(), sketch: null };
+  if (s.tool !== "select" || s.selection.length !== 1) return null;
+  const sketch = s.doc.sketches.find((k) => k.id === s.selection[0]);
+  return sketch ? { plane: sketch.plane, sketch } : null;
+}
+
+export function setPlaneTargetValue(value: number) {
+  const t = planeTarget();
+  if (!t) return;
+  const v = round6(value);
+  if (t.sketch) updateSketch(t.sketch.id, t.sketch.shape, { ...t.sketch.plane, value: v });
+  else setSketchPlaneValue(t.plane.orient, v);
+}
+
+/** a click on a flat body face (world normal + point) moves the sketch plane onto that face */
+export function pickSketchPlane(normal: THREE.Vector3, point: THREE.Vector3) {
+  set({ planePick: false });
+  const a = [Math.abs(normal.x), Math.abs(normal.y), Math.abs(normal.z)];
+  const axis = a.indexOf(Math.max(...a)) as 0 | 1 | 2;
+  if (a[axis] < 0.999) {
+    toast("Diese Fläche ist schräg – Skizzen gehen auf Flächen, die nach oben, vorne/hinten oder zur Seite zeigen", "error");
+    return;
+  }
+  const sign = normal.getComponent(axis) > 0 ? 1 : -1;
+  const orient: PlaneOrient = axis === 2 ? "top" : axis === 1 ? (sign < 0 ? "front" : "back") : sign > 0 ? "right" : "left";
+  const value = Math.round(point.getComponent(axis) * 1e4) / 1e4;
+  const s = get();
+  const t = planeTarget(s);
+  if (t?.sketch) {
+    if (PLANE_AXIS[t.sketch.plane.orient] !== axis) {
+      toast("Die Fläche liegt nicht parallel zu dieser Skizze", "error");
+      return;
+    }
+    updateSketch(t.sketch.id, t.sketch.shape, { ...t.sketch.plane, value });
+    return;
+  }
+  set({ sketchPlanes: { ...s.sketchPlanes, [orient]: value } });
+  if (orientForView(s.view) !== orient) {
+    // draw straight onto the face: look at it
+    set({ view: orient, fitNonce: s.fitNonce + 1, viewFlash: s.viewFlash + 1 });
+  }
+  toast(`Skizzenebene auf Fläche gesetzt (${PLANE_AXIS_NAME[axis]} = ${fmtLen(value, s.doc.settings.unit)})`);
+}
+
+export function addSketch(shape: SketchShape) {
   const doc = get().doc;
-  commit({ ...doc, sketches: doc.sketches.map((s) => (s.id === id ? { ...s, shape, z: z ?? s.z } : s)) });
+  const sketch: Sketch = { id: uid(), name: nextName(doc, "Skizze"), plane: currentSketchPlane(), shape };
+  commit({ ...doc, sketches: [...doc.sketches, sketch] });
+  set({ selection: [sketch.id], ...noEdit, tool: "select" });
+}
+
+export function updateSketch(id: string, shape: SketchShape, plane?: SketchPlane) {
+  const doc = get().doc;
+  commit({ ...doc, sketches: doc.sketches.map((s) => (s.id === id ? { ...s, shape, plane: plane ?? s.plane } : s)) });
+}
+
+/** older documents stored sketches with a plain height `z` */
+export function normalizeDoc(doc: Doc): Doc {
+  doc.sketches = (doc.sketches ?? []).map((sk) => {
+    const legacy = sk as Sketch & { z?: number };
+    return sk.plane ? sk : { ...sk, plane: { orient: "top", value: legacy.z ?? 0 } };
+  });
+  return doc;
 }
 
 export function sketchToBody(doc: Doc, sketch: Sketch, height: number, hole: boolean): Body | null {
   let h = height;
-  let z = sketch.z;
+  let z0 = 0; // start of the extrusion along the plane normal
   if (h < 0) {
-    z += h;
+    z0 = h;
     h = -h;
   }
   if (h < 1e-3) return null;
   const s = sketch.shape;
+  const plane = sketch.plane;
+  const quat = planeQuat(plane.orient);
   let shape: Shape;
   let position: Vec3;
+  let quaternion: Quat = [0, 0, 0, 1];
   if (s.kind === "rect") {
     if (s.w < 1e-3 || s.d < 1e-3) return null;
-    shape = { kind: "box", w: s.w, d: s.d, h };
-    position = [s.x, s.y, z];
+    // rectangles become an axis aligned box in world space (B/T/H stay X/Y/Z)
+    const box = new THREE.Box3();
+    for (const [x, y, z] of [[s.x, s.y, z0], [s.x + s.w, s.y + s.d, z0 + h]]) box.expandByPoint(fromPlane2D(plane, x, y, z));
+    const size = box.getSize(new THREE.Vector3());
+    shape = { kind: "box", w: round6(size.x), d: round6(size.y), h: round6(size.z) };
+    position = [round6(box.min.x), round6(box.min.y), round6(box.min.z)];
   } else if (s.kind === "circle") {
     if (s.d < 1e-3) return null;
     shape = { kind: "cylinder", d: s.d, h };
-    position = [s.cx, s.cy, z];
+    position = fromPlane2D(plane, s.cx, s.cy, z0).toArray() as Vec3;
+    quaternion = quat;
   } else {
     let pts = s.points;
     if (pts.length < 3) return null;
     if (polygonArea(pts) < 0) pts = [...pts].reverse();
     const pb = polyBounds(pts);
     shape = { kind: "prism", h, points: pts.map(([x, y]) => [x - pb.minX, y - pb.minY] as Vec2) };
-    position = [pb.minX, pb.minY, z];
+    position = fromPlane2D(plane, pb.minX, pb.minY, z0).toArray() as Vec3;
+    quaternion = quat;
   }
-  const body = makeBody(doc, shape, { position, hole });
+  const body = makeBody(doc, shape, { position: position.map(round6) as Vec3, quaternion: cleanQuat(new THREE.Quaternion(...quaternion)), hole });
   if (hole) body.name = `Loch ${body.name}`;
   return body;
 }
@@ -710,7 +790,7 @@ export function newDocument(unit: Unit, snap?: number) {
 
 export function loadDocument(doc: Doc) {
   const s = get();
-  doc.sketches ??= [];
+  normalizeDoc(doc);
   set({ doc, past: [...s.past, s.doc], future: [], selection: [], ...noEdit, startDialog: false });
   fitView();
 }

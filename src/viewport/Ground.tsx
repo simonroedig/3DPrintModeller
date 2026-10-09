@@ -26,12 +26,15 @@ export function Ground() {
   }, [bed]);
 
   const gridRotation = useMemo<[number, number, number]>(() => {
-    if (view === "front") return [0, 0, 0]; // XZ plane
-    if (view === "right") return [0, 0, Math.PI / 2]; // YZ plane
+    if (view === "front" || view === "back") return [0, 0, 0]; // XZ plane
+    if (view === "right" || view === "left") return [0, 0, Math.PI / 2]; // YZ plane
     return [Math.PI / 2, 0, 0]; // XY plane
   }, [view]);
 
-  const gridPosition: [number, number, number] = view === "front" ? [0, 4000, 0] : view === "right" ? [-4000, 0, 0] : [0, 0, -0.01];
+  // in the side views the grid sits far behind everything
+  const gridPosition: [number, number, number] =
+    view === "front" ? [0, 4000, 0] : view === "back" ? [0, -4000, 0] : view === "right" ? [-4000, 0, 0] : view === "left" ? [4000, 0, 0] : [0, 0, -0.01];
+  const side = view !== "iso" && view !== "top";
 
   return (
     <group>
@@ -50,7 +53,7 @@ export function Ground() {
         followCamera={false}
         side={THREE.DoubleSide}
       />
-      {view !== "front" && view !== "right" && (
+      {!side && (
         <>
           <mesh position={[0, 0, -0.05]} receiveShadow>
             <planeGeometry args={[bed.x, bed.y]} />

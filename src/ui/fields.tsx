@@ -107,6 +107,15 @@ export function LenField({
       <input
         ref={inputRef}
         value={value}
+        onPointerDown={(e) => {
+          // unfocused: drag left/right to change, plain click to type
+          if (document.activeElement === e.currentTarget) return;
+          const el = e.currentTarget;
+          startScrub(e, mm, snap || 1, (v) => v >= min && onChange(v), () => {
+            el.focus();
+            el.select();
+          }, min);
+        }}
         onFocus={(e) => {
           focused.current = true;
           e.currentTarget.select();
@@ -182,6 +191,14 @@ export function NumField({
       <input
         ref={inputRef}
         value={v}
+        onPointerDown={(e) => {
+          if (document.activeElement === e.currentTarget) return;
+          const el = e.currentTarget;
+          startScrub(e, value, step, onChange, () => {
+            el.focus();
+            el.select();
+          }, min, max);
+        }}
         onFocus={(e) => {
           focused.current = true;
           e.currentTarget.select();

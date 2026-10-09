@@ -63,10 +63,19 @@ export type SketchShape =
   | { kind: "circle"; cx: number; cy: number; d: number }
   | { kind: "poly"; points: Vec2[] };
 
+export type PlaneOrient = "top" | "front" | "back" | "right" | "left";
+
+/** sketch plane: orientation (as seen from that view) + world coordinate along its axis */
+export interface SketchPlane {
+  orient: PlaneOrient;
+  value: number;
+}
+
 export interface Sketch {
   id: string;
   name: string;
-  z: number;
+  plane: SketchPlane;
+  /** 2D shape in plane coordinates */
   shape: SketchShape;
 }
 

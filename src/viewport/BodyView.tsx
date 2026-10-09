@@ -4,10 +4,11 @@ import { useThree, type RootState, type ThreeEvent } from "@react-three/fiber";
 import type { Body, Feature, MeshData, Vec3 } from "../types";
 import { geometryKey } from "../cad/key";
 import { requestMesh, useMeshes } from "../cad/client";
-import { beginTx, endTx, layFlat, select, setTool, translateBodies, useStore } from "../store/store";
+import { beginTx, endTx, layFlat, pickSketchPlane, select, setTool, toast, translateBodies, useStore } from "../store/store";
 import { displayGeometry } from "../store/edit";
 import { unionBox, worldBox } from "../lib/geom";
 import { snapMove } from "../lib/snapping";
+import { viewAxis } from "../lib/planes";
 import { fmtNum } from "../lib/units";
 import { bodyMeshes, intersectPlane, pointerState, rayFromEvent, runDrag, worldPerPixel } from "./interaction";
 
@@ -62,6 +63,7 @@ function edgeContrast(body: Body) {
 export function BodyView({ body }: { body: Body }) {
   const selected = useStore((s) => s.selection.includes(body.id));
   const tool = useStore((s) => s.tool);
+  const planePick = useStore((s) => s.planePick);
   const editing = useStore((s) => s.edgeSel?.bodyId === body.id || s.faceSel?.bodyId === body.id);
   const fillet = useStore((s) => (editing ? s.fillet : null));
   const faceOp = useStore((s) => (editing ? s.faceOp : null));
@@ -83,6 +85,9 @@ export function BodyView({ body }: { body: Body }) {
   const meshRef = useRef<THREE.Mesh>(null);
   const [hover, setHover] = useState(false);
   const [hoverFace, setHoverFace] = useState(-1);
+  useEffect(() => {
+    if (!planePick && tool !== "layflat") setHoverFace(-1);
+  }, [planePick, tool]);
 
   useEffect(() => {
     const m = meshRef.current;
@@ -115,6 +120,19 @@ export function BodyView({ body }: { body: Body }) {
   const onPointerDown = (e: ThreeEvent<PointerEvent>) => {
     if (e.button !== 0 || pointerState.overHandle) return;
     const s = useStore.getState();
+    if (s.planePick) {
+      e.stopPropagation();
+      if (!mesh || e.faceIndex == null) return;
+      const n = mesh.faces[faceAt(mesh, e.faceIndex)]?.normal;
+      if (!n) {
+        toast("Bitte eine ebene Fläche anklicken", "error");
+        return;
+      }
+      const wn = new THREE.Vector3(...n).applyQuaternion(new THREE.Quaternion(...body.quaternion));
+      pickSketchPlane(wn, e.point.clone());
+      setHoverFace(-1);
+      return;
+    }
     if (s.tool === "layflat") {
       e.stopPropagation();
       if (!mesh || e.faceIndex == null) return;
@@ -141,10 +159,13 @@ export function BodyView({ body }: { body: Body }) {
   };
 
   const onPointerMove = (e: ThreeEvent<PointerEvent>) => {
-    if (tool !== "layflat" || !mesh || e.faceIndex == null) return;
+    if ((tool !== "layflat" && !planePick) || !mesh || e.faceIndex == null) return;
     e.stopPropagation();
     const fi = faceAt(mesh, e.faceIndex);
-    setHoverFace(mesh.faces[fi]?.normal ? fi : -1);
+    const n = mesh.faces[fi]?.normal;
+    // plane picking only offers faces a sketch plane can lie on
+    const ok = n && (!planePick || Math.max(...new THREE.Vector3(...n).applyQuaternion(new THREE.Quaternion(...body.quaternion)).toArray().map(Math.abs)) > 0.999);
+    setHoverFace(ok ? fi : -1);
   };
 
   return (
@@ -201,7 +222,7 @@ export function BodyView({ body }: { body: Body }) {
       </lineSegments>
       {faceGeo && (
         <mesh geometry={faceGeo} renderOrder={4}>
-          <meshBasicMaterial color="#facc15" transparent opacity={0.55} depthWrite={false} polygonOffset polygonOffsetFactor={-2} polygonOffsetUnits={-2} />
+          <meshBasicMaterial color={planePick ? "#38bdf8" : "#facc15"} transparent opacity={0.55} depthWrite={false} polygonOffset polygonOffsetFactor={-2} polygonOffsetUnits={-2} />
         </mesh>
       )}
     </group>
@@ -222,8 +243,9 @@ export function startMoveDrag(
   const startPos: Record<string, Vec3> = Object.fromEntries(moving.map((b) => [b.id, b.position]));
   const startBox = unionBox(moving);
   const others = doc.bodies.filter((b) => !ids.includes(b.id) && !b.hidden).map((b) => worldBox(b));
-  const normal = new THREE.Vector3(view === "right" ? 1 : 0, view === "front" ? 1 : 0, view === "front" || view === "right" ? 0 : 1);
-  const axes = view === "front" ? [0, 2] : view === "right" ? [1, 2] : [0, 1];
+  const va = viewAxis(view) ?? 2;
+  const normal = new THREE.Vector3().setComponent(va, 1);
+  const axes = [0, 1, 2].filter((a) => a !== va);
   const unit = doc.settings.unit;
   let began = false;
   runDrag(

@@ -59,10 +59,14 @@ export function useShortcuts() {
           d,
         );
       };
-      const vertical = s.view === "front" || s.view === "right";
+      const vertical = s.view !== "iso" && s.view !== "top";
+      // screen-right direction of the current view
+      const right: Vec3 =
+        s.view === "back" ? [-step, 0, 0] : s.view === "right" ? [0, step, 0] : s.view === "left" ? [0, -step, 0] : [step, 0, 0];
       switch (e.key) {
         case "Escape":
-          if (s.tool === "edit" && (s.edgeSel || s.faceSel)) clearEditSelection();
+          if (s.planePick) useStore.setState({ planePick: false });
+          else if (s.tool === "edit" && (s.edgeSel || s.faceSel)) clearEditSelection();
           else if (s.tool !== "select") setTool("select");
           else select([]);
           return;
@@ -76,9 +80,9 @@ export function useShortcuts() {
           if (s.tool === "edit") applyEdit();
           return;
         case "ArrowLeft":
-          return nudge(s.view === "right" ? [0, -step, 0] : [-step, 0, 0]);
+          return nudge([-right[0], -right[1], -right[2]]);
         case "ArrowRight":
-          return nudge(s.view === "right" ? [0, step, 0] : [step, 0, 0]);
+          return nudge(right);
         case "ArrowUp":
           return nudge(vertical ? [0, 0, step] : [0, step, 0]);
         case "ArrowDown":
@@ -120,7 +124,17 @@ export function useShortcuts() {
           setView("front");
           break;
         case "4":
+          setView("back");
+          break;
+        case "5":
+          setView("left");
+          break;
+        case "6":
           setView("right");
+          break;
+        case " ":
+          e.preventDefault();
+          setView(s.view === "top" ? "iso" : "top");
           break;
         case "0":
           fitView();

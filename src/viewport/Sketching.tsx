@@ -3,10 +3,11 @@ import * as THREE from "three";
 import { useThree, type ThreeEvent } from "@react-three/fiber";
 import { Line } from "@react-three/drei";
 import type { Sketch, SketchShape, Vec2, Vec3 } from "../types";
-import { addSketch, beginTx, commit, endTx, select, setTool, useStore, toast } from "../store/store";
+import { addSketch, beginTx, commit, currentSketchPlane, endTx, select, setTool, useStore, toast } from "../store/store";
+import { fromPlane2D, planeBasis, PLANE_AXIS, PLANE_AXIS_NAME, toPlane2D } from "../lib/planes";
 import { segmentsIntersect } from "../lib/geom";
 import { fmtNum, snapTo } from "../lib/units";
-import { DimLabel, ScreenScale, sketchToThreeShape } from "./Gizmos";
+import { DimLabel, PlaneGroup, ScreenScale, sketchToThreeShape, vLabel } from "./Gizmos";
 import { intersectPlane, pointerState, rayFromEvent, runDrag, toScreen } from "./interaction";
 
 const SKETCH_COLOR = "#38bdf8";
@@ -37,7 +38,7 @@ export function SketchView({ sketch }: { sketch: Sketch }) {
   const get = useThree((s) => s.get);
   const geo = useMemo(() => new THREE.ShapeGeometry(sketchToThreeShape(sketch.shape), 48), [sketch.shape]);
   useEffect(() => () => geo.dispose(), [geo]);
-  const z = sketch.z + 0.02;
+  const z = 0.02;
 
   const onPointerDown = (e: ThreeEvent<PointerEvent>) => {
     const st = useStore.getState();
@@ -48,20 +49,22 @@ export function SketchView({ sketch }: { sketch: Sketch }) {
     const start = e.point.clone();
     const shape0 = sketch.shape;
     const snap = st.doc.settings.snap;
+    const { u, v, n } = planeBasis(sketch.plane.orient);
     let began = false;
     const state = get();
     runDrag(
       state,
       {
         move(ev) {
-          const p = intersectPlane(rayFromEvent(ev, state), new THREE.Vector3(0, 0, 1), start);
+          const p = intersectPlane(rayFromEvent(ev, state), n, start);
           if (!p) return;
           if (!began) {
             beginTx();
             began = true;
           }
-          const dx = ev.altKey ? p.x - start.x : snapTo(p.x - start.x, snap);
-          const dy = ev.altKey ? p.y - start.y : snapTo(p.y - start.y, snap);
+          const d = p.clone().sub(start);
+          const dx = ev.altKey ? d.dot(u) : snapTo(d.dot(u), snap);
+          const dy = ev.altKey ? d.dot(v) : snapTo(d.dot(v), snap);
           const doc = useStore.getState().doc;
           let moved: SketchShape;
           if (shape0.kind === "rect") moved = { ...shape0, x: shape0.x + dx, y: shape0.y + dy };
@@ -78,12 +81,12 @@ export function SketchView({ sketch }: { sketch: Sketch }) {
   };
 
   return (
-    <group>
+    <PlaneGroup plane={sketch.plane}>
       <mesh geometry={geo} position={[0, 0, z]} onPointerDown={onPointerDown} renderOrder={1}>
         <meshBasicMaterial color={SKETCH_COLOR} transparent opacity={selected ? 0.32 : 0.16} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
       <Line points={outlinePoints(sketch.shape, z)} color={selected ? "#7dd3fc" : SKETCH_COLOR} lineWidth={selected ? 2.5 : 1.6} />
-    </group>
+    </PlaneGroup>
   );
 }
 
@@ -119,7 +122,10 @@ function circleFrom(a: Vec2, b: Vec2, mode: "center" | "corner", snap: number): 
 }
 
 function SketchDrawer({ tool }: { tool: "rect" | "circle" | "poly" }) {
-  const z = useStore((s) => s.sketchZ);
+  useStore((s) => s.view);
+  useStore((s) => s.sketchPlanes);
+  const plane = currentSketchPlane();
+  const z = 0;
   const snap = useStore((s) => s.doc.settings.snap);
   const unit = useStore((s) => s.doc.settings.unit);
   const rectMode = useStore((s) => s.rectMode);
@@ -131,8 +137,10 @@ function SketchDrawer({ tool }: { tool: "rect" | "circle" | "poly" }) {
   const ptsRef = useRef(pts);
   ptsRef.current = pts;
 
-  const snapPoint = (p: THREE.Vector3, ev: { shiftKey: boolean; altKey: boolean }): Vec2 => {
+  const snapPoint = (world: THREE.Vector3, ev: { shiftKey: boolean; altKey: boolean }): Vec2 => {
     const step = ev.altKey ? 0 : snap;
+    const [px, py] = toPlane2D(plane, world);
+    const p = { x: px, y: py };
     let x = snapTo(p.x, step);
     let y = snapTo(p.y, step);
     const cur = ptsRef.current;
@@ -147,8 +155,8 @@ function SketchDrawer({ tool }: { tool: "rect" | "circle" | "poly" }) {
       }
       // snap onto the first point to close
       if (cur.length >= 3) {
-        const s0 = toScreen(new THREE.Vector3(cur[0][0], cur[0][1], z), get());
-        const s1 = toScreen(new THREE.Vector3(x, y, z), get());
+        const s0 = toScreen(fromPlane2D(plane, cur[0][0], cur[0][1]), get());
+        const s1 = toScreen(fromPlane2D(plane, x, y), get());
         if (s0.distanceTo(s1) < 12) return cur[0];
       }
     }
@@ -185,7 +193,8 @@ function SketchDrawer({ tool }: { tool: "rect" | "circle" | "poly" }) {
       if ((e.target as HTMLElement)?.tagName === "INPUT") return;
       const cur = ptsRef.current;
       if (e.key === "Escape") {
-        if (cur.length) setPts([]);
+        if (useStore.getState().planePick) useStore.setState({ planePick: false });
+        else if (cur.length) setPts([]);
         else setTool("select");
         e.stopImmediatePropagation();
       } else if (e.key === "Enter" && tool === "poly" && cur.length >= 3) {
@@ -203,7 +212,7 @@ function SketchDrawer({ tool }: { tool: "rect" | "circle" | "poly" }) {
   useEffect(() => () => useStore.setState({ dragInfo: null }), []);
 
   const onDown = (e: ThreeEvent<PointerEvent>) => {
-    if (e.button !== 0 || pointerState.overHandle) return;
+    if (e.button !== 0 || pointerState.overHandle || useStore.getState().planePick) return;
     e.stopPropagation();
     const p = snapPoint(e.point, e.nativeEvent);
     if (tool === "poly") {
@@ -231,7 +240,10 @@ function SketchDrawer({ tool }: { tool: "rect" | "circle" | "poly" }) {
     if (down.current && Math.hypot(e.nativeEvent.clientX - down.current.x, e.nativeEvent.clientY - down.current.y) > 5) {
       down.current.moved = true;
     }
-    useStore.setState({ dragInfo: `X ${fmtNum(p[0], unit)}   Y ${fmtNum(p[1], unit)}` });
+    // world coordinates of the two in-plane axes
+    const w = fromPlane2D(plane, p[0], p[1]);
+    const ax = [0, 1, 2].filter((a) => a !== PLANE_AXIS[plane.orient]);
+    useStore.setState({ dragInfo: ax.map((a) => `${PLANE_AXIS_NAME[a]} ${fmtNum(w.getComponent(a), unit)}`).join("   ") });
   };
 
   const onUp = (e: ThreeEvent<PointerEvent>) => {
@@ -250,7 +262,7 @@ function SketchDrawer({ tool }: { tool: "rect" | "circle" | "poly" }) {
       const r = rectFrom(pts[0], cursor, rectMode) as Extract<SketchShape, { kind: "rect" }>;
       preview = r;
       labels.push({ pos: [r.x + r.w / 2, r.y - 5, z], mm: r.w, prefix: "B" });
-      labels.push({ pos: [r.x + r.w + 8, r.y + r.d / 2, z], mm: r.d, prefix: "T" });
+      labels.push({ pos: [r.x + r.w + 8, r.y + r.d / 2, z], mm: r.d, prefix: vLabel(plane) });
     } else if (tool === "circle") {
       const c = circleFrom(pts[0], cursor, circleMode, snap) as Extract<SketchShape, { kind: "circle" }>;
       preview = c;
@@ -267,7 +279,7 @@ function SketchDrawer({ tool }: { tool: "rect" | "circle" | "poly" }) {
   const polyLine: Vec3[] = tool === "poly" && pts.length ? [...pts.map(([x, y]) => [x, y, z] as Vec3), ...(cursor ? [[cursor[0], cursor[1], z] as Vec3] : [])] : [];
 
   return (
-    <group>
+    <PlaneGroup plane={plane}>
       <mesh position={[0, 0, z]} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onDoubleClick={() => tool === "poly" && pts.length >= 3 && finishPoly(pts)}>
         <planeGeometry args={[100000, 100000]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} side={THREE.DoubleSide} />
@@ -292,6 +304,6 @@ function SketchDrawer({ tool }: { tool: "rect" | "circle" | "poly" }) {
       {labels.map((l, i) => (
         <DimLabel key={i} position={l.pos} mm={l.mm} prefix={l.prefix} />
       ))}
-    </group>
+    </PlaneGroup>
   );
 }

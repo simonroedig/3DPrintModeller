@@ -60,6 +60,7 @@ import { eulerDeg, polyBounds, polygonArea, unionBox } from "../lib/geom";
 import { geometryKey } from "../cad/key";
 import { assetPayload, useMeshes } from "../cad/client";
 import { fmtLen, SNAP_OPTIONS } from "../lib/units";
+import { ORIENT_LABEL, PLANE_AXIS, PLANE_AXIS_NAME } from "../lib/planes";
 import { LenField, NumField, Seg } from "./fields";
 
 const ICON: Record<ShapeKind, ReactNode> = {
@@ -271,7 +272,7 @@ function BodyProps({ body }: { body: Body }) {
         ))}
       </div>
 
-      <Section title="Maße">
+      <Section title="Abmessungen">
         <ShapeParams body={body} />
       </Section>
 
@@ -592,22 +593,23 @@ function SketchProps({ sketch }: { sketch: Sketch }) {
   const upd = (shape: SketchShape) => updateSketch(sketch.id, shape);
   const unit = useStore((st) => st.doc.settings.unit);
   const view = useStore((st) => st.view);
+  const flat = sketch.plane.orient === "top";
   return (
     <>
       <div className="px-3.5 pt-3 pb-3">
         <div className="flex items-center gap-2 text-sky-400 text-[11px] mb-1">
-          {SKETCH_ICON[s.kind]} Skizze · {s.kind === "rect" ? "Rechteck" : s.kind === "circle" ? "Kreis" : "Polygon"}
+          {SKETCH_ICON[s.kind]} Skizze · {s.kind === "rect" ? "Rechteck" : s.kind === "circle" ? "Kreis" : "Polygon"} · {ORIENT_LABEL[sketch.plane.orient]}
         </div>
         <div className="text-[15px] font-semibold">{sketch.name}</div>
       </div>
-      <Section title="Maße">
+      <Section title="Abmessungen">
         {s.kind === "rect" && (
           <>
             <Grid2>
               <LenField label="Breite" mm={s.w} min={0.05} onChange={(w) => upd({ ...s, w })} />
-              <LenField label="Tiefe" mm={s.d} min={0.05} onChange={(d) => upd({ ...s, d })} />
-              <LenField label="X" mm={s.x} onChange={(x) => upd({ ...s, x })} title="Linke Kante" />
-              <LenField label="Y" mm={s.y} onChange={(y) => upd({ ...s, y })} title="Vordere Kante" />
+              <LenField label={flat ? "Tiefe" : "Höhe"} mm={s.d} min={0.05} onChange={(d) => upd({ ...s, d })} />
+              <LenField label={flat ? "X" : "Links"} mm={s.x} onChange={(x) => upd({ ...s, x })} title="Linke Kante (in der Skizzenebene)" />
+              <LenField label={flat ? "Y" : "Unten"} mm={s.y} onChange={(y) => upd({ ...s, y })} title={flat ? "Vordere Kante" : "Untere Kante (in der Skizzenebene)"} />
             </Grid2>
             <div className="text-[11px] text-ink-500 mt-1.5">
               Mitte: {fmtLen(s.x + s.w / 2, unit)} / {fmtLen(s.y + s.d / 2, unit)}
@@ -618,8 +620,8 @@ function SketchProps({ sketch }: { sketch: Sketch }) {
           <Grid2>
             <LenField label="Ø" mm={s.d} min={0.05} onChange={(d) => upd({ ...s, d })} />
             <div />
-            <LenField label="Mitte X" mm={s.cx} onChange={(cx) => upd({ ...s, cx })} />
-            <LenField label="Mitte Y" mm={s.cy} onChange={(cy) => upd({ ...s, cy })} />
+            <LenField label={flat ? "Mitte X" : "Mitte ↔"} mm={s.cx} onChange={(cx) => upd({ ...s, cx })} />
+            <LenField label={flat ? "Mitte Y" : "Mitte ↕"} mm={s.cy} onChange={(cy) => upd({ ...s, cy })} />
           </Grid2>
         )}
         {s.kind === "poly" && (
@@ -628,7 +630,12 @@ function SketchProps({ sketch }: { sketch: Sketch }) {
           </div>
         )}
         <div className="mt-1.5">
-          <LenField label="Ebene Z" mm={sketch.z} onChange={(z) => updateSketch(sketch.id, s, z)} />
+          <LenField
+            label={`Ebene ${PLANE_AXIS_NAME[PLANE_AXIS[sketch.plane.orient]]}`}
+            mm={sketch.plane.value}
+            onChange={(value) => updateSketch(sketch.id, s, { ...sketch.plane, value })}
+            title="Lage der Skizzenebene (auch oben rechts in der Ebenen-Vorschau ziehbar)"
+          />
         </div>
       </Section>
       <Section title="Extrudieren → 3D">

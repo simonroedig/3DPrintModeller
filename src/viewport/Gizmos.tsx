@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import * as THREE from "three";
 import { useFrame, useThree, type RootState, type ThreeEvent } from "@react-three/fiber";
 import { Html, Line } from "@react-three/drei";
-import type { Body, Sketch, SketchShape, Unit, Vec3 } from "../types";
+import type { Body, Sketch, SketchPlane, SketchShape, Unit, Vec3 } from "../types";
 import { beginTx, endTx, extrudeSketch, setBodyShape, updateBodies, updateSketch, useStore, toast } from "../store/store";
 import { bodyMatrix, unionBox } from "../lib/geom";
 import { useMeshes } from "../cad/client";
@@ -10,6 +10,7 @@ import { handleSpecs, resizeWorld } from "../lib/shapeEdit";
 import { fmtLen, fmtNum, parseLen, snapTo } from "../lib/units";
 import { pointerState, startAxisDrag, worldPerPixel } from "./interaction";
 import { startScrub } from "../ui/fields";
+import { fromPlane2D, planeBasis, planeOrigin, planeQuat, PLANE_AXIS, viewAxis } from "../lib/planes";
 
 /* ------------------------------------------------------------------ */
 
@@ -255,19 +256,13 @@ export function SelectionGizmos() {
   );
 }
 
-const VIEW_AXIS: Record<string, THREE.Vector3 | null> = {
-  iso: null,
-  top: new THREE.Vector3(0, 0, 1),
-  front: new THREE.Vector3(0, 1, 0),
-  right: new THREE.Vector3(1, 0, 0),
-};
-
 function ResizeHandles({ body, snap, get, unit }: { body: Body; snap: number; unit: Unit; get: () => RootState }) {
   const view = useStore((s) => s.view);
   const specs = handleSpecs(body.shape);
   const m = bodyMatrix(body);
   const q = new THREE.Quaternion(...body.quaternion);
-  const axis = VIEW_AXIS[view];
+  const va = viewAxis(view);
+  const axis = va === null ? null : new THREE.Vector3().setComponent(va, 1);
   return (
     <>
       {specs.map((spec) => {
@@ -311,6 +306,20 @@ function ResizeHandles({ body, snap, get, unit }: { body: Body; snap: number; un
 
 /* ------------------------------------------------------------------ */
 
+/** places its children in the sketch plane's 2D coordinate system (local z = plane normal) */
+export function PlaneGroup({ plane, children }: { plane: SketchPlane; children: ReactNode }) {
+  const position = useMemo(() => planeOrigin(plane).toArray() as Vec3, [plane]);
+  const quaternion = useMemo(() => planeQuat(plane.orient), [plane]);
+  return (
+    <group position={position} quaternion={quaternion}>
+      {children}
+    </group>
+  );
+}
+
+/** label of the plane's second (vertical on screen) axis */
+export const vLabel = (plane: SketchPlane) => (plane.orient === "top" ? "T" : "H");
+
 export function sketchToThreeShape(s: SketchShape): THREE.Shape {
   const shape = new THREE.Shape();
   if (s.kind === "rect") {
@@ -351,40 +360,47 @@ function SketchGizmo({ sketch }: { sketch: Sketch }) {
   const [h, setH] = useState<number | null>(null);
   const hRef = useRef<number | null>(null);
   const s = sketch.shape;
+  const plane = sketch.plane;
   const [cx, cy] = sketchCentroid(s);
-  const z = sketch.z;
+  const W = (x: number, y: number, z = 0) => fromPlane2D(plane, x, y, z).toArray() as Vec3;
   const shape3 = useMemo(() => sketchToThreeShape(s), [s]);
   const extrudeGeo = useMemo(() => {
     if (h === null || Math.abs(h) < 1e-6) return null;
     return new THREE.ExtrudeGeometry(shape3, { depth: Math.abs(h), bevelEnabled: false, curveSegments: 48 });
   }, [shape3, h]);
+  useEffect(() => () => extrudeGeo?.dispose(), [extrudeGeo]);
 
   const dims: ReactNode[] = [];
   const off = 6;
   if (s.kind === "rect") {
     dims.push(
-      <DimLabel key="w" position={[s.x + s.w / 2, s.y - off, z]} mm={s.w} prefix="B" onCommit={(v) => updateSketch(sketch.id, { ...s, w: v })} />,
-      <DimLabel key="d" position={[s.x + s.w + off * 1.6, s.y + s.d / 2, z]} mm={s.d} prefix="T" onCommit={(v) => updateSketch(sketch.id, { ...s, d: v })} />,
+      <DimLabel key="w" position={W(s.x + s.w / 2, s.y - off)} mm={s.w} prefix="B" onCommit={(v) => updateSketch(sketch.id, { ...s, w: v })} />,
+      <DimLabel key="d" position={W(s.x + s.w + off * 1.6, s.y + s.d / 2)} mm={s.d} prefix={vLabel(plane)} onCommit={(v) => updateSketch(sketch.id, { ...s, d: v })} />,
     );
   } else if (s.kind === "circle") {
     dims.push(
-      <DimLabel key="d" position={[s.cx, s.cy - s.d / 2 - off, z]} mm={s.d} prefix="Ø" onCommit={(v) => updateSketch(sketch.id, { ...s, d: v })} />,
+      <DimLabel key="d" position={W(s.cx, s.cy - s.d / 2 - off)} mm={s.d} prefix="Ø" onCommit={(v) => updateSketch(sketch.id, { ...s, d: v })} />,
     );
   } else {
     s.points.forEach((p, i) => {
       const q = s.points[(i + 1) % s.points.length];
       const len = Math.hypot(q[0] - p[0], q[1] - p[1]);
-      dims.push(<DimLabel key={i} position={[(p[0] + q[0]) / 2, (p[1] + q[1]) / 2, z]} mm={len} />);
+      dims.push(<DimLabel key={i} position={W((p[0] + q[0]) / 2, (p[1] + q[1]) / 2)} mm={len} />);
     });
   }
+
+  const { n } = planeBasis(plane.orient);
+  const origin = fromPlane2D(plane, cx, cy);
+  // the extrude arrow points at the viewer when looking straight at the sketch plane
+  const facing = viewAxis(view) === PLANE_AXIS[plane.orient];
 
   return (
     <group>
       {dims}
-      {view !== "top" && (
+      {!facing && (
         <Handle
-          position={[cx, cy, z]}
-          dir={[0, 0, 1]}
+          position={origin}
+          dir={n}
           arrow
           color="#22c55e"
           title="Ziehen zum Extrudieren"
@@ -392,8 +408,8 @@ function SketchGizmo({ sketch }: { sketch: Sketch }) {
             const ok = startAxisDrag(
               get(),
               e.nativeEvent,
-              new THREE.Vector3(cx, cy, z),
-              new THREE.Vector3(0, 0, 1),
+              origin,
+              n,
               (t, ev) => {
                 const v = ev.altKey ? t : snapTo(t, snap);
                 hRef.current = v;
@@ -414,10 +430,12 @@ function SketchGizmo({ sketch }: { sketch: Sketch }) {
       )}
       {extrudeGeo && h !== null && (
         <>
-          <mesh geometry={extrudeGeo} position={[0, 0, z + (h < 0 ? h : 0)]}>
-            <meshStandardMaterial color="#22c55e" transparent opacity={0.45} depthWrite={false} />
-          </mesh>
-          <DimLabel position={[cx, cy, z + h + Math.sign(h) * 6]} mm={Math.abs(h)} prefix="H" />
+          <PlaneGroup plane={plane}>
+            <mesh geometry={extrudeGeo} position={[0, 0, h < 0 ? h : 0]}>
+              <meshStandardMaterial color="#22c55e" transparent opacity={0.45} depthWrite={false} />
+            </mesh>
+          </PlaneGroup>
+          <DimLabel position={W(cx, cy, h + Math.sign(h) * 6)} mm={Math.abs(h)} prefix="H" />
         </>
       )}
     </group>

@@ -7,6 +7,8 @@ import { Sidebar } from "./ui/Sidebar";
 import { DragHud, EmptyHint, KernelLoading, ModeFrame, Toasts, ToolOptions } from "./ui/Overlays";
 import { ExportDialog, HelpDialog, StartDialog } from "./ui/Dialogs";
 import { useShortcuts } from "./ui/shortcuts";
+import { TooltipLayer } from "./ui/Tooltip";
+import { PlanePanel } from "./ui/PlanePanel";
 
 export function App() {
   useShortcuts();
@@ -42,6 +44,7 @@ export function App() {
           <EmptyHint />
           <ToolOptions />
           <ViewSwitcher />
+          <PlanePanel />
           <DragHud />
           <KernelLoading />
           <Toasts />
@@ -52,6 +55,7 @@ export function App() {
       {startDialog && <StartDialog />}
       {exportOpen && <ExportDialog />}
       {helpOpen && <HelpDialog />}
+      <TooltipLayer />
       {dragOver && (
         <div className="fixed inset-0 z-[60] grid place-items-center bg-black/50 pointer-events-none">
           <div className="overlay-card !border-sky-400 px-8 py-6 text-center">
