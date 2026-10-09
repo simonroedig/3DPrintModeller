@@ -10,6 +10,7 @@ import {
   Cylinder,
   Download,
   FilePlus2,
+  FileUp,
   FolderOpen,
   Globe,
   Hexagon,
@@ -41,7 +42,7 @@ import {
 } from "../store/store";
 import { SNAP_OPTIONS } from "../lib/units";
 import type { Unit } from "../types";
-import { openProject, saveProject } from "./files";
+import { openProject, pickImportFiles, saveProject } from "./files";
 
 export function TopBar() {
   const canUndo = useStore((s) => s.past.length > 0);
@@ -67,6 +68,9 @@ export function TopBar() {
       </button>
       <button className="btn ghost" title="Projekt speichern (Strg+S)" onClick={saveProject}>
         <Save size={16} /> Speichern
+      </button>
+      <button className="btn ghost" title="STEP, STL, 3MF oder OBJ importieren (oder Datei ins Fenster ziehen)" onClick={pickImportFiles}>
+        <FileUp size={16} /> Importieren
       </button>
       <div className="w-px h-6 bg-ink-750 mx-1" />
       <button className="btn ghost" disabled={!canUndo} title="Rückgängig (Strg+Z)" onClick={undo}>

@@ -46,6 +46,10 @@ export function localBox(shape: Shape): THREE.Box3 {
       const pb = polyBounds(shape.points);
       return b.set(new THREE.Vector3(pb.minX, pb.minY, 0), new THREE.Vector3(pb.maxX, pb.maxY, shape.h));
     }
+    case "imported": {
+      const k = shape.scale;
+      return b.set(new THREE.Vector3(...shape.min).multiplyScalar(k), new THREE.Vector3(...shape.max).multiplyScalar(k));
+    }
     case "group": {
       b.makeEmpty();
       for (const c of shape.children) b.union(worldBox(c));

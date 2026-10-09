@@ -1,7 +1,10 @@
 import { create } from "zustand";
 import * as THREE from "three";
-import type { Body, Doc, EdgeRef, FaceRef, Feature, Quat, Settings, Shape, ShapeKind, Sketch, SketchShape, Unit, Vec2, Vec3 } from "../types";
+import type { Asset, Body, Doc, EdgeRef, FaceRef, Feature, Quat, Settings, Shape, ShapeKind, Sketch, SketchShape, Unit, Vec2, Vec3 } from "../types";
 import { DEFAULT_SNAP } from "../lib/units";
+import { idbGet, idbSet } from "../lib/persist";
+import { importAsset, isAssetRegistered, registerAsset } from "../cad/client";
+import { detectFormat, payloadFromAsset, toBase64 } from "../cad/importers";
 import { cleanQuat, localBox, polyBounds, polygonArea, quatFromEulerDeg, unionBox, worldBox } from "../lib/geom";
 
 export type Tool = "select" | "rect" | "circle" | "poly" | "edit" | "layflat";
@@ -114,7 +117,8 @@ export const useStore = create<State>(() => ({
   viewFlash: 0,
   guides: [],
   dragInfo: null,
-  startDialog: !initialDoc,
+  // decided once the IndexedDB copy has been checked (see hydrate below)
+  startDialog: false,
   exportOpen: false,
   helpOpen: false,
   toasts: [],
@@ -124,18 +128,52 @@ export const useStore = create<State>(() => ({
 const get = useStore.getState;
 const set = useStore.setState;
 
+/** make every imported file of the document known to the CAD worker (before any meshing) */
+function syncAssets(doc: Doc) {
+  for (const [id, asset] of Object.entries(doc.assets ?? {})) {
+    if (isAssetRegistered(id)) continue;
+    try {
+      registerAsset(id, payloadFromAsset(asset));
+    } catch (err) {
+      console.error("asset", asset.name, err);
+    }
+  }
+}
+syncAssets(get().doc);
+
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
+let hydrated = false;
 useStore.subscribe((s, prev) => {
   if (s.doc === prev.doc) return;
+  syncAssets(s.doc);
+  if (!hydrated) return;
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
+    const doc = get().doc;
+    idbSet(STORAGE_KEY, doc).catch(() => {});
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(get().doc));
+      // small documents also go to localStorage (fallback when IndexedDB is unavailable)
+      if (doc.assets && Object.keys(doc.assets).length) localStorage.removeItem(STORAGE_KEY);
+      else localStorage.setItem(STORAGE_KEY, JSON.stringify(doc));
     } catch {
       /* quota */
     }
   }, 400);
 });
+
+// the IndexedDB copy is authoritative (it can hold imported files)
+idbGet<Doc>(STORAGE_KEY)
+  .then((saved) => {
+    hydrated = true;
+    if (saved && Array.isArray(saved.bodies) && saved.settings) {
+      saved.sketches ??= [];
+      set({ doc: saved, startDialog: false, fitNonce: get().fitNonce + 1 });
+    } else if (!initialDoc) set({ startDialog: true });
+  })
+  .catch(() => {
+    hydrated = true;
+    if (!initialDoc) set({ startDialog: true });
+  });
 
 /* ------------------------------------------------------------------ */
 /* helpers                                                              */
@@ -154,6 +192,7 @@ export const KIND_LABEL: Record<ShapeKind, string> = {
   tube: "Rohr",
   prism: "Prisma",
   group: "Gruppe",
+  imported: "Import",
 };
 
 const PALETTE = ["#4f8ff7", "#f5a524", "#22c55e", "#ef4444", "#a855f7", "#14b8a6", "#f97316", "#e879f9"];
@@ -282,7 +321,7 @@ export function fitView() {
 /* creation                                                             */
 /* ------------------------------------------------------------------ */
 
-export function defaultShape(kind: Exclude<ShapeKind, "group" | "prism">): Shape {
+export function defaultShape(kind: Exclude<ShapeKind, "group" | "prism" | "imported">): Shape {
   switch (kind) {
     case "box":
       return { kind, w: 20, d: 20, h: 20 };
@@ -329,7 +368,7 @@ function placeNewBody(doc: Doc, shape: Shape): Vec3 {
   return [all.max.x + gap - lb.min.x, all.min.y - lb.min.y, -lb.min.z];
 }
 
-export function addPrimitive(kind: Exclude<ShapeKind, "group" | "prism">, hole = false) {
+export function addPrimitive(kind: Exclude<ShapeKind, "group" | "prism" | "imported">, hole = false) {
   const doc = get().doc;
   const shape = defaultShape(kind);
   const body = makeBody(doc, shape, { hole });
@@ -694,4 +733,76 @@ export function loadSpeakerExample(unit: Unit) {
   const s = get();
   set({ doc, past: s.doc.bodies.length ? [...s.past, s.doc] : s.past, future: [], selection: [], ...noEdit, startDialog: false, tool: "select", view: "iso" });
   fitView();
+}
+
+/* ------------------------------------------------------------------ */
+/* import                                                               */
+/* ------------------------------------------------------------------ */
+
+export const IMPORT_ACCEPT = ".step,.stp,.stl,.3mf,.obj";
+
+/** Imports STEP / STL / 3MF / OBJ files; every solid becomes its own body. */
+export async function importFiles(files: File[]) {
+  for (const file of files) {
+    const format = detectFormat(file.name);
+    if (!format) {
+      toast(`„${file.name}“: Format nicht unterstützt (STEP, STL, 3MF oder OBJ)`, "error");
+      continue;
+    }
+    const base = file.name.replace(/\.[^.]+$/, "");
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const asset: Asset = { name: file.name, format, data: toBase64(bytes) };
+      const payload = payloadFromAsset(asset, bytes);
+      const triangles = payload.format === "mesh" ? payload.parts.reduce((n, p) => n + p.indices.length / 3, 0) : 0;
+      if (triangles > 150_000) {
+        throw new Error(
+          `${triangles.toLocaleString("de-DE")} Dreiecke sind zu viele für die Umwandlung – bitte mit geringerer Auflösung oder als STEP exportieren`,
+        );
+      }
+      toast(
+        format === "step"
+          ? `Importiere „${file.name}“ …`
+          : `Importiere „${file.name}“ – ${triangles.toLocaleString("de-DE")} Dreiecke werden in CAD-Flächen umgewandelt …`,
+      );
+      const id = uid();
+      const parts = await importAsset(id, payload);
+      if (!parts.length) throw new Error("keine Volumenkörper gefunden");
+
+      // keep the parts' arrangement, sit them on the bed next to what is already there
+      const all = new THREE.Box3();
+      for (const p of parts) all.union(new THREE.Box3(new THREE.Vector3(...p.min), new THREE.Vector3(...p.max)));
+      const doc = get().doc;
+      const size = all.getSize(new THREE.Vector3());
+      const existing = unionBox(doc.bodies.filter((b) => !b.hidden));
+      const targetMin = existing.isEmpty()
+        ? new THREE.Vector3(-size.x / 2, -size.y / 2, 0)
+        : new THREE.Vector3(existing.max.x + 10, existing.min.y, 0);
+      const offset: Vec3 = [
+        round6(targetMin.x - all.min.x),
+        round6(targetMin.y - all.min.y),
+        round6(-all.min.z),
+      ];
+      const bodies: Body[] = parts.map((p, i) => ({
+        id: uid(),
+        name: parts.length > 1 ? `${base} ${i + 1}` : base,
+        shape: { kind: "imported", asset: id, part: i, scale: 1, min: p.min, max: p.max },
+        position: offset,
+        quaternion: [0, 0, 0, 1],
+        hole: false,
+        color: PALETTE[(doc.bodies.length + i) % PALETTE.length],
+        features: [],
+      }));
+      commit({ ...doc, assets: { ...(doc.assets ?? {}), [id]: asset }, bodies: [...doc.bodies, ...bodies] });
+      set({ selection: bodies.map((b) => b.id), tool: "select", ...noEdit, startDialog: false });
+      fitView();
+      const maxDim = Math.max(size.x, size.y, size.z);
+      toast(
+        `„${file.name}“ importiert – ${parts.length} Körper` +
+          (maxDim < 2 ? " · sehr klein: evtl. in Metern/Zoll exportiert → Skalierung im Panel anpassen" : ""),
+      );
+    } catch (err) {
+      toast(`„${file.name}“ konnte nicht importiert werden: ${(err as Error).message}`, "error");
+    }
+  }
 }

@@ -36,6 +36,10 @@ export function resizeLocal(shape: Shape, axis: number, size: number): Shape | n
         points: shape.points.map(([x, y]) => (axis === 0 ? [pb.minX + (x - pb.minX) * f, y] : [x, pb.minY + (y - pb.minY) * f])),
       };
     }
+    case "imported": {
+      const cur = (shape.max[axis] - shape.min[axis]) * shape.scale;
+      return cur > 0 ? { ...shape, scale: (shape.scale * s) / cur } : null;
+    }
     case "group":
       return null;
   }
@@ -207,6 +211,7 @@ export function handleSpecs(shape: Shape): HandleSpec[] {
         bottomHandle(shape, [(pb.minX + pb.maxX) / 2, (pb.minY + pb.maxY) / 2, 0], sn),
       ];
     }
+    case "imported":
     case "group":
       return [];
   }

@@ -33,7 +33,14 @@ zwischen vereinten Teilen.
 - **Ausrichten** mehrerer Körper (Anfang/Mitte/Ende pro Achse).
 - **Export**: 3MF (empfohlen), STL (binär) oder STEP – mit wählbarer Tessellierungs-Qualität, wasserdichtes Netz,
   Volumen/Gewichts-Schätzung.
-- Rückgängig/Wiederholen, Kopieren/Einfügen, Projekt speichern/öffnen (JSON), automatisches Speichern im Browser.
+- **Import** von STEP, STL, 3MF und OBJ (Button „Importieren“ oder Datei ins Fenster ziehen). Jeder Volumenkörper
+  wird ein eigener Körper und lässt sich wie alles andere verschieben, vereinen, bearbeiten und exportieren.
+  - **STEP** (empfohlen) bringt die exakte CAD-Geometrie mit.
+  - **STL/3MF/OBJ** sind Dreiecksnetze: ebene Bereiche werden wieder zu echten Flächen zusammengefasst (lassen sich
+    verschieben, neigen, Kanten dazwischen runden), gekrümmte Bereiche bleiben facettiert. Skalierung (cm→mm, Zoll→mm)
+    im Panel.
+- Rückgängig/Wiederholen, Kopieren/Einfügen, Projekt speichern/öffnen (JSON), automatisches Speichern im Browser
+  (IndexedDB, inkl. importierter Dateien).
 
 ## Bedienung (Kurzfassung)
 

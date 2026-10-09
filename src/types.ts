@@ -13,7 +13,9 @@ export type Shape =
   | { kind: "sphere"; d: number }
   | { kind: "tube"; d: number; t: number; h: number }
   | { kind: "prism"; points: Vec2[]; h: number }
-  | { kind: "group"; children: Body[] };
+  | { kind: "group"; children: Body[] }
+  /** solid `part` of an imported file (see Doc.assets); min/max = its bounds before scaling */
+  | { kind: "imported"; asset: string; part: number; scale: number; min: Vec3; max: Vec3 };
 
 export type ShapeKind = Shape["kind"];
 
@@ -66,10 +68,18 @@ export interface Settings {
   bed: { x: number; y: number };
 }
 
+export interface Asset {
+  name: string;
+  format: "step" | "stl" | "3mf" | "obj";
+  /** original file, base64 */
+  data: string;
+}
+
 export interface Doc {
   bodies: Body[];
   sketches: Sketch[];
   settings: Settings;
+  assets?: Record<string, Asset>;
 }
 
 /* ---------- data coming back from the CAD worker ---------- */

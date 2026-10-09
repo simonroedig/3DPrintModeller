@@ -228,7 +228,8 @@ const KEYS: [string, string][] = [
   ["Alt beim Ziehen", "Raster & Einrasten aus"],
   ["Feld-Beschriftung ziehen", "Zahl per Links/Rechts-Ziehen ändern (Shift ×10, Alt ×0,1)"],
   ["Esc", "Abbrechen / Werkzeug beenden / Auswahl aufheben"],
-  ["Strg + S / Strg + O", "Projekt speichern / öffnen"],
+  ["Strg + S / Strg + O", "Projekt speichern / öffnen (Öffnen nimmt auch STEP/STL/3MF/OBJ)"],
+  ["Datei ins Fenster ziehen", "STEP, STL, 3MF oder OBJ importieren"],
 ];
 
 export function HelpDialog() {

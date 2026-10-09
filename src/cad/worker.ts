@@ -22,8 +22,22 @@ import {
 import type { Body, EdgeFeature, EdgeInfo, EdgeRef, ExportFormat, ExportQuality, FaceInfo, FaceRef, Feature, MeshData, Shape, Vec3 } from "../types";
 import { geometryKey } from "./key";
 import { to3MF, toBinarySTL, type ExportPart } from "./formats";
+import { meshToSolids, readSTEP } from "./meshToBrep";
+
+/** asset payload as sent to the worker: STEP bytes or already parsed mesh parts */
+export type AssetPayload =
+  | { format: "step"; bytes: Uint8Array }
+  | { format: "mesh"; parts: { positions: Float32Array; indices: Uint32Array }[] };
+
+export interface ImportedPartInfo {
+  min: Vec3;
+  max: Vec3;
+  faces: number;
+}
 
 export type WorkerRequest =
+  | { type: "asset"; id: string; payload: AssetPayload }
+  | { type: "import"; reqId: number; id: string; payload: AssetPayload }
   | { type: "mesh"; reqId: number; key: string; shape: Shape; features: Feature[] }
   | { type: "export"; reqId: number; bodies: Body[]; format: ExportFormat; quality: ExportQuality; separate: boolean }
   | { type: "volume"; reqId: number; bodies: Body[] };
@@ -32,7 +46,8 @@ export type WorkerResponse =
   | { type: "ready" }
   | { type: "mesh"; reqId: number; key: string; mesh?: MeshData; error?: string }
   | { type: "export"; reqId: number; data?: Uint8Array; error?: string; volume?: number }
-  | { type: "volume"; reqId: number; volume?: number; error?: string };
+  | { type: "volume"; reqId: number; volume?: number; error?: string }
+  | { type: "import"; reqId: number; parts?: ImportedPartInfo[]; error?: string };
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope;
 
@@ -64,6 +79,37 @@ function cacheSet(key: string, shape: Shape3D) {
     const oldest = cache.keys().next().value as string;
     cache.delete(oldest);
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* imported files                                                       */
+/* ------------------------------------------------------------------ */
+
+const assets = new Map<string, AssetPayload>();
+const assetSolids = new Map<string, Shape3D[]>();
+
+/** solids of an imported file, converted on first use and kept for the session */
+function importedParts(id: string): Shape3D[] {
+  let solids = assetSolids.get(id);
+  if (solids) return solids;
+  const payload = assets.get(id);
+  if (!payload) throw new Error("Importierte Datei fehlt");
+  if (payload.format === "step") solids = readSTEP(payload.bytes);
+  else solids = payload.parts.flatMap((p) => meshToSolids(p.positions, p.indices));
+  assetSolids.set(id, solids);
+  return solids;
+}
+
+/** true if the geometry contains a triangulated (STL/3MF/OBJ) import */
+function containsMeshImport(shape: Shape): boolean {
+  if (shape.kind === "imported") return assets.get(shape.asset)?.format === "mesh";
+  if (shape.kind === "group") return shape.children.some((c) => containsMeshImport(c.shape));
+  return false;
+}
+
+function partInfo(solid: Shape3D): ImportedPartInfo {
+  const [min, max] = solid.boundingBox.bounds as [Vec3, Vec3];
+  return { min, max, faces: solid.faces.length };
 }
 
 /* ------------------------------------------------------------------ */
@@ -114,6 +160,11 @@ function buildBase(shape: Shape): Shape3D {
       let pen = draw(pts[0]);
       for (let i = 1; i < pts.length; i++) pen = pen.lineTo(pts[i]);
       return pen.close().sketchOnPlane("XY").extrude(shape.h) as Shape3D;
+    }
+    case "imported": {
+      const solid = importedParts(shape.asset)[shape.part];
+      if (!solid) throw new Error("Importierte Datei fehlt");
+      return shape.scale === 1 ? solid : solid.clone().scale(shape.scale, [0, 0, 0]);
     }
     case "group": {
       const solids: Shape3D[] = [];
@@ -484,7 +535,7 @@ function faceNormal(face: Face, at?: Vec3): Vec3 | null {
   }
 }
 
-function meshShape(shape: Shape3D, warnings: string[]): MeshData {
+function meshShape(shape: Shape3D, warnings: string[], faceted = false): MeshData {
   const tol = meshTolerances(shape, "display");
   const m = shape.mesh(tol);
   const me = shape.meshEdges(tol);
@@ -514,8 +565,11 @@ function meshShape(shape: Shape3D, warnings: string[]): MeshData {
 
   // edge -> adjacent faces
   const adj = new Map<number, number[]>();
+  const edgeCount: number[] = [];
   faces.forEach((f, fi) => {
-    for (const e of f.edges) {
+    const fe = f.edges;
+    edgeCount[fi] = fe.length;
+    for (const e of fe) {
       const list = adj.get(e.hashCode) ?? [];
       if (!list.includes(fi)) list.push(fi);
       adj.set(e.hashCode, list);
@@ -563,6 +617,13 @@ function meshShape(shape: Shape3D, warnings: string[]): MeshData {
     const sum: Vec3 = [n1[0] + n2[0], n1[1] + n2[1], n1[2] + n2[2]];
     const sl = len(sum);
     const smooth = dot(n1, n2) > 0.996;
+    // facets of an imported mesh (planar pieces meeting at a shallow angle) are neither drawn nor pickable
+    const facet =
+      dot(n1, n2) > (faceted ? 0.75 : 0.866) &&
+      (faceted || edgeCount[adjFaces[0]] === 3 || edgeCount[adjFaces[1]] === 3) &&
+      faces[adjFaces[0]].geomType === "PLANE" &&
+      faces[adjFaces[1]].geomType === "PLANE";
+    if (facet) continue;
     const startVert = edgeLines.length / 3;
     for (let k = g.start * 3; k < (g.start + g.count) * 3; k++) edgeLines.push(me.lines[k]);
     const line = edge.geomType === "LINE";
@@ -669,13 +730,33 @@ async function exportBodies(bodies: Body[], format: ExportFormat, quality: Expor
 
 /* ------------------------------------------------------------------ */
 
-ctx.onmessage = async (ev: MessageEvent<WorkerRequest>) => {
-  await ready;
-  const msg = ev.data;
+// messages are handled strictly one after another (asset registrations must precede meshing)
+let queue: Promise<void> = ready;
+ctx.onmessage = (ev: MessageEvent<WorkerRequest>) => {
+  queue = queue.then(() => handle(ev.data)).catch((err) => console.error(err));
+};
+
+async function handle(msg: WorkerRequest) {
+  if (msg.type === "asset") {
+    assets.set(msg.id, msg.payload);
+    return;
+  }
+  if (msg.type === "import") {
+    try {
+      assets.set(msg.id, msg.payload);
+      assetSolids.delete(msg.id);
+      const parts = importedParts(msg.id).map(partInfo);
+      ctx.postMessage({ type: "import", reqId: msg.reqId, parts } satisfies WorkerResponse);
+    } catch (err) {
+      assets.delete(msg.id);
+      ctx.postMessage({ type: "import", reqId: msg.reqId, error: String((err as Error)?.message ?? err) } satisfies WorkerResponse);
+    }
+    return;
+  }
   if (msg.type === "mesh") {
     try {
       const built = getShape(msg.shape, msg.features);
-      const mesh = meshShape(built.shape, built.warnings);
+      const mesh = meshShape(built.shape, built.warnings, containsMeshImport(msg.shape));
       ctx.postMessage({ type: "mesh", reqId: msg.reqId, key: msg.key, mesh } satisfies WorkerResponse, [
         mesh.positions.buffer,
         mesh.normals.buffer,
@@ -702,4 +783,4 @@ ctx.onmessage = async (ev: MessageEvent<WorkerRequest>) => {
       ctx.postMessage({ type: "volume", reqId: msg.reqId, error: String((err as Error)?.message ?? err) } satisfies WorkerResponse);
     }
   }
-};
+}

@@ -18,6 +18,7 @@ import {
   Cylinder,
   Eye,
   EyeOff,
+  FileBox,
   Globe,
   Hexagon,
   Layers,
@@ -68,6 +69,7 @@ const ICON: Record<ShapeKind, ReactNode> = {
   tube: <CircleDot size={14} />,
   prism: <Hexagon size={14} />,
   group: <Layers size={14} />,
+  imported: <FileBox size={14} />,
 };
 
 const SKETCH_ICON: Record<SketchShape["kind"], ReactNode> = {
@@ -459,6 +461,47 @@ function ShapeParams({ body }: { body: Body }) {
           <LenField label="T" mm={pb.maxY - pb.minY} min={min} onChange={(v) => scale(1, v)} />
           <LenField label="H" mm={s.h} min={min} onChange={(h) => set({ ...s, h })} />
         </div>
+      );
+    }
+    case "imported": {
+      const asset = useStore.getState().doc.assets?.[s.asset];
+      const k = s.scale;
+      const dims = [0, 1, 2].map((a) => (s.max[a] - s.min[a]) * k);
+      const scaleTo = (f: number) => setBodyShape(body.id, { ...s, scale: f });
+      return (
+        <>
+          <div className="grid grid-cols-3 gap-1.5">
+            {(["B", "T", "H"] as const).map((l, a) => (
+              <LenField
+                key={l}
+                label={l}
+                mm={dims[a]}
+                min={0.01}
+                title="Ändert die Größe proportional"
+                onChange={(v) => dims[a] > 0 && scaleTo((k * v) / dims[a])}
+              />
+            ))}
+          </div>
+          <div className="flex items-center gap-1.5 mt-1.5">
+            <div className="w-[120px]">
+              <NumField label="Faktor" value={k} step={0.1} digits={4} min={0.0001} onChange={scaleTo} />
+            </div>
+            <button className="btn !h-7 !px-2 text-[11px]" title="Datei war in cm" onClick={() => scaleTo(10)}>
+              cm→mm
+            </button>
+            <button className="btn !h-7 !px-2 text-[11px]" title="Datei war in Zoll" onClick={() => scaleTo(25.4)}>
+              in→mm
+            </button>
+            <button className="btn ghost !h-7 !px-2 text-[11px]" onClick={() => scaleTo(1)}>
+              1:1
+            </button>
+          </div>
+          <div className="text-[11px] text-ink-500 mt-2 leading-snug">
+            {asset?.format === "step"
+              ? `Aus „${asset.name}“ (STEP) – exakte CAD-Geometrie.`
+              : `Aus „${asset?.name ?? "Datei"}“ (${asset?.format.toUpperCase()}) – ebene Flächen wurden zu CAD-Flächen zusammengefasst, Rundungen bleiben facettiert.`}
+          </div>
+        </>
       );
     }
     case "group":

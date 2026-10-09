@@ -1,5 +1,6 @@
 import type { Doc } from "../types";
-import { loadDocument, toast, useStore } from "../store/store";
+import { IMPORT_ACCEPT, importFiles, loadDocument, toast, useStore } from "../store/store";
+import { detectFormat } from "../cad/importers";
 
 export function download(data: Uint8Array | string, filename: string, mime: string) {
   const blob = new Blob([data as BlobPart], { type: mime });
@@ -18,13 +19,28 @@ export function saveProject() {
   download(JSON.stringify({ app: "PrintModeller", version: 1, doc }, null, 1), "projekt.pmodel.json", "application/json");
 }
 
+export function pickImportFiles() {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.multiple = true;
+  input.accept = IMPORT_ACCEPT;
+  input.onchange = () => {
+    if (input.files?.length) importFiles([...input.files]);
+  };
+  input.click();
+}
+
 export function openProject() {
   const input = document.createElement("input");
   input.type = "file";
-  input.accept = ".json,.pmodel,application/json";
+  input.accept = `.json,.pmodel,application/json,${IMPORT_ACCEPT}`;
   input.onchange = async () => {
     const file = input.files?.[0];
     if (!file) return;
+    if (detectFormat(file.name)) {
+      importFiles([file]);
+      return;
+    }
     try {
       const data = JSON.parse(await file.text());
       const doc: Doc = data.doc ?? data;
