@@ -10,11 +10,16 @@ import {
   measureVolume,
   basicFaceExtrusion,
   makePolygon,
+  makeLine,
+  makeThreePointArc,
+  assembleWire,
+  makeFace,
+  Vector,
   type Shape3D,
   type Edge,
   type Face,
 } from "replicad";
-import type { Body, EdgeInfo, EdgeRef, ExportFormat, ExportQuality, FaceInfo, FaceRef, Feature, MeshData, Shape, Vec3 } from "../types";
+import type { Body, EdgeFeature, EdgeInfo, EdgeRef, ExportFormat, ExportQuality, FaceInfo, FaceRef, Feature, MeshData, Shape, Vec3 } from "../types";
 import { geometryKey } from "./key";
 import { to3MF, toBinarySTL, type ExportPart } from "./formats";
 
@@ -283,9 +288,77 @@ function tiltFace(shape: Shape3D, ref: FaceRef, hingeRef: EdgeRef, angle: number
   return shape.cut(wedge);
 }
 
-function applyFeature(shape: Shape3D, f: Feature): Shape3D {
-  if (f.type === "push") return pushFace(shape, f.face, f.distance);
-  if (f.type === "tilt") return tiltFace(shape, f.face, f.hinge, f.angle);
+/** Direction lying in `face`, perpendicular to the edge, pointing from the edge into the face. */
+function inwardDir(shape: Shape3D, face: Face, mid: Vector, e: Vector, n: Vector): Vector | null {
+  const m = shape.mesh({ tolerance: 0.1, angularTolerance: 0.5 });
+  const g = m.faceGroups.find((fg) => fg.faceId === face.hashCode);
+  if (!g) return null;
+  const P = m.vertices;
+  const T = m.triangles;
+  let best: Vector | null = null;
+  let bd = Infinity;
+  for (let t = g.start; t < g.start + g.count; t += 3) {
+    const a = T[t] * 3, b = T[t + 1] * 3, c = T[t + 2] * 3;
+    const cen = new Vector([(P[a] + P[b] + P[c]) / 3, (P[a + 1] + P[b + 1] + P[c + 1]) / 3, (P[a + 2] + P[b + 2] + P[c + 2]) / 3]);
+    const d = cen.sub(mid).Length;
+    if (d < bd) {
+      bd = d;
+      best = cen;
+    }
+  }
+  if (!best) return null;
+  let d = best.sub(mid);
+  d = d.sub(e.multiply(d.dot(e)));
+  d = d.sub(n.multiply(d.dot(n)));
+  return d.Length > 1e-9 ? d.normalized() : null;
+}
+
+/**
+ * Fallback when OpenCascade's fillet/chamfer fails (typically at joints of merged parts that
+ * already had roundings): builds the rounding profile along a straight edge between two planar
+ * faces and adds it (concave edge) or cuts it away (convex edge).
+ */
+function manualBlend(shape: Shape3D, edge: Edge, type: "fillet" | "chamfer", r: number): Shape3D {
+  if (edge.geomType !== "LINE") throw new Error("curved edge");
+  const adj = shape.faces.filter((f) => f.edges.some((x) => x.isSame(edge)));
+  if (adj.length !== 2 || adj.some((f) => f.geomType !== "PLANE")) throw new Error("non-planar faces");
+  const P0 = edge.startPoint;
+  const P1 = edge.endPoint;
+  const e = P1.sub(P0).normalized();
+  const mid = edge.pointAt(0.5);
+  const n1 = adj[0].normalAt().normalized();
+  const n2 = adj[1].normalAt().normalized();
+  const t1 = inwardDir(shape, adj[0], mid, e, n1);
+  const t2 = inwardDir(shape, adj[1], mid, e, n2);
+  if (!t1 || !t2) throw new Error("no direction");
+  const convex = t1.dot(n2) < 0;
+  const A = Math.acos(Math.max(-1, Math.min(1, t1.dot(t2))));
+  if (A < 1e-3 || A > Math.PI - 1e-3) throw new Error("flat edge");
+  const margin = 0.5;
+  const C = P0.sub(e.multiply(margin));
+  const L = P1.sub(P0).Length + 2 * margin;
+  const pt = (v: Vector) => v.toTuple() as Vec3;
+  let profile: Face;
+  if (type === "chamfer") {
+    profile = makePolygon([pt(C), pt(C.add(t1.multiply(r))), pt(C.add(t2.multiply(r)))]);
+  } else {
+    const k = r / Math.tan(A / 2);
+    const bis = t1.add(t2).normalized();
+    const T1 = C.add(t1.multiply(k));
+    const T2 = C.add(t2.multiply(k));
+    const M = C.add(bis.multiply(r / Math.sin(A / 2) - r));
+    profile = makeFace(assembleWire([makeLine(pt(C), pt(T1)), makeThreePointArc(pt(T1), pt(M), pt(T2)), makeLine(pt(T2), pt(C))]));
+  }
+  const prism = basicFaceExtrusion(profile, e.multiply(L));
+  // keep the profile where both faces actually exist (clean ends)
+  const reach = 2 * r + 1;
+  const s1 = basicFaceExtrusion(adj[0], n1.multiply(convex ? -reach : reach));
+  const s2 = basicFaceExtrusion(adj[1], n2.multiply(convex ? -reach : reach));
+  const region = prism.intersect(s1).intersect(s2);
+  return convex ? shape.cut(region) : shape.fuse(region);
+}
+
+function blendEdges(shape: Shape3D, f: EdgeFeature): Shape3D {
   const geoms = edgeGeoms(shape);
   const selected: Edge[] = [];
   for (const ref of f.edges) {
@@ -293,8 +366,32 @@ function applyFeature(shape: Shape3D, f: Feature): Shape3D {
     if (e) selected.push(e);
   }
   if (!selected.length) throw new FeatureError("edges");
-  const pick = (e: Edge) => (selected.some((s) => s.isSame(e)) ? f.radius : null);
-  return f.type === "fillet" ? shape.fillet(pick) : shape.chamfer(pick);
+  const occ = (s: Shape3D, edges: Edge[]) => {
+    const pick = (e: Edge) => (edges.some((x) => x.isSame(e)) ? f.radius : null);
+    return f.type === "fillet" ? s.fillet(pick) : s.chamfer(pick);
+  };
+  try {
+    return occ(shape, selected);
+  } catch {
+    // one edge at a time, with a constructed rounding where the kernel gives up
+    let current = shape;
+    for (const ref of f.edges) {
+      const edge = matchEdge(current, edgeGeoms(current), ref);
+      if (!edge) throw new FeatureError("edges");
+      try {
+        current = occ(current, [edge]);
+      } catch {
+        current = manualBlend(current, edge, f.type, f.radius);
+      }
+    }
+    return current;
+  }
+}
+
+function applyFeature(shape: Shape3D, f: Feature): Shape3D {
+  if (f.type === "push") return pushFace(shape, f.face, f.distance);
+  if (f.type === "tilt") return tiltFace(shape, f.face, f.hinge, f.angle);
+  return blendEdges(shape, f);
 }
 
 function featureWarning(f: Feature, err: unknown) {
