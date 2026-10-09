@@ -250,7 +250,7 @@ export function HelpDialog() {
         ))}
       </div>
       <div className="mt-4 text-[12px] text-ink-400 leading-relaxed">
-        Maus: Linke Taste drehen (3D) bzw. verschieben (2D-Ansichten) · Rechte/mittlere Taste verschieben · Rad zoomen. Zahlenfelder verstehen
+        Maus: Linke Taste auswählen, ziehen und zeichnen · Rechte Taste halten drehen (in den 2D-Ansichten verschieben) · Mittlere Taste verschieben · Rad zoomen. Zahlenfelder verstehen
         Rechnungen wie <code>120/2</code> oder <code>2cm+5</code>. Projekte werden automatisch im Browser gespeichert.
       </div>
     </Modal>

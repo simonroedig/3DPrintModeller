@@ -44,7 +44,6 @@ function sceneBox() {
 
 export function CameraRig() {
   const view = useStore((s) => s.view);
-  const tool = useStore((s) => s.tool);
   const fitNonce = useStore((s) => s.fitNonce);
   const isOrtho = view !== "iso";
   const controls = useThree((s) => s.controls) as unknown as OrbitControlsImpl | null;
@@ -88,9 +87,8 @@ export function CameraRig() {
     invalidate();
   }, [view, fitNonce, controls, camera, invalidate]);
 
-  const drawing = tool === "rect" || tool === "circle" || tool === "poly";
-  const leftButton = drawing || tool === "fillet" || tool === "layflat" ? -1 : isOrtho ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE;
-  const rightButton = isOrtho ? THREE.MOUSE.PAN : drawing || tool === "fillet" || tool === "layflat" ? THREE.MOUSE.ROTATE : THREE.MOUSE.PAN;
+  // left button is reserved for selecting/drawing; hold the right button to orbit (pans in the flat 2D views)
+  const rightButton = isOrtho ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE;
 
   return (
     <>
@@ -102,7 +100,7 @@ export function CameraRig() {
         enableDamping={false}
         zoomToCursor
         screenSpacePanning
-        mouseButtons={{ LEFT: leftButton as THREE.MOUSE, MIDDLE: THREE.MOUSE.PAN, RIGHT: rightButton }}
+        mouseButtons={{ LEFT: -1 as THREE.MOUSE, MIDDLE: THREE.MOUSE.PAN, RIGHT: rightButton }}
         minPolarAngle={0}
         maxPolarAngle={Math.PI}
       />

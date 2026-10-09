@@ -194,7 +194,7 @@ export function StatusBar() {
   const hints: Record<Tool, string> = {
     select: selection
       ? "Ziehen: verschieben (rastet an Flächen ein) · Alt: frei · Pfeiltasten: nudgen · Strg+D: duplizieren · Entf: löschen"
-      : "Klicke einen Körper zum Auswählen · Shift+Klick: Mehrfachauswahl · Linke Maus: drehen · Rechte Maus: verschieben · Rad: zoomen",
+      : "Klicke einen Körper zum Auswählen · Shift+Klick: Mehrfachauswahl · Rechte Maus halten: drehen · Mittlere Maus: verschieben · Rad: zoomen",
     rect: "Klicken & ziehen (oder zwei Klicks) für ein Rechteck · Alt: ohne Raster · Esc: abbrechen",
     circle: "Klicken & ziehen für einen Kreis · Alt: ohne Raster · Esc: abbrechen",
     poly: "Klicken setzt Punkte · Shift: 15°-Schritte · Klick auf Startpunkt / Enter: schließen · Backspace: letzter Punkt zurück",

@@ -44,7 +44,7 @@ zwischen vereinten Teilen.
 | Pfeiltasten / Bild↑↓ | Auswahl um einen Rasterschritt verschieben (Shift ×10) |
 | `Esc` | Abbrechen / Werkzeug beenden |
 
-Maus: links drehen (3D) bzw. verschieben (2D), rechts/mittel verschieben, Rad zoomen.
+Maus: links auswählen/ziehen/zeichnen, rechte Taste halten zum Drehen (in 2D-Ansichten verschieben), mittlere Taste verschieben, Rad zoomen.
 Zahlenfelder verstehen Rechnungen wie `120/2` oder `2cm+5`.
 
 ## Entwicklung
