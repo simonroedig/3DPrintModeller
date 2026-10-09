@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { useStore } from "../store/store";
+import { beginTx, endTx, useStore } from "../store/store";
 import { fmtNum, parseLen, parseNumber, snapTo, UNIT_LABEL } from "../lib/units";
 
 function useDraft(display: string) {
@@ -9,6 +9,53 @@ function useDraft(display: string) {
     if (!focused.current) setDraft(null);
   }, [display]);
   return { value: draft ?? display, setDraft, focused };
+}
+
+/**
+ * Adobe-style scrubbing: press on a field label and drag left/right to change the value.
+ * A plain click (no drag) focuses the input instead.
+ */
+export function startScrub(
+  e: React.PointerEvent,
+  value: number,
+  step: number,
+  onChange: (v: number) => void,
+  onClick?: () => void,
+  min = -Infinity,
+  max = Infinity,
+) {
+  if (e.button !== 0) return;
+  e.preventDefault();
+  e.stopPropagation();
+  const x0 = e.clientX;
+  let moved = false;
+  let last = value;
+  const move = (ev: PointerEvent) => {
+    const dx = ev.clientX - x0;
+    if (!moved && Math.abs(dx) < 3) return;
+    if (!moved) {
+      moved = true;
+      beginTx();
+      document.body.style.cursor = "ew-resize";
+    }
+    const mult = ev.shiftKey ? 10 : ev.altKey ? 0.1 : 1;
+    const st = step * mult;
+    const v = Math.min(max, Math.max(min, snapTo(value + Math.round(dx / 5) * st, st)));
+    const r = Math.round(v * 1e6) / 1e6;
+    if (r !== last) {
+      last = r;
+      onChange(r);
+    }
+  };
+  const up = () => {
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", up);
+    document.body.style.cursor = "";
+    if (moved) endTx();
+    else onClick?.();
+  };
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", up);
 }
 
 /** Length input in the document unit. Accepts expressions like "120/2" or "3cm". */
@@ -45,10 +92,20 @@ export function LenField({
     setDraft(null);
   };
 
+  const inputRef = useRef<HTMLInputElement>(null);
   return (
-    <label className="field" title={title} style={bad ? { borderColor: "#ef4444" } : undefined}>
-      {label && <span className="lbl">{label}</span>}
+    <div className="field" title={title} style={bad ? { borderColor: "#ef4444" } : undefined}>
+      {label && (
+        <span
+          className="lbl scrub"
+          title="Ziehen zum Ändern (Shift ×10, Alt ×0,1)"
+          onPointerDown={(e) => startScrub(e, mm, snap || 1, (v) => v >= min && onChange(v), () => inputRef.current?.focus(), min)}
+        >
+          {label}
+        </span>
+      )}
       <input
+        ref={inputRef}
         value={value}
         onFocus={(e) => {
           focused.current = true;
@@ -76,7 +133,7 @@ export function LenField({
         }}
       />
       <span className="unit">{suffix ?? UNIT_LABEL[unit]}</span>
-    </label>
+    </div>
   );
 }
 
@@ -110,10 +167,20 @@ export function NumField({
     const c = Math.min(max, Math.max(min, n));
     if (Math.abs(c - value) > 1e-9) onChange(c);
   };
+  const inputRef = useRef<HTMLInputElement>(null);
   return (
-    <label className="field">
-      {label && <span className="lbl">{label}</span>}
+    <div className="field">
+      {label && (
+        <span
+          className="lbl scrub"
+          title="Ziehen zum Ändern (Shift ×10, Alt ×0,1)"
+          onPointerDown={(e) => startScrub(e, value, step, onChange, () => inputRef.current?.focus(), min, max)}
+        >
+          {label}
+        </span>
+      )}
       <input
+        ref={inputRef}
         value={v}
         onFocus={(e) => {
           focused.current = true;
@@ -140,7 +207,7 @@ export function NumField({
         }}
       />
       {suffix && <span className="unit">{suffix}</span>}
-    </label>
+    </div>
   );
 }
 

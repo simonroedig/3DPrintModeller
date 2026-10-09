@@ -75,6 +75,20 @@ export interface HandleSpec {
   apply: (t: number, snap: number) => { shape: Shape; shift: Vec3; value: number };
 }
 
+/** handle on the bottom face that grows a height parameter downwards */
+function bottomHandle(shape: Shape & { h: number }, pos: Vec3, sn: (v: number, snap: number) => number): HandleSpec {
+  return {
+    id: "h-",
+    pos,
+    dir: [0, 0, -1],
+    label: "Höhe (unten)",
+    apply: (t, snap) => {
+      const v = sn(shape.h + t, snap);
+      return { shape: { ...shape, h: v } as Shape, shift: [0, 0, shape.h - v], value: v };
+    },
+  };
+}
+
 export function handleSpecs(shape: Shape): HandleSpec[] {
   const sn = (v: number, snap: number) => Math.max(snapTo(v, snap), snap || MIN);
   switch (shape.kind) {
@@ -92,7 +106,7 @@ export function handleSpecs(shape: Shape): HandleSpec[] {
         }
         pos[axis] = neg ? 0 : cur;
         if (wedge && axis === 1) pos[2] = neg ? 0 : h / 2;
-        if (wedge && axis === 2) pos[1] = d;
+        if (wedge && axis === 2) pos[1] = neg ? d / 2 : d;
         const dir: Vec3 = [0, 0, 0];
         dir[axis] = neg ? -1 : 1;
         return {
@@ -108,7 +122,7 @@ export function handleSpecs(shape: Shape): HandleSpec[] {
           },
         };
       };
-      return [side(0, false), side(0, true), side(1, false), side(1, true), side(2, false)];
+      return [side(0, false), side(0, true), side(1, false), side(1, true), side(2, false), side(2, true)];
     }
     case "cylinder":
     case "tube":
@@ -129,6 +143,7 @@ export function handleSpecs(shape: Shape): HandleSpec[] {
         },
       ];
       if (shape.kind !== "sphere") {
+        list.push(bottomHandle(shape, [0, 0, 0], sn));
         list.push({
           id: "h",
           pos: [0, 0, shape.h],
@@ -174,6 +189,7 @@ export function handleSpecs(shape: Shape): HandleSpec[] {
             return { shape: { ...shape, h: v }, shift: [0, 0, 0], value: v };
           },
         },
+        bottomHandle(shape, [0, 0, 0], sn),
       ];
     case "prism": {
       const pb = polyBounds(shape.points);
@@ -188,6 +204,7 @@ export function handleSpecs(shape: Shape): HandleSpec[] {
             return { shape: { ...shape, h: v }, shift: [0, 0, 0], value: v };
           },
         },
+        bottomHandle(shape, [(pb.minX + pb.maxX) / 2, (pb.minY + pb.maxY) / 2, 0], sn),
       ];
     }
     case "group":

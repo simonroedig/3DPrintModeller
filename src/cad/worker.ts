@@ -8,16 +8,18 @@ import {
   makeSphere,
   draw,
   measureVolume,
+  basicFaceExtrusion,
+  makePolygon,
   type Shape3D,
   type Edge,
   type Face,
 } from "replicad";
-import type { Body, EdgeFeature, EdgeInfo, ExportFormat, ExportQuality, FaceInfo, MeshData, Shape, Vec3 } from "../types";
+import type { Body, EdgeInfo, EdgeRef, ExportFormat, ExportQuality, FaceInfo, FaceRef, Feature, MeshData, Shape, Vec3 } from "../types";
 import { geometryKey } from "./key";
 import { to3MF, toBinarySTL, type ExportPart } from "./formats";
 
 export type WorkerRequest =
-  | { type: "mesh"; reqId: number; key: string; shape: Shape; features: EdgeFeature[] }
+  | { type: "mesh"; reqId: number; key: string; shape: Shape; features: Feature[] }
   | { type: "export"; reqId: number; bodies: Body[]; format: ExportFormat; quality: ExportQuality; separate: boolean }
   | { type: "volume"; reqId: number; bodies: Body[] };
 
@@ -187,28 +189,130 @@ function bboxDiag(shape: Shape3D) {
   return len(sub(max, min));
 }
 
-function applyFeature(shape: Shape3D, f: EdgeFeature): Shape3D {
-  const geoms = edgeGeoms(shape);
+class FeatureError extends Error {}
+
+function matchEdge(shape: Shape3D, geoms: EdgeGeom[], ref: EdgeRef): Edge | null {
   const diag = bboxDiag(shape);
+  let best: EdgeGeom | null = null;
+  let bestScore = Infinity;
+  for (const g of geoms) {
+    const d = len(sub(g.mid, ref.mid));
+    const align = Math.abs(dot(g.dir, ref.dir));
+    const score = d + (1 - align) * diag * 0.5;
+    if (score < bestScore) {
+      bestScore = score;
+      best = g;
+    }
+  }
+  return best && bestScore < Math.max(diag * 0.35, 1) ? best.edge : null;
+}
+
+function matchFace(shape: Shape3D, ref: FaceRef): Face | null {
+  const diag = bboxDiag(shape);
+  let best: Face | null = null;
+  let bestScore = Infinity;
+  for (const f of shape.faces) {
+    if (f.geomType !== "PLANE") continue;
+    const n = faceNormal(f);
+    if (!n || dot(n, ref.normal) < 0.995) continue;
+    const c = f.center.toTuple() as Vec3;
+    const offset = Math.abs(dot(sub(c, ref.center), ref.normal));
+    const score = offset * 4 + len(sub(c, ref.center));
+    if (score < bestScore) {
+      bestScore = score;
+      best = f;
+    }
+  }
+  return best && bestScore < Math.max(diag * 0.5, 2) ? best : null;
+}
+
+/** Moves a planar face along its normal by adding / removing a prism. */
+function pushFace(shape: Shape3D, ref: FaceRef, distance: number): Shape3D {
+  const face = matchFace(shape, ref);
+  if (!face) throw new FeatureError("face");
+  if (Math.abs(distance) < 1e-6) return shape;
+  const n = face.normalAt().normalized();
+  if (distance > 0) return shape.fuse(basicFaceExtrusion(face, n.multiply(distance)));
+  // start the cutting prism slightly outside so it never shares the face exactly
+  const lifted = face.clone().translate(n.multiply(0.05).toTuple());
+  return shape.cut(basicFaceExtrusion(lifted, n.multiply(distance - 0.05)));
+}
+
+/** Tilts a planar face around one of its straight edges by adding (angle > 0) or removing a wedge. */
+function tiltFace(shape: Shape3D, ref: FaceRef, hingeRef: EdgeRef, angle: number): Shape3D {
+  const face = matchFace(shape, ref);
+  if (!face) throw new FeatureError("face");
+  const hinge = matchEdge(shape, edgeGeoms(shape), hingeRef);
+  if (!hinge || hinge.geomType !== "LINE") throw new FeatureError("hinge");
+  if (Math.abs(angle) < 1e-6) return shape;
+  const n = face.normalAt().normalized();
+  const P0 = hinge.startPoint;
+  const e = hinge.endPoint.sub(P0).normalized();
+  let u = n.cross(e).normalized();
+  if (face.center.sub(P0).dot(u) < 0) u = u.multiply(-1);
+  let maxU = 0;
+  let minE = Infinity;
+  let maxE = -Infinity;
+  for (const ed of face.edges) {
+    for (const k of [0, 0.25, 0.5, 0.75, 1]) {
+      const p = ed.pointAt(k).sub(P0);
+      maxU = Math.max(maxU, p.dot(u));
+      minE = Math.min(minE, p.dot(e));
+      maxE = Math.max(maxE, p.dot(e));
+    }
+  }
+  const w = maxU;
+  const t = Math.tan((Math.min(Math.abs(angle), 89) * Math.PI) / 180);
+  const m = 0.5;
+  const at = (uu: number, nn: number, ee: number) =>
+    P0.add(u.multiply(uu)).add(n.multiply(nn)).add(e.multiply(ee)).toTuple() as Vec3;
+  const length = maxE - minE + 2 * m;
+  if (angle > 0) {
+    const tri = makePolygon([at(0, 0, minE - m), at(w, 0, minE - m), at(w, w * t, minE - m)]);
+    const prism = basicFaceExtrusion(tri, e.multiply(length));
+    const foot = basicFaceExtrusion(face, n.multiply(w * t + m));
+    const wedge = prism.intersect(foot);
+    return shape.fuse(wedge);
+  }
+  const top = Math.max(m, m * t) + m;
+  const poly = makePolygon([at(-m, m * t, minE - m), at(w + m, -(w + m) * t, minE - m), at(w + m, top, minE - m), at(-m, top, minE - m)]);
+  const prism = basicFaceExtrusion(poly, e.multiply(length));
+  const lifted = face.clone().translate(n.multiply(top).toTuple());
+  const foot = basicFaceExtrusion(lifted, n.multiply(-(top + w * t + m)));
+  const wedge = prism.intersect(foot);
+  return shape.cut(wedge);
+}
+
+function applyFeature(shape: Shape3D, f: Feature): Shape3D {
+  if (f.type === "push") return pushFace(shape, f.face, f.distance);
+  if (f.type === "tilt") return tiltFace(shape, f.face, f.hinge, f.angle);
+  const geoms = edgeGeoms(shape);
   const selected: Edge[] = [];
   for (const ref of f.edges) {
-    let best: EdgeGeom | null = null;
-    let bestScore = Infinity;
-    for (const g of geoms) {
-      const d = len(sub(g.mid, ref.mid));
-      const align = Math.abs(dot(g.dir, ref.dir));
-      const score = d + (1 - align) * diag * 0.5;
-      if (score < bestScore) {
-        bestScore = score;
-        best = g;
-      }
-    }
-    if (best && bestScore < Math.max(diag * 0.35, 1)) selected.push(best.edge);
+    const e = matchEdge(shape, geoms, ref);
+    if (e) selected.push(e);
   }
-  if (!selected.length) throw new Error("edges not found");
+  if (!selected.length) throw new FeatureError("edges");
   const pick = (e: Edge) => (selected.some((s) => s.isSame(e)) ? f.radius : null);
   return f.type === "fillet" ? shape.fillet(pick) : shape.chamfer(pick);
 }
+
+function featureWarning(f: Feature, err: unknown) {
+  const lost = err instanceof FeatureError;
+  switch (f.type) {
+    case "fillet":
+    case "chamfer": {
+      const what = f.type === "fillet" ? "Rundung" : "Fase";
+      return lost ? `${what}: Kante nicht mehr gefunden` : `${what} ${round(f.radius)} mm passt nicht – Radius zu groß für diese Kante(n)`;
+    }
+    case "push":
+      return lost ? "Fläche verschieben: Fläche nicht mehr gefunden" : "Fläche konnte nicht verschoben werden";
+    case "tilt":
+      return lost ? "Neigen: Fläche oder Drehkante nicht mehr gefunden" : "Fläche konnte nicht geneigt werden";
+  }
+}
+
+const round = (v: number) => Math.round(v * 100) / 100;
 
 interface Built {
   shape: Shape3D;
@@ -217,7 +321,7 @@ interface Built {
 
 const builtCache = new Map<string, Built>();
 
-function getShape(shape: Shape, features: EdgeFeature[]): Built {
+function getShape(shape: Shape, features: Feature[]): Built {
   const key = geometryKey({ shape, features });
   const hit = cacheGet(key);
   if (hit) return { shape: hit, warnings: builtCache.get(key)?.warnings ?? [] };
@@ -247,10 +351,8 @@ function getShape(shape: Shape, features: EdgeFeature[]): Built {
     const f = features[i];
     try {
       current = applyFeature(current, f);
-    } catch {
-      warnings.push(
-        `${f.type === "fillet" ? "Rundung" : "Fase"} ${f.radius} mm konnte nicht erzeugt werden (Radius zu groß?)`,
-      );
+    } catch (err) {
+      warnings.push(featureWarning(f, err));
     }
     cacheSet(geometryKey({ shape, features: features.slice(0, i + 1) }), current);
   }
@@ -296,13 +398,21 @@ function meshShape(shape: Shape3D, warnings: string[]): MeshData {
 
   const faceInfos: FaceInfo[] = [];
   const faceGroupOf = new Map<number, { start: number; count: number }>();
+  const infoIndexOf = new Map<number, number>();
   for (const g of m.faceGroups) {
     const idx = faceByHash.get(g.faceId);
     const face = idx !== undefined ? faces[idx] : undefined;
     let normal: Vec3 | null = null;
-    if (face && face.geomType === "PLANE") normal = faceNormal(face);
-    faceInfos.push({ start: g.start, count: g.count, normal });
-    if (idx !== undefined) faceGroupOf.set(idx, { start: g.start, count: g.count });
+    let center: Vec3 | null = null;
+    if (face && face.geomType === "PLANE") {
+      normal = faceNormal(face);
+      center = face.center.toTuple() as Vec3;
+    }
+    if (idx !== undefined) {
+      faceGroupOf.set(idx, { start: g.start, count: g.count });
+      infoIndexOf.set(idx, faceInfos.length);
+    }
+    faceInfos.push({ start: g.start, count: g.count, normal, center });
   }
 
   // edge -> adjacent faces
@@ -358,9 +468,11 @@ function meshShape(shape: Shape3D, warnings: string[]): MeshData {
     const smooth = dot(n1, n2) > 0.996;
     const startVert = edgeLines.length / 3;
     for (let k = g.start * 3; k < (g.start + g.count) * 3; k++) edgeLines.push(me.lines[k]);
+    const line = edge.geomType === "LINE";
+    const faceIdx = adjFaces.map((fi) => infoIndexOf.get(fi) ?? -1);
     if (smooth || sl < 1e-6) {
       // tangent edge: displayed but not offered for filleting
-      edgeInfos.push({ start: startVert, count: g.count, mid, dir, len: -1, handleDir: [0, 0, 1], convex: true });
+      edgeInfos.push({ start: startVert, count: g.count, mid, dir, len: -1, handleDir: [0, 0, 1], convex: true, line, faces: faceIdx });
       continue;
     }
     const c1 = nearestCentroid(adjFaces[0], mid);
@@ -374,6 +486,8 @@ function meshShape(shape: Shape3D, warnings: string[]): MeshData {
       len: edge.length,
       handleDir: [sum[0] * s, sum[1] * s, sum[2] * s],
       convex,
+      line,
+      faces: faceIdx,
     });
   }
 

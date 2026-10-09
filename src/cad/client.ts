@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Body, EdgeFeature, ExportFormat, ExportQuality, MeshData, Shape } from "../types";
+import type { Body, Feature, ExportFormat, ExportQuality, MeshData, Shape } from "../types";
 import type { WorkerRequest, WorkerResponse } from "./worker";
 
 export type MeshEntry = { mesh?: MeshData; error?: string };
@@ -18,7 +18,7 @@ let reqCounter = 1;
 const resolvers = new Map<number, (r: WorkerResponse) => void>();
 
 /** latest wanted geometry per "slot" (usually a body id) — older wishes get dropped */
-const wanted = new Map<string, { key: string; shape: Shape; features: EdgeFeature[] }>();
+const wanted = new Map<string, { key: string; shape: Shape; features: Feature[] }>();
 const inflightKeys = new Set<string>();
 let inflight = 0;
 const order: string[] = [];
@@ -64,7 +64,7 @@ function pump() {
   useMeshes.setState({ busy: inflight + wanted.size });
 }
 
-export function requestMesh(slot: string, key: string, shape: Shape, features: EdgeFeature[]) {
+export function requestMesh(slot: string, key: string, shape: Shape, features: Feature[]) {
   if (useMeshes.getState().meshes[key] || inflightKeys.has(key)) {
     wanted.delete(slot);
     return;

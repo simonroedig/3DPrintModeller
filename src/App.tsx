@@ -2,7 +2,7 @@ import { useStore } from "./store/store";
 import { Viewport } from "./viewport/Viewport";
 import { StatusBar, ToolRail, TopBar, ViewSwitcher } from "./ui/Chrome";
 import { Sidebar } from "./ui/Sidebar";
-import { DragHud, EmptyHint, KernelLoading, Toasts, ToolOptions } from "./ui/Overlays";
+import { DragHud, EmptyHint, KernelLoading, ModeFrame, Toasts, ToolOptions } from "./ui/Overlays";
 import { ExportDialog, HelpDialog, StartDialog } from "./ui/Dialogs";
 import { useShortcuts } from "./ui/shortcuts";
 
@@ -18,6 +18,7 @@ export function App() {
         <ToolRail />
         <main className="relative flex-1 min-w-0 overflow-hidden" onContextMenu={(e) => e.preventDefault()}>
           <Viewport />
+          <ModeFrame />
           <EmptyHint />
           <ToolOptions />
           <ViewSwitcher />

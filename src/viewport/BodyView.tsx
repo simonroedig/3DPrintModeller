@@ -1,16 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { useThree, type RootState, type ThreeEvent } from "@react-three/fiber";
-import type { Body, EdgeFeature, MeshData, Vec3 } from "../types";
+import type { Body, Feature, MeshData, Vec3 } from "../types";
 import { geometryKey } from "../cad/key";
 import { requestMesh, useMeshes } from "../cad/client";
 import { beginTx, endTx, layFlat, select, setTool, translateBodies, useStore } from "../store/store";
+import { displayGeometry } from "../store/edit";
 import { unionBox, worldBox } from "../lib/geom";
 import { snapMove } from "../lib/snapping";
 import { fmtNum } from "../lib/units";
 import { bodyMeshes, intersectPlane, pointerState, rayFromEvent, runDrag, worldPerPixel } from "./interaction";
 
-export function useBodyMesh(slot: string, body: { shape: Body["shape"]; features: EdgeFeature[] }) {
+export function useBodyMesh(slot: string, body: { shape: Body["shape"]; features: Feature[] }) {
   const key = useMemo(() => geometryKey(body), [body.shape, body.features]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     requestMesh(slot, key, body.shape, body.features);
@@ -50,21 +51,34 @@ function faceAt(mesh: MeshData, triangle: number) {
 
 const ACCENT = new THREE.Color("#3b82f6");
 
+/** edge colour that stands out against the body colour (used in the edit mode) */
+function edgeContrast(body: Body) {
+  if (body.hole) return "#e2e8f0";
+  const c = new THREE.Color(body.color);
+  const lum = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+  return lum > 0.45 ? "#0b0d12" : "#f8fafc";
+}
+
 export function BodyView({ body }: { body: Body }) {
   const selected = useStore((s) => s.selection.includes(body.id));
   const tool = useStore((s) => s.tool);
-  const preview = useStore((s) =>
-    s.tool === "fillet" && s.edgeSel?.bodyId === body.id && s.fillet.radius > 0 ? s.fillet : null,
-  );
+  const editing = useStore((s) => s.edgeSel?.bodyId === body.id || s.faceSel?.bodyId === body.id);
+  const fillet = useStore((s) => (editing ? s.fillet : null));
+  const faceOp = useStore((s) => (editing ? s.faceOp : null));
   const edgeSel = useStore((s) => (s.edgeSel?.bodyId === body.id ? s.edgeSel : null));
+  const faceSel = useStore((s) => (s.faceSel?.bodyId === body.id ? s.faceSel : null));
   const get = useThree((s) => s.get);
 
-  const features = useMemo(() => {
-    if (!preview || !edgeSel || !edgeSel.refs.length) return body.features;
-    return [...body.features, { id: "preview", type: preview.type, radius: preview.radius, edges: edgeSel.refs }];
-  }, [body.features, preview, edgeSel]);
+  // geometry incl. a live preview of the edit being set up (fillet, face push, tilt)
+  const display = useMemo(
+    () =>
+      editing
+        ? displayGeometry({ tool, edgeSel, faceSel, fillet: fillet!, faceOp: faceOp! }, body)
+        : { shape: body.shape, position: body.position, features: body.features },
+    [editing, tool, edgeSel, faceSel, fillet, faceOp, body],
+  );
 
-  const { mesh } = useBodyMesh(body.id, { shape: body.shape, features });
+  const { mesh } = useBodyMesh(body.id, { shape: display.shape, features: display.features });
   const { geo, edges } = useGeometry(mesh);
   const meshRef = useRef<THREE.Mesh>(null);
   const [hover, setHover] = useState(false);
@@ -134,12 +148,18 @@ export function BodyView({ body }: { body: Body }) {
   };
 
   return (
-    <group position={body.position} quaternion={body.quaternion}>
+    <group position={display.position} quaternion={body.quaternion}>
       <mesh
         ref={meshRef}
         geometry={geo}
         renderOrder={body.hole ? 2 : 0}
         onPointerDown={onPointerDown}
+        onDoubleClick={(e) => {
+          if (useStore.getState().tool !== "select" || e.button !== 0) return;
+          e.stopPropagation();
+          select([body.id]);
+          setTool("edit");
+        }}
         onPointerMove={onPointerMove}
         onPointerOver={() => setHover(true)}
         onPointerOut={() => {
@@ -173,9 +193,9 @@ export function BodyView({ body }: { body: Body }) {
       </mesh>
       <lineSegments geometry={edges} renderOrder={3}>
         <lineBasicMaterial
-          color={selected ? "#bfdbfe" : body.hole ? "#64748b" : "#06080c"}
+          color={tool === "edit" ? edgeContrast(body) : selected ? "#bfdbfe" : body.hole ? "#64748b" : "#06080c"}
           transparent
-          opacity={selected ? 0.95 : 0.75}
+          opacity={tool === "edit" ? 1 : selected ? 0.95 : 0.75}
           depthWrite={false}
         />
       </lineSegments>

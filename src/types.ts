@@ -23,12 +23,17 @@ export interface EdgeRef {
   dir: Vec3;
 }
 
-export interface EdgeFeature {
-  id: string;
-  type: "fillet" | "chamfer";
-  radius: number;
-  edges: EdgeRef[];
+/** Geometric reference to a planar face, in the body's local frame. */
+export interface FaceRef {
+  center: Vec3;
+  normal: Vec3;
 }
+
+export type EdgeFeature = { id: string; type: "fillet" | "chamfer"; radius: number; edges: EdgeRef[] };
+export type PushFeature = { id: string; type: "push"; face: FaceRef; distance: number };
+/** tilts a face around one of its straight edges: positive angle adds a wedge, negative removes one */
+export type TiltFeature = { id: string; type: "tilt"; face: FaceRef; hinge: EdgeRef; angle: number };
+export type Feature = EdgeFeature | PushFeature | TiltFeature;
 
 export interface Body {
   id: string;
@@ -38,7 +43,7 @@ export interface Body {
   quaternion: Quat;
   hole: boolean;
   color: string;
-  features: EdgeFeature[];
+  features: Feature[];
   hidden?: boolean;
 }
 
@@ -79,14 +84,19 @@ export interface EdgeInfo {
   /** direction in which a fillet "grows" (into material for convex edges) */
   handleDir: Vec3;
   convex: boolean;
+  /** straight edge */
+  line: boolean;
+  /** indices into MeshData.faces of the adjacent faces */
+  faces: number[];
 }
 
 export interface FaceInfo {
   /** offset/count into the index buffer */
   start: number;
   count: number;
-  /** normal if the face is planar */
+  /** normal and centre if the face is planar */
   normal: Vec3 | null;
+  center: Vec3 | null;
 }
 
 export interface MeshData {

@@ -9,6 +9,7 @@ import { useMeshes } from "../cad/client";
 import { handleSpecs, resizeWorld } from "../lib/shapeEdit";
 import { fmtLen, fmtNum, parseLen, snapTo } from "../lib/units";
 import { pointerState, startAxisDrag, worldPerPixel } from "./interaction";
+import { startScrub } from "../ui/fields";
 
 /* ------------------------------------------------------------------ */
 
@@ -39,6 +40,7 @@ export function Handle({
   color = "#3b82f6",
   onDown,
   arrow = false,
+  both = false,
   title,
 }: {
   position: Vec3 | THREE.Vector3;
@@ -46,6 +48,8 @@ export function Handle({
   color?: string;
   onDown: (e: ThreeEvent<PointerEvent>) => void;
   arrow?: boolean;
+  /** double-headed arrow centred on the position (drag either way) */
+  both?: boolean;
   title?: string;
 }) {
   const [hover, setHover] = useState(false);
@@ -84,7 +88,28 @@ export function Handle({
           release();
         }}
       >
-        {arrow ? (
+        {arrow && both ? (
+          <>
+            <mesh renderOrder={21}>
+              <sphereGeometry args={[4.5 * s, 16, 12]} />
+              <meshBasicMaterial color="#ffffff" depthTest={false} transparent />
+            </mesh>
+            <mesh renderOrder={20}>
+              <cylinderGeometry args={[1.6 * s, 1.6 * s, 60 * s, 8]} />
+              <meshBasicMaterial color={c} depthTest={false} transparent />
+            </mesh>
+            {[1, -1].map((k) => (
+              <mesh key={k} position={[0, k * 34 * s, 0]} rotation={[k > 0 ? 0 : Math.PI, 0, 0]} renderOrder={20}>
+                <coneGeometry args={[6 * s, 14 * s, 16]} />
+                <meshBasicMaterial color={c} depthTest={false} transparent />
+              </mesh>
+            ))}
+            <mesh>
+              <cylinderGeometry args={[10, 10, 84, 8]} />
+              <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+            </mesh>
+          </>
+        ) : arrow ? (
           <>
             <mesh position={[0, 22 * s, 0]} renderOrder={20}>
               <cylinderGeometry args={[1.6 * s, 1.6 * s, 44 * s, 8]} />
@@ -140,6 +165,7 @@ export function DimLabel({
   onCommit?: (mm: number) => void;
 }) {
   const unit = useStore((s) => s.doc.settings.unit);
+  const snap = useStore((s) => s.doc.settings.snap);
   const [editing, setEditing] = useState(false);
   const text = `${prefix ? prefix + " " : ""}${fmtLen(mm, unit)}`;
   return (
@@ -166,10 +192,12 @@ export function DimLabel({
         />
       ) : (
         <div
-          className={`dim-label ${onCommit ? "editable" : ""}`}
-          title={onCommit ? "Klicken zum Bearbeiten" : undefined}
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={() => onCommit && setEditing(true)}
+          className={`dim-label ${onCommit ? "editable scrubbable" : ""}`}
+          title={onCommit ? "Klicken zum Eintippen · links/rechts ziehen zum Ändern" : undefined}
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            if (onCommit) startScrub(e, mm, snap || 1, (v) => v > 0 && onCommit(v), () => setEditing(true), 0.01);
+          }}
         >
           {text}
         </div>

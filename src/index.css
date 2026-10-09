@@ -134,6 +134,16 @@ input {
   font-size: 11px;
   white-space: nowrap;
 }
+.field .lbl.scrub {
+  cursor: ew-resize;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  padding-right: 2px;
+}
+.field .lbl.scrub:hover {
+  color: var(--color-ink-100);
+}
 .field .unit {
   padding-right: 8px;
   color: var(--color-ink-500);
@@ -292,4 +302,29 @@ kbd {
 }
 .toast {
   animation: toast-in 0.18s ease-out;
+}
+
+/* attention pulse for automatic view changes */
+@keyframes view-flash {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+  }
+  30% {
+    box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.55);
+  }
+}
+.view-flash {
+  animation: view-flash 0.7s ease-out 3;
+}
+@keyframes callout-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+.callout {
+  animation: callout-in 0.2s ease-out;
+}
+.dim-label.scrubbable {
+  cursor: ew-resize;
 }

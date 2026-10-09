@@ -30,7 +30,7 @@ import {
   TriangleRight,
   Ungroup,
 } from "lucide-react";
-import type { Body, Shape, ShapeKind, Sketch, SketchShape, Vec2 } from "../types";
+import type { Body, Shape, ShapeKind, Sketch, SketchShape, TiltFeature, Vec2 } from "../types";
 import {
   alignSelection,
   deleteSelection,
@@ -218,6 +218,8 @@ function NameField({ value, onChange }: { value: string; onChange: (v: string) =
   );
 }
 
+const FEATURE_NAME = { fillet: "Rundung", chamfer: "Fase", push: "Fläche versetzt", tilt: "Fläche geneigt" } as const;
+
 const COLORS = ["#4f8ff7", "#f5a524", "#22c55e", "#ef4444", "#a855f7", "#14b8a6", "#e5e7eb", "#475569"];
 
 function BodyProps({ body }: { body: Body }) {
@@ -300,26 +302,33 @@ function BodyProps({ body }: { body: Body }) {
       </Section>
 
       <Section
-        title="Rundungen & Fasen"
+        title="Bearbeitungen"
         right={
-          <button className="btn ghost !h-6 !px-1.5 normal-case tracking-normal text-[11px]" onClick={() => setTool("fillet")}>
-            <SquareRoundCorner size={13} /> Kanten wählen
+          <button className="btn ghost !h-6 !px-1.5 normal-case tracking-normal text-[11px]" onClick={() => setTool("edit")}>
+            <SquareRoundCorner size={13} /> Kanten & Flächen
           </button>
         }
       >
         {body.features.length === 0 ? (
           <div className="text-ink-500 text-[12px]">
-            Noch keine. Wähle das Werkzeug <kbd>F</kbd>, klicke Kanten an und zieh am Pfeil.
+            Noch keine. Mit <kbd>F</kbd> (oder Doppelklick auf den Körper) Kanten runden/fasen sowie Flächen verschieben oder neigen.
           </div>
         ) : (
           <div className="flex flex-col gap-1.5">
             {body.features.map((f, i) => (
               <div key={f.id} className="flex items-center gap-1.5">
-                <span className="text-ink-400 text-[12px] w-[92px] truncate">
-                  {i + 1}. {f.type === "fillet" ? "Rundung" : "Fase"} · {f.edges.length}
+                <span className="text-ink-400 text-[12px] w-[104px] shrink-0 truncate" title={FEATURE_NAME[f.type]}>
+                  {i + 1}. {FEATURE_NAME[f.type]}
+                  {(f.type === "fillet" || f.type === "chamfer") && ` · ${f.edges.length}`}
                 </span>
-                <div className="flex-1">
-                  <LenField label={f.type === "fillet" ? "R" : "D"} mm={f.radius} min={0.01} onChange={(v) => updateFeature(body.id, f.id, { radius: v })} />
+                <div className="flex-1 min-w-0">
+                  {f.type === "fillet" || f.type === "chamfer" ? (
+                    <LenField label={f.type === "fillet" ? "R" : "D"} mm={f.radius} min={0.01} onChange={(v) => updateFeature(body.id, f.id, { radius: v })} />
+                  ) : f.type === "push" ? (
+                    <LenField label="↕" mm={f.distance} onChange={(v) => updateFeature(body.id, f.id, { distance: v })} title="Positiv = nach außen, negativ = nach innen" />
+                  ) : (
+                    <NumField label="∠" value={(f as TiltFeature).angle} suffix="°" step={1} min={-85} max={85} onChange={(v) => updateFeature(body.id, f.id, { angle: v })} />
+                  )}
                 </div>
                 <button className="btn ghost danger !px-1.5" title="Entfernen" onClick={() => removeFeature(body.id, f.id)}>
                   <Trash2 size={14} />

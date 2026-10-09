@@ -1,10 +1,10 @@
 import { create } from "zustand";
 import * as THREE from "three";
-import type { Body, Doc, EdgeFeature, EdgeRef, Quat, Settings, Shape, ShapeKind, Sketch, SketchShape, Unit, Vec2, Vec3 } from "../types";
+import type { Body, Doc, EdgeRef, FaceRef, Feature, Quat, Settings, Shape, ShapeKind, Sketch, SketchShape, Unit, Vec2, Vec3 } from "../types";
 import { DEFAULT_SNAP } from "../lib/units";
 import { cleanQuat, localBox, polyBounds, polygonArea, quatFromEulerDeg, unionBox, worldBox } from "../lib/geom";
 
-export type Tool = "select" | "rect" | "circle" | "poly" | "fillet" | "layflat";
+export type Tool = "select" | "rect" | "circle" | "poly" | "edit" | "layflat";
 export type View = "iso" | "top" | "front" | "right";
 
 export interface Guide {
@@ -20,13 +20,33 @@ export interface EdgeSelection {
   refs: EdgeRef[];
 }
 
+export interface FaceSelection {
+  bodyId: string;
+  /** index into the body's current mesh faces */
+  idx: number;
+  ref: FaceRef;
+}
+
+export interface FaceOp {
+  mode: "push" | "tilt";
+  distance: number;
+  /** degrees; > 0 adds a wedge, < 0 removes one */
+  angle: number;
+  hinge: { idx: number; ref: EdgeRef } | null;
+}
+
+export const emptyFaceOp = (): FaceOp => ({ mode: "push", distance: 0, angle: 0, hinge: null });
+
+/** clears every edge / face selection of the edit mode */
+export const noEdit = { edgeSel: null, faceSel: null } as const;
+
 export interface Toast {
   id: number;
   text: string;
   kind: "info" | "error";
 }
 
-interface State {
+export interface State {
   doc: Doc;
   past: Doc[];
   future: Doc[];
@@ -39,6 +59,10 @@ interface State {
   fitNonce: number;
   edgeSel: EdgeSelection | null;
   fillet: { type: "fillet" | "chamfer"; radius: number };
+  faceSel: FaceSelection | null;
+  faceOp: FaceOp;
+  /** bumps when the view changed on its own (so the UI can point it out) */
+  viewFlash: number;
   guides: Guide[];
   dragInfo: string | null;
   startDialog: boolean;
@@ -84,8 +108,10 @@ export const useStore = create<State>(() => ({
   circleMode: "center",
   view: "iso",
   fitNonce: 0,
-  edgeSel: null,
-  fillet: { type: "fillet", radius: 2 },
+  ...noEdit,
+  fillet: { type: "fillet", radius: 0 },
+  faceOp: emptyFaceOp(),
+  viewFlash: 0,
   guides: [],
   dragInfo: null,
   startDialog: !initialDoc,
@@ -114,6 +140,8 @@ useStore.subscribe((s, prev) => {
 /* ------------------------------------------------------------------ */
 /* helpers                                                              */
 /* ------------------------------------------------------------------ */
+
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
 
 export const uid = () => Math.random().toString(36).slice(2, 10);
 
@@ -186,7 +214,7 @@ export function undo() {
   const s = get();
   if (s.txBase || !s.past.length) return;
   const prev = s.past[s.past.length - 1];
-  set({ doc: prev, past: s.past.slice(0, -1), future: [s.doc, ...s.future], edgeSel: null });
+  set({ doc: prev, past: s.past.slice(0, -1), future: [s.doc, ...s.future], ...noEdit });
   pruneSelection();
 }
 
@@ -194,7 +222,7 @@ export function redo() {
   const s = get();
   if (s.txBase || !s.future.length) return;
   const [next, ...rest] = s.future;
-  set({ doc: next, past: [...s.past, s.doc], future: rest, edgeSel: null });
+  set({ doc: next, past: [...s.past, s.doc], future: rest, ...noEdit });
   pruneSelection();
 }
 
@@ -226,17 +254,18 @@ export function selectedBodies() {
 }
 
 export function select(ids: string[]) {
-  set({ selection: ids, edgeSel: null });
+  set({ selection: ids, ...noEdit });
 }
 
 export function setTool(tool: Tool) {
   const s = get();
-  const patch: Partial<State> = { tool, edgeSel: null };
+  const patch: Partial<State> = { tool, ...noEdit };
   const sketching = (t: Tool) => t === "rect" || t === "circle" || t === "poly";
   // sketches live on the XY plane: look at it from the top when starting to sketch
   if (sketching(tool) && !sketching(s.tool) && s.view !== "top") {
     patch.view = "top";
     patch.fitNonce = s.fitNonce + 1;
+    patch.viewFlash = s.viewFlash + 1;
   }
   set(patch);
 }
@@ -307,14 +336,14 @@ export function addPrimitive(kind: Exclude<ShapeKind, "group" | "prism">, hole =
   if (hole) body.name = `Loch ${body.name}`;
   body.position = placeNewBody(doc, shape);
   commit({ ...doc, bodies: [...doc.bodies, body] });
-  set({ selection: [body.id], tool: "select", edgeSel: null });
+  set({ selection: [body.id], tool: "select", ...noEdit });
 }
 
 export function addSketch(shape: SketchShape) {
   const doc = get().doc;
   const sketch: Sketch = { id: uid(), name: nextName(doc, "Skizze"), z: get().sketchZ, shape };
   commit({ ...doc, sketches: [...doc.sketches, sketch] });
-  set({ selection: [sketch.id], edgeSel: null });
+  set({ selection: [sketch.id], ...noEdit });
 }
 
 export function updateSketch(id: string, shape: SketchShape, z?: number) {
@@ -472,7 +501,7 @@ export function deleteSelection() {
     bodies: doc.bodies.filter((b) => !selection.includes(b.id)),
     sketches: doc.sketches.filter((s) => !selection.includes(s.id)),
   });
-  set({ selection: [], edgeSel: null });
+  set({ selection: [], ...noEdit });
 }
 
 function cloneBody(b: Body): Body {
@@ -512,7 +541,7 @@ function insertCopies(src: Body[]) {
     return c;
   });
   commit({ ...doc, bodies: [...doc.bodies, ...copies] });
-  set({ selection: copies.map((c) => c.id), edgeSel: null });
+  set({ selection: copies.map((c) => c.id), ...noEdit });
 }
 
 export function groupSelection() {
@@ -537,7 +566,7 @@ export function groupSelection() {
   const rest = doc.bodies.filter((b) => !bodies.includes(b));
   rest.splice(Math.min(firstIdx, rest.length), 0, group);
   commit({ ...doc, bodies: rest });
-  set({ selection: [group.id], edgeSel: null });
+  set({ selection: [group.id], ...noEdit });
 }
 
 export function ungroupSelection() {
@@ -563,7 +592,7 @@ export function ungroupSelection() {
     }
   }
   commit({ ...doc, bodies });
-  set({ selection: newSel, edgeSel: null });
+  set({ selection: newSel, ...noEdit });
   if (lostFeatures) toast("Rundungen der Gruppe wurden beim Trennen entfernt");
 }
 
@@ -571,16 +600,16 @@ export function ungroupSelection() {
 /* features                                                             */
 /* ------------------------------------------------------------------ */
 
-export function addFeature(bodyId: string, f: Omit<EdgeFeature, "id">) {
+export function addFeature(bodyId: string, f: DistributiveOmit<Feature, "id">) {
   const b = getBody(bodyId);
   if (!b) return;
   updateBody(bodyId, { features: [...b.features, { ...f, id: uid() }] });
 }
 
-export function updateFeature(bodyId: string, fid: string, patch: Partial<EdgeFeature>) {
+export function updateFeature(bodyId: string, fid: string, patch: Partial<Feature>) {
   const b = getBody(bodyId);
   if (!b) return;
-  updateBody(bodyId, { features: b.features.map((f) => (f.id === fid ? { ...f, ...patch } : f)) });
+  updateBody(bodyId, { features: b.features.map((f) => (f.id === fid ? ({ ...f, ...patch } as Feature) : f)) });
 }
 
 export function removeFeature(bodyId: string, fid: string) {
@@ -607,14 +636,14 @@ export function newDocument(unit: Unit, snap?: number) {
   const doc = emptyDoc(unit);
   if (snap) doc.settings.snap = snap;
   doc.settings.bed = s.doc.settings.bed;
-  set({ doc, past: s.doc.bodies.length ? [...s.past, s.doc] : s.past, future: [], selection: [], edgeSel: null, startDialog: false, tool: "select" });
+  set({ doc, past: s.doc.bodies.length ? [...s.past, s.doc] : s.past, future: [], selection: [], ...noEdit, startDialog: false, tool: "select" });
   fitView();
 }
 
 export function loadDocument(doc: Doc) {
   const s = get();
   doc.sketches ??= [];
-  set({ doc, past: [...s.past, s.doc], future: [], selection: [], edgeSel: null, startDialog: false });
+  set({ doc, past: [...s.past, s.doc], future: [], selection: [], ...noEdit, startDialog: false });
   fitView();
 }
 
@@ -640,13 +669,6 @@ export function alignSelection(axis: 0 | 1 | 2, mode: "min" | "center" | "max") 
   updateBodies(updates);
 }
 
-export function applyFillet() {
-  const { edgeSel, fillet } = get();
-  if (!edgeSel || !edgeSel.refs.length || fillet.radius <= 0) return;
-  addFeature(edgeSel.bodyId, { type: fillet.type, radius: fillet.radius, edges: edgeSel.refs });
-  set({ edgeSel: null });
-}
-
 /** Example: speaker stand made of two wedges and a connecting bar. */
 export function loadSpeakerExample(unit: Unit) {
   const doc = emptyDoc(unit);
@@ -670,6 +692,6 @@ export function loadSpeakerExample(unit: Unit) {
     mk("Steg hinten", { kind: "box", w: w - 40, d: 15, h: 10 }, [-w / 2 + 20, d / 2 - 15, 0], "#f5a524"),
   ];
   const s = get();
-  set({ doc, past: s.doc.bodies.length ? [...s.past, s.doc] : s.past, future: [], selection: [], edgeSel: null, startDialog: false, tool: "select", view: "iso" });
+  set({ doc, past: s.doc.bodies.length ? [...s.past, s.doc] : s.past, future: [], selection: [], ...noEdit, startDialog: false, tool: "select", view: "iso" });
   fitView();
 }

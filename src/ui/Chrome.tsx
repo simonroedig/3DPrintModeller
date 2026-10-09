@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   ArrowDownToLine,
   Box,
@@ -147,7 +147,7 @@ export function ToolRail() {
       <ToolButton icon={<Globe size={19} />} label="Kugel  (Shift: als Loch)" onClick={prim("sphere")} />
       <ToolButton icon={<CircleDot size={19} />} label="Rohr  (Shift: als Loch)" onClick={prim("tube")} />
       <RailLabel>Ändern</RailLabel>
-      <ToolButton icon={<SquareRoundCorner size={19} />} label="Kanten runden / fasen" kbd="F" on={tool === "fillet"} onClick={t("fillet")} />
+      <ToolButton icon={<SquareRoundCorner size={19} />} label="Kanten & Flächen bearbeiten (auch Doppelklick)" kbd="F" on={tool === "edit"} onClick={t("edit")} />
       <ToolButton icon={<ArrowDownToLine size={19} />} label="Fläche aufs Druckbett legen" kbd="L" on={tool === "layflat"} onClick={t("layflat")} />
       <ToolButton
         icon={<Combine size={19} className={selCount >= 2 ? "" : "opacity-40"} />}
@@ -169,18 +169,41 @@ const VIEWS: { id: View; label: string; kbd: string }[] = [
 
 export function ViewSwitcher() {
   const view = useStore((s) => s.view);
+  const flashNonce = useStore((s) => s.viewFlash);
+  const [flashedView, setFlashedView] = useState<View | null>(null);
+  useEffect(() => {
+    if (!flashNonce) return;
+    setFlashedView(useStore.getState().view);
+    const t = setTimeout(() => setFlashedView(null), 3500);
+    return () => clearTimeout(t);
+  }, [flashNonce]);
+  // the hint is only relevant until the user picks a view themselves
+  const flash = flashedView !== null && flashedView === view;
+  const current = VIEWS.find((v) => v.id === view)!;
   return (
-    <div className="absolute top-3 right-3 flex items-center gap-2 z-10">
-      <div className="seg accent overlay-card !rounded-[9px] !p-[3px]">
-        {VIEWS.map((v) => (
-          <button key={v.id} className={view === v.id ? "on" : ""} title={`${v.label}-Ansicht (${v.kbd})`} onClick={() => setView(v.id)}>
-            {v.label}
-          </button>
-        ))}
+    <div className="absolute top-3 right-3 flex flex-col items-end gap-2 z-10">
+      <div className="flex items-center gap-2">
+        <div className="seg accent overlay-card !rounded-[9px] !p-[3px]">
+          {VIEWS.map((v) => (
+            <button
+              key={`${v.id}-${v.id === view && flash ? flashNonce : 0}`}
+              className={`${view === v.id ? "on" : ""} ${v.id === view && flash ? "view-flash" : ""} ${v.id === "iso" && flash && view !== "iso" ? "ring-1 ring-sky-400/70" : ""}`}
+              title={`${v.label}-Ansicht (${v.kbd})`}
+              onClick={() => setView(v.id)}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+        <button className="btn overlay-card !h-[32px]" title="Alles einpassen (0)" onClick={fitView}>
+          <Scan size={15} />
+        </button>
       </div>
-      <button className="btn overlay-card !h-[32px]" title="Alles einpassen (0)" onClick={fitView}>
-        <Scan size={15} />
-      </button>
+      {flash && (
+        <div className="callout overlay-card !border-sky-500/60 px-3 py-1.5 text-[12px] text-ink-100">
+          Ansicht gewechselt: <b>{current.label}</b> · zurück mit <b>3D</b> oder Taste <kbd>1</kbd>
+        </div>
+      )}
     </div>
   );
 }
@@ -191,6 +214,7 @@ export function StatusBar() {
   const busy = useMeshes((s) => s.busy);
   const selection = useStore((s) => s.selection.length);
   const edgeSel = useStore((s) => s.edgeSel);
+  const faceSel = useStore((s) => s.faceSel);
   const hints: Record<Tool, string> = {
     select: selection
       ? "Ziehen: verschieben (rastet an Flächen ein) · Alt: frei · Pfeiltasten: nudgen · Strg+D: duplizieren · Entf: löschen"
@@ -198,9 +222,11 @@ export function StatusBar() {
     rect: "Klicken & ziehen (oder zwei Klicks) für ein Rechteck · Alt: ohne Raster · Esc: abbrechen",
     circle: "Klicken & ziehen für einen Kreis · Alt: ohne Raster · Esc: abbrechen",
     poly: "Klicken setzt Punkte · Shift: 15°-Schritte · Klick auf Startpunkt / Enter: schließen · Backspace: letzter Punkt zurück",
-    fillet: edgeSel
-      ? "Pfeil ziehen oder Radius eingeben · Shift+Klick: weitere Kanten · Enter: anwenden · Esc: abbrechen"
-      : "Klicke eine Kante · Tipp: berührende Teile erst vereinen (Strg+G), dann lassen sich auch die Übergänge runden",
+    edit: edgeSel
+      ? "Pfeil raus ziehen: Rundung · rein ziehen: Fase · Shift+Klick: weitere Kanten · Enter: anwenden · Esc: Auswahl aufheben"
+      : faceSel
+        ? "Grünen Pfeil ziehen: Fläche versetzen · „Neigen“: Kante wählen und Keil dazu/weg · Enter: anwenden · Esc: Auswahl aufheben"
+        : "Fahre über Kanten (gelb) oder Flächen (blau) und klicke · Tipp: berührende Teile erst vereinen (Strg+G), dann lassen sich die Übergänge runden",
     layflat: "Klicke eine ebene Fläche – das Teil wird so gedreht, dass sie flach auf dem Druckbett liegt",
   };
   return (

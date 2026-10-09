@@ -7,7 +7,7 @@ import { Ground } from "./Ground";
 import { BodyView } from "./BodyView";
 import { SketchTool, SketchView } from "./Sketching";
 import { SelectionGizmos, SketchGizmos } from "./Gizmos";
-import { FilletTool } from "./FilletTool";
+import { EditTool } from "./EditTool";
 
 THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
 
@@ -80,7 +80,7 @@ export function Viewport() {
       <SketchTool />
       <SelectionGizmos />
       <SketchGizmos />
-      <FilletTool />
+      <EditTool />
       <Guides />
     </Canvas>
   );

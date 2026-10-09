@@ -22,8 +22,14 @@ zwischen vereinten Teilen.
 - **Drehen** in 90°-Schritten um X/Y/Z (bleibt auf dem Bett liegen), freie Winkel im Panel,
   **„Fläche aufs Bett legen“**: Fläche anklicken → das Teil liegt flach darauf.
 - **Vereinen** (`Strg+G`): Volumen werden vereinigt, Löcher abgezogen – danach lassen sich auch die Übergangskanten runden.
-- **Rundungen & Fasen**: Werkzeug `F`, Kante(n) anklicken, Pfeil ziehen oder Radius eingeben. Funktioniert an
-  äußeren (Material weg) und inneren Kanten (Material dazu). Nachträglich im Panel änderbar.
+- **Kanten & Flächen bearbeiten** (`F` oder Doppelklick auf einen Körper): Beim Darüberfahren leuchten Kanten (gelb)
+  und Flächen (blau) auf.
+  - Kante anklicken → Pfeil **raus ziehen = Rundung, rein ziehen = Fase**. Klappt an äußeren und inneren Kanten
+    (z. B. Übergänge vereinter Teile).
+  - Fläche anklicken → **Verschieben** (grüner Pfeil, nach außen/innen) oder **Neigen**: Kante wählen, um die gekippt wird,
+    dann Keil dazu oder weg per Winkel oder Ziehen.
+  - Alles bleibt nachträglich im Panel änderbar.
+- **Zahlen ziehen** wie in Adobe-Programmen: Feld-Beschriftung (oder Maß-Label im 3D) links/rechts ziehen.
 - **Ausrichten** mehrerer Körper (Anfang/Mitte/Ende pro Achse).
 - **Export**: 3MF (empfohlen), STL (binär) oder STEP – mit wählbarer Tessellierungs-Qualität, wasserdichtes Netz,
   Volumen/Gewichts-Schätzung.
@@ -35,7 +41,7 @@ zwischen vereinten Teilen.
 | --- | --- |
 | `V` | Auswählen & verschieben |
 | `R` / `C` / `P` | Rechteck / Kreis / Polygon |
-| `F` | Kanten runden / fasen |
+| `F` | Kanten & Flächen bearbeiten |
 | `L` | Fläche aufs Bett legen |
 | `Strg+G` / `Strg+Shift+G` | Vereinen / Trennen |
 | `Strg+D` | Duplizieren |

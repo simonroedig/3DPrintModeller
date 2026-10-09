@@ -1,6 +1,6 @@
 import { useEffect } from "react";
+import { applyEdit, clearEditSelection } from "../store/edit";
 import {
-  applyFillet,
   copySelection,
   deleteSelection,
   duplicateSelection,
@@ -61,18 +61,18 @@ export function useShortcuts() {
       const vertical = s.view === "front" || s.view === "right";
       switch (e.key) {
         case "Escape":
-          if (s.tool === "fillet" && s.edgeSel) useStore.setState({ edgeSel: null });
+          if (s.tool === "edit" && (s.edgeSel || s.faceSel)) clearEditSelection();
           else if (s.tool !== "select") setTool("select");
           else select([]);
           return;
         case "Delete":
         case "Backspace":
-          if (s.tool === "fillet" && s.edgeSel) useStore.setState({ edgeSel: null });
+          if (s.tool === "edit" && (s.edgeSel || s.faceSel)) clearEditSelection();
           else deleteSelection();
           e.preventDefault();
           return;
         case "Enter":
-          if (s.tool === "fillet") applyFillet();
+          if (s.tool === "edit") applyEdit();
           return;
         case "ArrowLeft":
           return nudge(s.view === "right" ? [0, -step, 0] : [-step, 0, 0]);
@@ -104,7 +104,7 @@ export function useShortcuts() {
           setTool("poly");
           break;
         case "f":
-          setTool("fillet");
+          setTool("edit");
           break;
         case "l":
           setTool("layflat");

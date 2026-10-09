@@ -211,7 +211,7 @@ export function ExportDialog() {
 const KEYS: [string, string][] = [
   ["V", "Auswählen & Verschieben"],
   ["R / C / P", "Rechteck / Kreis / Polygon skizzieren"],
-  ["F", "Kanten runden / fasen"],
+  ["F", "Kanten & Flächen bearbeiten (auch Doppelklick auf einen Körper)"],
   ["L", "Fläche aufs Druckbett legen"],
   ["1 2 3 4", "3D / Oben / Vorne / Rechts"],
   ["0", "Alles einpassen"],
@@ -226,6 +226,7 @@ const KEYS: [string, string][] = [
   ["Q / E", "Auswahl um 90° um Z drehen"],
   ["H", "Auswahl zwischen Volumen und Loch umschalten"],
   ["Alt beim Ziehen", "Raster & Einrasten aus"],
+  ["Feld-Beschriftung ziehen", "Zahl per Links/Rechts-Ziehen ändern (Shift ×10, Alt ×0,1)"],
   ["Esc", "Abbrechen / Werkzeug beenden / Auswahl aufheben"],
   ["Strg + S / Strg + O", "Projekt speichern / öffnen"],
 ];

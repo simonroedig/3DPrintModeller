@@ -1,4 +1,4 @@
-import type { EdgeFeature, Shape } from "../types";
+import type { Feature, Shape } from "../types";
 
 /** Strips everything from a shape that does not influence its geometry. */
 function geomShape(shape: Shape): unknown {
@@ -15,9 +15,10 @@ function geomShape(shape: Shape): unknown {
   };
 }
 
-const geomFeatures = (features: EdgeFeature[]) => features.map((f) => [f.type, f.radius, f.edges]);
+// feature ids do not influence geometry (so a preview and the applied feature share one mesh)
+const geomFeatures = (features: Feature[]) => features.map(({ id: _id, ...rest }) => rest);
 
 /** Key identifying the local geometry of a body (independent of its own placement). */
-export function geometryKey(body: { shape: Shape; features: EdgeFeature[] }): string {
+export function geometryKey(body: { shape: Shape; features: Feature[] }): string {
   return JSON.stringify([geomShape(body.shape), geomFeatures(body.features)]);
 }
