@@ -1,12 +1,13 @@
 import * as THREE from "three";
 import type { PlaneOrient, SketchPlane, Vec3 } from "../types";
 
-export type ViewName = "iso" | "top" | "front" | "back" | "right" | "left";
+export type ViewName = "iso" | "top" | "bottom" | "front" | "back" | "right" | "left";
 
 /** direction from the scene towards the camera */
 export const VIEW_DIR: Record<ViewName, THREE.Vector3> = {
   iso: new THREE.Vector3(0.75, -1.25, 0.95).normalize(),
   top: new THREE.Vector3(0, 0, 1),
+  bottom: new THREE.Vector3(0, 0, -1),
   front: new THREE.Vector3(0, -1, 0),
   back: new THREE.Vector3(0, 1, 0),
   right: new THREE.Vector3(1, 0, 0),
@@ -15,7 +16,7 @@ export const VIEW_DIR: Record<ViewName, THREE.Vector3> = {
 
 /** world axis looked along in a 2D view (null for 3D) */
 export function viewAxis(view: ViewName): 0 | 1 | 2 | null {
-  if (view === "top") return 2;
+  if (view === "top" || view === "bottom") return 2;
   if (view === "front" || view === "back") return 1;
   if (view === "right" || view === "left") return 0;
   return null;
@@ -34,12 +35,14 @@ export function axisColorOf(dir: THREE.Vector3 | Vec3) {
 /* sketch planes                                                        */
 /* ------------------------------------------------------------------ */
 
-export const PLANE_AXIS: Record<PlaneOrient, 0 | 1 | 2> = { top: 2, front: 1, back: 1, right: 0, left: 0 };
+export const PLANE_AXIS: Record<PlaneOrient, 0 | 1 | 2> = { top: 2, bottom: 2, front: 1, back: 1, right: 0, left: 0 };
 export const PLANE_AXIS_NAME = ["X", "Y", "Z"] as const;
 
 /** sketch u/v axes and normal (u × v = n), matching what the camera of that view sees */
 const BASIS: Record<PlaneOrient, [Vec3, Vec3, Vec3]> = {
   top: [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+  // seen from below: X stays right, Y points down the screen
+  bottom: [[1, 0, 0], [0, -1, 0], [0, 0, -1]],
   front: [[1, 0, 0], [0, 0, 1], [0, -1, 0]],
   back: [[-1, 0, 0], [0, 0, 1], [0, 1, 0]],
   right: [[0, 1, 0], [0, 0, 1], [1, 0, 0]],
@@ -88,6 +91,7 @@ export function orientForView(view: ViewName): PlaneOrient {
 
 export const ORIENT_LABEL: Record<PlaneOrient, string> = {
   top: "Boden (XY)",
+  bottom: "Unten (XY)",
   front: "Vorne (XZ)",
   back: "Hinten (XZ)",
   right: "Rechts (YZ)",

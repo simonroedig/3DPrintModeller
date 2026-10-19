@@ -20,7 +20,7 @@ export function saveProject() {
   const { list, current } = useProjects.getState();
   const name = list.find((p) => p.id === current)?.name ?? "projekt";
   const file = name.replace(/[\\/:*?"<>|]+/g, "_").trim() || "projekt";
-  download(JSON.stringify({ app: "PrintModeller", version: 1, name, doc }, null, 1), `${file}.pmodel.json`, "application/json");
+  download(JSON.stringify({ app: "3DPrintModeller", version: 1, name, doc }, null, 1), `${file}.pmodel.json`, "application/json");
 }
 
 export function pickImportFiles() {

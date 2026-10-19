@@ -4,7 +4,7 @@ import type { RootState } from "@react-three/fiber";
 /** meshes of rendered bodies, used for picking / occlusion tests */
 export const bodyMeshes = new Map<string, THREE.Mesh>();
 
-/** true while the pointer is over a gizmo handle — tools ignore clicks then */
+/** true while the pointer is over a gizmo handle; tools ignore clicks then */
 export const pointerState = { overHandle: false, dragging: false };
 
 export function ndcFromEvent(ev: { clientX: number; clientY: number }, el: HTMLElement) {

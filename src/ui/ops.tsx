@@ -9,7 +9,7 @@ export const OPS: { op: BoolOp; label: string; short: string; icon: (size: numbe
     label: "Vereinen",
     short: "Vereinen",
     icon: (s) => <SquaresUnite size={s} />,
-    tip: "Zu einem Körper verschmelzen – Löcher werden abgezogen, Übergangskanten lassen sich runden",
+    tip: "Zu einem Körper verschmelzen. Löcher werden abgezogen, Übergangskanten lassen sich runden",
     kbd: "Strg G",
   },
   {
@@ -17,7 +17,7 @@ export const OPS: { op: BoolOp; label: string; short: string; icon: (size: numbe
     label: "Abziehen",
     short: "Abziehen",
     icon: (s) => <SquaresSubtract size={s} />,
-    tip: "Vom zuerst gewählten Körper alle weiteren abziehen – die Werkzeuge bleiben erhalten und änderbar",
+    tip: "Vom zuerst gewählten Körper alle weiteren abziehen. Die Werkzeuge bleiben erhalten und änderbar",
   },
   {
     op: "intersect",

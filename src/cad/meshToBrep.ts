@@ -96,7 +96,7 @@ export function meshToSolids(positions: ArrayLike<number>, indices: ArrayLike<nu
     unify.delete();
   }
   ex.delete();
-  if (!solids.length) throw new Error("Das Netz ist nicht geschlossen – kein Volumenkörper");
+  if (!solids.length) throw new Error("Das Netz ist nicht geschlossen, kein Volumenkörper");
   return solids;
 }
 

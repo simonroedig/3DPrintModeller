@@ -1,4 +1,4 @@
-/** Minimal IndexedDB key/value store – documents with imported files are too big for localStorage. */
+/** Minimal IndexedDB key/value store: documents with imported files are too big for localStorage. */
 const DB_NAME = "printmodeller";
 const STORE = "kv";
 

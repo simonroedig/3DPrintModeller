@@ -34,7 +34,7 @@ export function Ground() {
 
   // in the side views the grid sits far behind everything
   const gridPosition: [number, number, number] =
-    view === "front" ? [0, 4000, 0] : view === "back" ? [0, -4000, 0] : view === "right" ? [-4000, 0, 0] : view === "left" ? [4000, 0, 0] : [0, 0, -0.01];
+    view === "front" ? [0, 4000, 0] : view === "back" ? [0, -4000, 0] : view === "right" ? [-4000, 0, 0] : view === "left" ? [4000, 0, 0] : view === "bottom" ? [0, 0, 4000] : [0, 0, -0.01];
   const side = view !== "iso" && view !== "top";
 
   return (

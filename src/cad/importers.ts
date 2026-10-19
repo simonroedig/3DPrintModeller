@@ -42,7 +42,7 @@ function isBinarySTL(bytes: Uint8Array) {
   const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const n = dv.getUint32(80, true);
   if (84 + n * 50 === bytes.length) return true;
-  // ascii files start with "solid" – but some binary exporters write that too, so only trust the size check
+  // ascii files start with "solid", but some binary exporters write that too, so only trust the size check
   const head = strFromU8(bytes.subarray(0, Math.min(bytes.length, 512)));
   return !/^\s*solid[\s\S]*facet/.test(head);
 }

@@ -47,6 +47,7 @@ import { TOOL_COLOR } from "./theme";
 import { APP_NAME, AUTHOR } from "./brand";
 import { Logo } from "./Logo";
 import { MODE_COLOR, MODE_NAME } from "./Overlays";
+import { AXIS_COLOR, viewAxis } from "../lib/planes";
 
 export function TopBar() {
   const canUndo = useStore((s) => s.past.length > 0);
@@ -58,7 +59,7 @@ export function TopBar() {
     <header className="h-12 shrink-0 flex items-center gap-2 px-3 bg-ink-900 border-b border-ink-750">
       <button
         className="brand flex items-center gap-2 pr-3 mr-1 border-r border-ink-750"
-        title="Über PrintModeller"
+        title="Über 3DPrintModeller"
         onClick={() => useStore.setState({ aboutOpen: true })}
       >
         <Logo size={22} />
@@ -68,7 +69,7 @@ export function TopBar() {
       <button className="btn ghost" title="Projektdatei (.json) als neues Projekt öffnen (Strg+O)" onClick={openProject}>
         <FolderOpen size={16} /> Öffnen
       </button>
-      <button className="btn ghost" title="Projekt als Datei herunterladen (Strg+S) – im Browser wird ohnehin automatisch gespeichert" onClick={saveProject}>
+      <button className="btn ghost" title="Projekt als Datei herunterladen (Strg+S). Im Browser wird ohnehin automatisch gespeichert" onClick={saveProject}>
         <Save size={16} /> Speichern
       </button>
       <button className="btn ghost" title="STEP, STL, 3MF oder OBJ importieren (oder Datei ins Fenster ziehen)" onClick={pickImportFiles}>
@@ -191,7 +192,7 @@ export function ToolRail() {
         <ToolButton
           key={o.op}
           icon={o.icon(19)}
-          label={`${o.label}: ${o.tip}${selCount >= 2 ? "" : " – erst mehrere Körper wählen (Shift+Klick)"}`}
+          label={`${o.label}: ${o.tip}${selCount >= 2 ? "" : ". Erst mehrere Körper wählen (Shift+Klick)"}`}
           kbd={o.kbd}
           color={TOOL_COLOR[o.op]}
           dim={selCount < 2}
@@ -213,11 +214,19 @@ export function ToolRail() {
 export const VIEWS: { id: View; label: string; kbd: string }[] = [
   { id: "iso", label: "3D", kbd: "1" },
   { id: "top", label: "Oben", kbd: "2" },
+  { id: "bottom", label: "Unten", kbd: "7" },
   { id: "front", label: "Vorne", kbd: "3" },
   { id: "back", label: "Hinten", kbd: "4" },
   { id: "left", label: "Links", kbd: "5" },
   { id: "right", label: "Rechts", kbd: "6" },
 ];
+
+/** each 2D view in the colour of the axis it looks along; 3D stays neutral */
+function viewStyle(v: View): React.CSSProperties {
+  const axis = viewAxis(v);
+  if (axis === null) return { "--vc": "#d5d9e2", "--vc-on": "#121419", "--vc-hover": "#e6e8ed" } as React.CSSProperties;
+  return { "--vc": AXIS_COLOR[axis], "--vc-on": "#ffffff", "--vc-hover": AXIS_COLOR[axis] } as React.CSSProperties;
+}
 
 export function ViewSwitcher() {
   const view = useStore((s) => s.view);
@@ -232,11 +241,12 @@ export function ViewSwitcher() {
   const flash = flashedView !== null && flashedView === view;
   return (
     <div className="absolute top-3 right-3 flex items-center gap-2 z-10">
-      <div className="seg accent overlay-card !rounded-[9px] !p-[3px]" onMouseLeave={() => useStore.setState({ viewHover: null })}>
+      <div className="seg view-seg overlay-card !rounded-[9px] !p-[3px]" onMouseLeave={() => useStore.setState({ viewHover: null })}>
         {VIEWS.map((v) => (
           <button
             key={`${v.id}-${v.id === view && flash ? flashNonce : 0}`}
             className={`${view === v.id ? "on" : ""} ${v.id === view && flash ? "view-flash" : ""}`}
+            style={viewStyle(v.id)}
             title={`${v.label}-Ansicht (${v.kbd})`}
             onMouseEnter={() => useStore.setState({ viewHover: v.id })}
             onClick={() => setView(v.id)}
@@ -271,7 +281,7 @@ export function StatusBar() {
       : faceSel
         ? "Grünen Pfeil ziehen: Fläche versetzen · „Neigen“: Kante wählen und Keil dazu/weg · Enter: anwenden · Esc: Auswahl aufheben"
         : "Fahre über Kanten (gelb) oder Flächen (blau) und klicke · Tipp: berührende Teile erst vereinen (Strg+G), dann lassen sich die Übergänge runden",
-    layflat: "Klicke eine ebene Fläche – das Teil wird so gedreht, dass sie flach auf dem Druckbett liegt",
+    layflat: "Klicke eine ebene Fläche: das Teil wird so gedreht, dass sie flach auf dem Druckbett liegt",
   };
   // tick while busy so the elapsed time and the cancel button show up
   const [, setTick] = useState(0);

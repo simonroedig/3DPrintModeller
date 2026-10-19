@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
-import { ArrowDownToLine, Copy, Layers2, RotateCw, SquareRoundCorner, Trash2, MoveUp, SquareDashed } from "lucide-react";
+import { ArrowDownToLine, Copy, Layers2, LocateFixed, RotateCw, SquareRoundCorner, Trash2, MoveUp, SquareDashed } from "lucide-react";
 import {
+  centerOnBed,
   combineSelection,
   deleteSelection,
   duplicateSelection,
@@ -32,7 +33,7 @@ function CtxButton({ icon, label, kbd, color, onClick, tip }: { icon: ReactNode;
 const Sep = () => <span className="w-px h-6 bg-ink-700 mx-0.5" />;
 
 /**
- * Floating actions for what is selected – so the next useful steps (rounding edges, combining, …)
+ * Floating actions for what is selected, so the next useful steps (rounding edges, combining, …)
  * are right there instead of hidden behind a shortcut.
  */
 export function ContextBar() {
@@ -55,7 +56,7 @@ export function ContextBar() {
           icon={<MoveUp size={16} />}
           label={`Extrudieren · ${fmtLen(height, unit)}`}
           color={TOOL_COLOR.sketch}
-          tip="Skizze zum Körper hochziehen – Höhe im Panel rechts oder am Pfeil im Modell"
+          tip="Skizze zum Körper hochziehen. Höhe im Panel rechts oder am Pfeil im Modell"
           onClick={() => extrudeSketch(sketch.id, height)}
         />
         <CtxButton icon={<SquareDashed size={16} />} label="Als Loch" color={TOOL_COLOR.subtract} tip="Als Loch extrudieren (wird beim Vereinen abgezogen)" onClick={() => extrudeSketch(sketch.id, height, true)} />
@@ -80,13 +81,14 @@ export function ContextBar() {
         )}
         <CtxButton icon={<ArrowDownToLine size={16} />} label="Aufs Bett" kbd="L" color={TOOL_COLOR.layflat} tip="Eine Fläche anklicken, die unten aufliegen soll" onClick={() => setTool("layflat")} />
         <CtxButton icon={<RotateCw size={16} />} kbd="E" tip="90° um die Hochachse drehen" color={TOOL_COLOR.select} onClick={() => rotateSelection(2, -90)} />
+        <CtxButton icon={<LocateFixed size={16} />} kbd="M" tip="Mittig aufs Druckbett (im Raster), Shift+M: exakt" color={TOOL_COLOR.select} onClick={() => centerOnBed(false)} />
         {!mesh && (
           <CtxButton
             icon={<Layers2 size={16} />}
             label={b.hole ? "Volumen" : "Loch"}
             kbd="H"
             color={b.hole ? TOOL_COLOR.body : TOOL_COLOR.subtract}
-            tip={b.hole ? "Wieder zum normalen Körper machen" : "Zum Loch machen – wird beim Vereinen abgezogen"}
+            tip={b.hole ? "Wieder zum normalen Körper machen" : "Zum Loch machen, wird beim Vereinen abgezogen"}
             onClick={() => updateBodies({ [b.id]: { hole: !b.hole } })}
           />
         )}
@@ -102,6 +104,7 @@ export function ContextBar() {
           <CtxButton key={o.op} icon={o.icon(16)} label={o.label} kbd={o.kbd} color={TOOL_COLOR[o.op]} tip={o.tip} onClick={() => combineSelection(o.op)} />
         ))}
         <Sep />
+        <CtxButton icon={<LocateFixed size={16} />} kbd="M" tip="Gemeinsam mittig aufs Druckbett (im Raster), Shift+M: exakt" color={TOOL_COLOR.select} onClick={() => centerOnBed(false)} />
         <CtxButton icon={<Copy size={16} />} tip="Duplizieren" kbd="Strg D" onClick={duplicateSelection} />
         <CtxButton icon={<Trash2 size={16} />} tip="Löschen" kbd="Entf" color="#f87171" onClick={deleteSelection} />
       </>

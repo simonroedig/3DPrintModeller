@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Check, LoaderCircle, TriangleAlert, X } from "lucide-react";
 import { geometryKey } from "../cad/key";
 import { useMeshes } from "../cad/client";
@@ -259,25 +260,49 @@ export function Toasts() {
   );
 }
 
+const HINT_KEY = "printmodeller.startHint.hidden";
+
+function readHintHidden() {
+  try {
+    return localStorage.getItem(HINT_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 export function EmptyHint() {
   const empty = useStore((s) => s.doc.bodies.length === 0 && s.doc.sketches.length === 0);
   const tool = useStore((s) => s.tool);
   const start = useStore((s) => s.startDialog);
-  if (!empty || tool !== "select" || start) return null;
+  const [hidden, setHidden] = useState(readHintHidden);
+  if (!empty || tool !== "select" || start || hidden) return null;
+  const close = () => {
+    setHidden(true);
+    try {
+      localStorage.setItem(HINT_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+  };
   const Step = ({ n, color, children }: { n: number; color: string; children: React.ReactNode }) => (
-    <li className="flex gap-2 items-start">
-      <span className="w-4 h-4 shrink-0 rounded-full grid place-items-center text-[10px] font-bold text-ink-950 mt-[1px]" style={{ background: color }}>
+    <li className="flex gap-2 items-start leading-[18px]">
+      <span className="step-num" style={{ background: color }}>
         {n}
       </span>
       <span>{children}</span>
     </li>
   );
   return (
-    <div className="absolute left-3 bottom-3 z-[1] pointer-events-none overlay-card px-3.5 py-3 max-w-[310px] text-[12px] text-ink-300">
-      <div className="text-ink-100 text-[13px] font-semibold mb-2">Leeres Projekt – so geht's los</div>
+    <div className="start-hint absolute left-3 bottom-3 z-[1] pointer-events-none overlay-card px-3.5 py-3 max-w-[310px] text-[12px] text-ink-300">
+      <div className="flex items-center gap-2 mb-2">
+        <span className="text-ink-100 text-[13px] font-semibold flex-1">Leeres Projekt: so geht's los</span>
+        <button className="btn ghost !h-6 !px-1 -mr-1.5 pointer-events-auto" title="Startkarte ausblenden" onClick={close}>
+          <X size={14} />
+        </button>
+      </div>
       <ol className="flex flex-col gap-1.5">
         <Step n={1} color={TOOL_COLOR.sketch}>
-          Skizze zeichnen: <kbd className="!ml-0">R</kbd> Rechteck, <kbd className="!ml-0">C</kbd> Kreis – oder links einen Grundkörper einfügen.
+          Skizze zeichnen: <kbd className="!ml-0">R</kbd> Rechteck, <kbd className="!ml-0">C</kbd> Kreis, oder links einen Grundkörper einfügen.
         </Step>
         <Step n={2} color={TOOL_COLOR.body}>
           Extrudieren, Maße an den Pfeilen ziehen oder eintippen.

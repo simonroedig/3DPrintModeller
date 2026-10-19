@@ -22,6 +22,7 @@ import {
   Globe,
   Hexagon,
   Layers,
+  LocateFixed,
   LogOut,
   RotateCcw,
   RotateCw,
@@ -39,6 +40,7 @@ import {
   dropToBed,
   duplicateSelection,
   extrudeSketch,
+  centerOnBed,
   combineSelection,
   extractGroupChild,
   KIND_LABEL,
@@ -121,7 +123,7 @@ function SceneTree() {
         <span className="normal-case tracking-normal text-ink-500">{bodies.length + sketches.length}</span>
       </div>
       <div className="overflow-y-auto scroll-thin px-1.5 pb-2">
-        {empty && <div className="text-ink-500 px-2 py-3 text-[12px]">Noch nichts da – zeichne eine Skizze oder füge einen Körper ein.</div>}
+        {empty && <div className="text-ink-500 px-2 py-3 text-[12px]">Noch nichts da. Zeichne eine Skizze oder füge einen Körper ein.</div>}
         {bodies.map((b) => (
           <div key={b.id}>
             <div
@@ -305,6 +307,7 @@ function BodyProps({ body }: { body: Body }) {
           Größe gesamt: {fmtLen(box.max.x - box.min.x, useStore.getState().doc.settings.unit)} ×{" "}
           {fmtLen(box.max.y - box.min.y, useStore.getState().doc.settings.unit)} × {fmtLen(box.max.z - box.min.z, useStore.getState().doc.settings.unit)}
         </div>
+        <CenterButtons />
       </Section>
 
       <Section title="Drehung">
@@ -373,6 +376,24 @@ function BodyProps({ body }: { body: Body }) {
         </div>
       </Section>
     </>
+  );
+}
+
+/** middle of the bed in X/Y: by default in whole grid steps (stays on the grid), or exactly */
+function CenterButtons({ label = "Zentrieren" }: { label?: string }) {
+  return (
+    <div className="flex gap-1.5 mt-2">
+      <button
+        className="btn flex-1"
+        title="Mittig aufs Druckbett (X und Y, die Höhe bleibt), in ganzen Rasterschritten, damit alles im Raster bleibt (M)"
+        onClick={() => centerOnBed(false)}
+      >
+        <LocateFixed size={14} /> {label}
+      </button>
+      <button className="btn !px-2.5" title="Exakt mittig, auch wenn es dann nicht mehr genau im Raster liegt (Shift+M)" onClick={() => centerOnBed(true)}>
+        exakt
+      </button>
+    </div>
   );
 }
 
@@ -516,10 +537,10 @@ function ShapeParams({ body, onShape }: { body: Body; onShape?: (shape: Shape) =
           </div>
           <div className="text-[11px] text-ink-500 mt-2 leading-snug">
             {asset?.format === "step"
-              ? `Aus „${asset.name}“ (STEP) – exakte CAD-Geometrie.`
+              ? `Aus „${asset.name}“ (STEP): exakte CAD-Geometrie.`
               : s.mode === "mesh"
                 ? `Aus „${asset?.name ?? "Datei"}“ als Mesh (${tris.toLocaleString("de-DE")} Dreiecke): verschieben, drehen, aufs Bett legen und exportieren. Für Kanten, Flächen, Löcher und Vereinen in einen CAD-Körper umwandeln.`
-                : `Aus „${asset?.name ?? "Datei"}“ (${asset?.format.toUpperCase()}) – ebene Flächen wurden zu CAD-Flächen zusammengefasst, Rundungen bleiben facettiert.`}
+                : `Aus „${asset?.name ?? "Datei"}“ (${asset?.format.toUpperCase()}): ebene Flächen wurden zu CAD-Flächen zusammengefasst, Rundungen bleiben facettiert.`}
           </div>
           {s.mode === "mesh" && (
             <button className="btn w-full mt-2" onClick={() => convertMeshAsset(s.asset)}>
@@ -564,7 +585,7 @@ function GroupDims({ body, onShape }: { body: Body; onShape?: (shape: Shape) => 
             label={l}
             mm={dims[a]}
             min={0.05}
-            title={`${["Breite", "Tiefe", "Höhe"][a]} – skaliert alle Teile in dieser Richtung`}
+            title={`${["Breite", "Tiefe", "Höhe"][a]}: skaliert alle Teile in dieser Richtung`}
             onChange={(v) => {
               const f: Vec3 = [1, 1, 1];
               f[a] = v / Math.max(dims[a], 1e-6);
@@ -668,7 +689,7 @@ function GroupParts({ body }: { body: GroupBody }) {
                         {c.hole ? "Als Volumen" : "Als Loch"}
                       </button>
                     )}
-                    <button className="btn flex-1 !h-7 text-[12px]" title="Aus dem Körper herauslösen – bleibt an seinem Platz" onClick={() => extractGroupChild(body.id, c.id)}>
+                    <button className="btn flex-1 !h-7 text-[12px]" title="Aus dem Körper herauslösen, bleibt an seinem Platz" onClick={() => extractGroupChild(body.id, c.id)}>
                       <LogOut size={13} /> Herauslösen
                     </button>
                   </div>
@@ -680,7 +701,7 @@ function GroupParts({ body }: { body: GroupBody }) {
       </div>
       <div className="text-[11px] text-ink-500 mt-2 leading-snug">
         {op === "subtract"
-          ? "Die abgezogenen Teile sind unsichtbar, aber da: Teil aufklappen zum Ändern – es wird im Modell orange angezeigt."
+          ? "Die abgezogenen Teile sind unsichtbar, aber da: Teil aufklappen zum Ändern, es wird im Modell orange angezeigt."
           : op === "intersect"
             ? "Übrig bleibt nur, was alle Teile gemeinsam haben."
             : op === "group"
@@ -730,7 +751,7 @@ function MultiProps({ bodies }: { bodies: Body[] }) {
         <div className="text-[11px] text-ink-500 mt-2 leading-snug">
           Reihenfolge zählt beim Abziehen: <b className="text-ink-300">{ordered[0]?.name}</b> ist die Basis
           {ordered.length > 1 && <>, {ordered.slice(1).map((b) => b.name).join(", ")} {ordered.length > 2 ? "werden" : "wird"} abgezogen</>}.
-          Nichts geht verloren – alle Teile bleiben im Ergebnis erhalten und änderbar.
+          Nichts geht verloren: alle Teile bleiben im Ergebnis erhalten und änderbar.
         </div>
       </div>
       <Section title="Ausrichten">
@@ -749,6 +770,7 @@ function MultiProps({ bodies }: { bodies: Body[] }) {
         <button className="btn w-full mt-2" onClick={dropToBed}>
           <ArrowDownToLine size={14} /> Alle aufs Bett
         </button>
+        <CenterButtons label="Gemeinsam zentrieren" />
       </Section>
       <Section title="Drehen (gemeinsam)">
         <RotateButtons />
@@ -788,7 +810,7 @@ function SketchProps({ sketch }: { sketch: Sketch }) {
           <>
             <Grid2>
               <LenField label="Breite" mm={s.w} min={0.05} onChange={(w) => upd({ ...s, w })} />
-              <LenField label={flat ? "Tiefe" : "Höhe"} mm={s.d} min={0.05} onChange={(d) => upd({ ...s, d })} />
+              <LenField label={flat || sketch.plane.orient === "bottom" ? "Tiefe" : "Höhe"} mm={s.d} min={0.05} onChange={(d) => upd({ ...s, d })} />
               <LenField label={flat ? "X" : "Links"} mm={s.x} onChange={(x) => upd({ ...s, x })} title="Linke Kante (in der Skizzenebene)" />
               <LenField label={flat ? "Y" : "Unten"} mm={s.y} onChange={(y) => upd({ ...s, y })} title={flat ? "Vordere Kante" : "Untere Kante (in der Skizzenebene)"} />
             </Grid2>
@@ -876,7 +898,7 @@ function DocProps() {
       </Section>
       <Section
         title="Druckbett"
-        right={<Switch on={showBed} onChange={setShowBed} label={showBed ? "sichtbar" : "aus"} title="Druckbett im Modell ein- oder ausblenden" />}
+        right={<Switch on={showBed} onChange={setShowBed} label="anzeigen" title="Druckbett im Modell ein- oder ausblenden" />}
       >
         <Grid2>
           <LenField label="X" mm={settings.bed.x} min={10} onChange={(x) => setSettings({ bed: { ...settings.bed, x } })} />
@@ -889,14 +911,15 @@ function DocProps() {
             </button>
           ))}
         </div>
+        {count > 0 && <CenterButtons label="Alles zentrieren" />}
       </Section>
       <Section title="So geht's">
         <ol className="text-[12px] text-ink-300 list-decimal pl-4 space-y-1.5">
           <li>
-            Skizze zeichnen (<kbd>R</kbd>/<kbd>C</kbd>/<kbd>P</kbd>) – Maße direkt im Panel oder am Label anpassen.
+            Skizze zeichnen (<kbd>R</kbd>/<kbd>C</kbd>/<kbd>P</kbd>), Maße direkt im Panel oder am Label anpassen.
           </li>
           <li>Extrudieren: Höhe eingeben oder am Pfeil ziehen.</li>
-          <li>Teile aneinander ziehen – sie rasten an Flächen ein (pinke Linien).</li>
+          <li>Teile aneinander ziehen, sie rasten an Flächen ein (pinke Linien).</li>
           <li>
             Mehrere wählen und vereinen (<kbd>Strg</kbd>+<kbd>G</kbd>).
           </li>

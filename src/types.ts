@@ -70,7 +70,7 @@ export type SketchShape =
   | { kind: "circle"; cx: number; cy: number; d: number }
   | { kind: "poly"; points: Vec2[] };
 
-export type PlaneOrient = "top" | "front" | "back" | "right" | "left";
+export type PlaneOrient = "top" | "bottom" | "front" | "back" | "right" | "left";
 
 /** sketch plane: orientation (as seen from that view) + world coordinate along its axis */
 export interface SketchPlane {

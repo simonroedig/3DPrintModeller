@@ -224,7 +224,7 @@ export function PlanePanel() {
         </div>
         <button
           className={`btn !h-[30px] !px-2 ${planePick ? "primary" : ""}`}
-          title="Fläche eines Körpers anklicken – die Skizze liegt dann genau darauf"
+          title="Fläche eines Körpers anklicken, die Skizze liegt dann genau darauf"
           onClick={() => useStore.setState({ planePick: !planePick })}
         >
           <Crosshair size={15} />

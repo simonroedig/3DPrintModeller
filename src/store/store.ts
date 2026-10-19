@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import * as THREE from "three";
 import type { Asset, Body, BoolOp, Doc, EdgeRef, PlaneOrient, SketchPlane, FaceRef, Feature, Quat, Settings, Shape, ShapeKind, Sketch, SketchShape, Unit, Vec2, Vec3 } from "../types";
-import { DEFAULT_SNAP, fmtLen } from "../lib/units";
+import { DEFAULT_SNAP, fmtLen, snapTo } from "../lib/units";
 import { fromPlane2D, orientForView, PLANE_AXIS, PLANE_AXIS_NAME, planeQuat } from "../lib/planes";
 import { assetPayload, importAsset, isAssetRegistered, registerAsset, setRestartHandler } from "../cad/client";
 import { BREP_TRIANGLE_LIMIT } from "../cad/regions";
@@ -9,7 +9,7 @@ import { detectFormat, payloadFromAsset, toBase64 } from "../cad/importers";
 import { cleanQuat, localBox, polyBounds, polygonArea, quatFromEulerDeg, unionBox, worldBox } from "../lib/geom";
 
 export type Tool = "select" | "rect" | "circle" | "poly" | "edit" | "layflat";
-export type View = "iso" | "top" | "front" | "back" | "right" | "left";
+export type View = "iso" | "top" | "bottom" | "front" | "back" | "right" | "left";
 
 export interface Guide {
   a: Vec3;
@@ -67,7 +67,7 @@ export interface State {
   faceOp: FaceOp;
   /** bumps when the view changed on its own (so the UI can point it out) */
   viewFlash: number;
-  /** view button under the mouse – the viewport shows where that view looks from */
+  /** view button under the mouse: the viewport shows where that view looks from */
   viewHover: View | null;
   guides: Guide[];
   dragInfo: string | null;
@@ -159,7 +159,7 @@ export const useStore = create<State>(() => ({
   helpOpen: false,
   aboutOpen: false,
   toasts: [],
-  sketchPlanes: { top: 0, front: 0, back: 0, right: 0, left: 0 },
+  sketchPlanes: { top: 0, bottom: 0, front: 0, back: 0, right: 0, left: 0 },
   planePick: false,
   planeDrag: false,
   groupFocus: null,
@@ -185,7 +185,7 @@ syncAssets(get().doc);
 set({ doc: keepHeavyMeshesAsMesh(get().doc) });
 setRestartHandler(() => syncAssets(get().doc));
 
-/** documents from older versions may hold huge meshes as CAD bodies – show those as plain meshes */
+/** documents from older versions may hold huge meshes as CAD bodies; show those as plain meshes */
 export function keepHeavyMeshesAsMesh(doc: Doc): Doc {
   let changed = false;
   const fix = (b: Body): Body => {
@@ -442,11 +442,11 @@ export function pickSketchPlane(normal: THREE.Vector3, point: THREE.Vector3) {
   const a = [Math.abs(normal.x), Math.abs(normal.y), Math.abs(normal.z)];
   const axis = a.indexOf(Math.max(...a)) as 0 | 1 | 2;
   if (a[axis] < 0.999) {
-    toast("Diese Fläche ist schräg – Skizzen gehen auf Flächen, die nach oben, vorne/hinten oder zur Seite zeigen", "error");
+    toast("Diese Fläche ist schräg. Skizzen gehen auf Flächen, die nach oben, vorne/hinten oder zur Seite zeigen", "error");
     return;
   }
   const sign = normal.getComponent(axis) > 0 ? 1 : -1;
-  const orient: PlaneOrient = axis === 2 ? "top" : axis === 1 ? (sign < 0 ? "front" : "back") : sign > 0 ? "right" : "left";
+  const orient: PlaneOrient = axis === 2 ? (sign > 0 ? "top" : "bottom") : axis === 1 ? (sign < 0 ? "front" : "back") : sign > 0 ? "right" : "left";
   const value = Math.round(point.getComponent(axis) * 1e4) / 1e4;
   const s = get();
   const t = planeTarget(s);
@@ -638,6 +638,34 @@ export function dropToBed() {
   updateBodies(updates);
 }
 
+/**
+ * Puts the selection (or, with nothing selected, all visible bodies) in the middle of the bed, X and Y only;
+ * the height stays. By default the move is a whole number of grid steps, so parts stay on the grid;
+ * `exact` centres to the micrometre.
+ */
+export function centerOnBed(exact = false) {
+  const s = get();
+  const sel = selectedBodies();
+  const bodies = sel.length ? sel : s.doc.bodies.filter((b) => !b.hidden);
+  if (!bodies.length) return;
+  const c = unionBox(bodies).getCenter(new THREE.Vector3());
+  const step = s.doc.settings.snap;
+  let dx = -c.x;
+  let dy = -c.y;
+  if (!exact && step > 0) {
+    dx = snapTo(dx, step);
+    dy = snapTo(dy, step);
+  }
+  if (Math.abs(dx) < 1e-6 && Math.abs(dy) < 1e-6) {
+    toast(exact ? "Liegt schon exakt mittig" : "Liegt schon mittig (im Raster)");
+    return;
+  }
+  translateBodies(
+    bodies.map((b) => b.id),
+    [round6(dx), round6(dy), 0],
+  );
+}
+
 export function deleteSelection() {
   const { doc, selection } = get();
   if (!selection.length) return;
@@ -720,7 +748,7 @@ export function combineSelection(op: BoolOp) {
     return;
   }
   if (bodies.some(isMeshBody)) {
-    toast("Mesh-Körper (große STL/3MF/OBJ) können nicht kombiniert werden – erst im Panel in einen CAD-Körper umwandeln", "error");
+    toast("Mesh-Körper (große STL/3MF/OBJ) können nicht kombiniert werden. Erst im Panel in einen CAD-Körper umwandeln", "error");
     return;
   }
   const children = rolesFor(op, bodies.map((b) => ({ ...b, hidden: false })));
@@ -741,7 +769,7 @@ export function combineSelection(op: BoolOp) {
   commit({ ...doc, bodies: rest });
   set({ selection: [group.id], ...noEdit, groupFocus: null });
   if (op === "subtract")
-    toast(`Von „${bodies[0].name}“ abgezogen – die abgezogenen Teile bleiben erhalten und sind im Panel änderbar`);
+    toast(`Von „${bodies[0].name}“ abgezogen. Die abgezogenen Teile bleiben erhalten und sind im Panel änderbar`);
 }
 
 export const groupSelection = () => combineSelection("union");
@@ -966,7 +994,7 @@ export async function importFiles(files: File[]) {
         toast(
           format === "step"
             ? `Importiere „${file.name}“ …`
-            : `Importiere „${file.name}“ – ${triangles.toLocaleString("de-DE")} Dreiecke werden in CAD-Flächen umgewandelt …`,
+            : `Importiere „${file.name}“: ${triangles.toLocaleString("de-DE")} Dreiecke werden in CAD-Flächen umgewandelt …`,
         );
         parts = await importAsset(id, payload);
       }
@@ -1001,9 +1029,9 @@ export async function importFiles(files: File[]) {
       fitView();
       const maxDim = Math.max(size.x, size.y, size.z);
       toast(
-        `„${file.name}“ importiert – ${parts.length} Körper` +
+        `„${file.name}“ importiert: ${parts.length} Körper` +
           (asMesh
-            ? ` als Mesh (${triangles.toLocaleString("de-DE")} Dreiecke): verschieben, drehen, exportieren – für Kanten/Flächen/Vereinen mit weniger Auflösung oder als STEP exportieren`
+            ? ` als Mesh (${triangles.toLocaleString("de-DE")} Dreiecke): verschieben, drehen, exportieren. Für Kanten/Flächen/Vereinen mit weniger Auflösung oder als STEP exportieren`
             : "") +
           (maxDim < 2 ? " · sehr klein: evtl. in Metern/Zoll exportiert → Skalierung im Panel anpassen" : ""),
       );
@@ -1038,7 +1066,7 @@ export async function convertMeshAsset(assetId: string) {
     rest.splice(Math.min(firstIdx, rest.length), 0, ...created);
     commit({ ...doc, bodies: rest });
     set({ selection: created.map((b) => b.id) });
-    toast("In CAD-Körper umgewandelt – Kanten, Flächen und Vereinen sind jetzt möglich");
+    toast("In CAD-Körper umgewandelt. Kanten, Flächen und Vereinen sind jetzt möglich");
   } catch (err) {
     toast(`Umwandlung fehlgeschlagen: ${(err as Error).message}`, "error");
   }

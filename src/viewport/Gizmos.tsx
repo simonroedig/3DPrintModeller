@@ -299,7 +299,7 @@ function ResizeHandles({ body, snap, get, unit }: { body: Body; snap: number; un
       {specs.map((spec) => {
         const wp = new THREE.Vector3(...spec.pos).applyMatrix4(m);
         const wd = new THREE.Vector3(...spec.dir).applyQuaternion(q);
-        // a handle pointing at the viewer cannot be dragged – hide it in the 2D views
+        // a handle pointing at the viewer cannot be dragged: hide it in the 2D views
         if (axis && Math.abs(wd.dot(axis)) > 0.9) return null;
         return (
           <Handle
@@ -351,7 +351,7 @@ export function PlaneGroup({ plane, children }: { plane: SketchPlane; children: 
 }
 
 /** label of the plane's second (vertical on screen) axis */
-export const vLabel = (plane: SketchPlane) => (plane.orient === "top" ? "T" : "H");
+export const vLabel = (plane: SketchPlane) => (plane.orient === "top" || plane.orient === "bottom" ? "T" : "H");
 
 export function sketchToThreeShape(s: SketchShape): THREE.Shape {
   const shape = new THREE.Shape();
@@ -457,7 +457,7 @@ function SketchGizmo({ sketch }: { sketch: Sketch }) {
                 if (cur !== null && Math.abs(cur) > 1e-6) extrudeSketch(sketch.id, cur);
               },
             );
-            if (!ok) toast("In dieser Ansicht nicht ziehbar – nutze die 3D-Ansicht oder das Panel");
+            if (!ok) toast("In dieser Ansicht nicht ziehbar. Nutze die 3D-Ansicht oder das Panel");
           }}
         />
       )}

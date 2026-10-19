@@ -41,7 +41,7 @@ const UNITS: { unit: Unit; title: string; sub: string }[] = [
 export function StartDialog() {
   const hasDoc = useStore((s) => s.doc.bodies.length > 0 || s.doc.sketches.length > 0);
   const current = useStore((s) => s.doc.settings.unit);
-  // first visit (no project yet): introduce PrintModeller next to the start options
+  // first visit (no project yet): introduce 3DPrintModeller next to the start options
   const firstVisit = useProjects((s) => s.ready && s.list.length === 0);
   const [unit, setUnit] = useState<Unit>(current);
   const [snap, setSnap] = useState<number>(DEFAULT_SNAP[current]);
@@ -241,10 +241,10 @@ export function ExportDialog() {
 
 const KEYS: [string, string][] = [
   ["V", "Auswählen & Verschieben"],
-  ["R / C / P", "Rechteck / Kreis / Polygon skizzieren – in der Ebene der aktuellen Ansicht (3D = Boden)"],
+  ["R / C / P", "Rechteck / Kreis / Polygon skizzieren, in der Ebene der aktuellen Ansicht (3D = Boden)"],
   ["F", "Kanten & Flächen bearbeiten (auch Doppelklick auf einen Körper)"],
   ["L", "Fläche aufs Druckbett legen"],
-  ["1 – 6", "3D / Oben / Vorne / Hinten / Links / Rechts"],
+  ["1 bis 7", "3D / Oben / Vorne / Hinten / Links / Rechts / Unten"],
   ["Leertaste", "Zwischen Oben und 3D wechseln"],
   ["0", "Alles einpassen"],
   ["Strg + G", "Vereinen (Abziehen, Schnittmenge, Gruppieren: linke Leiste / Panel)"],
@@ -256,10 +256,11 @@ const KEYS: [string, string][] = [
   ["Pfeiltasten", "Auswahl um 1 Rasterschritt verschieben (Shift: ×10)"],
   ["Bild ↑ / Bild ↓", "Auswahl in Z verschieben"],
   ["Q / E", "Auswahl um 90° um Z drehen"],
+  ["M / Shift + M", "Auswahl (ohne Auswahl: alles) mittig aufs Bett, im Raster / exakt"],
   ["H", "Auswahl zwischen Volumen und Loch umschalten"],
   ["Alt beim Ziehen", "Raster & Einrasten aus"],
   ["Shift beim Ziehen", "Griffe vereinter Körper: proportional skalieren"],
-  ["Zahlenfeld ziehen", "Zahl per Links/Rechts-Ziehen ändern (Shift ×10, Alt ×0,1) – Klick zum Tippen"],
+  ["Zahlenfeld ziehen", "Zahl per Links/Rechts-Ziehen ändern (Shift ×10, Alt ×0,1), Klick zum Tippen"],
   ["Esc", "Abbrechen / Werkzeug beenden / Auswahl aufheben"],
   ["Strg + S / Strg + O", "Projektdatei herunterladen / als neues Projekt öffnen (nimmt auch STEP/STL/3MF/OBJ)"],
   ["Datei ins Fenster ziehen", "STEP, STL, 3MF oder OBJ importieren"],
@@ -288,7 +289,7 @@ export function HelpDialog() {
         Maus: Linke Taste auswählen, ziehen und zeichnen · Rechte Taste halten drehen (aus einer 2D-Ansicht geht es dabei in 3D weiter) ·
         Mittlere Taste verschieben · Rad zoomen. Die Skizzenebene stellst du oben rechts ein (ziehen, eintippen oder auf eine Fläche
         klicken). Zahlenfelder verstehen Rechnungen wie <code>120/2</code> oder <code>2cm+5</code>. Alle Projekte werden automatisch im
-        Browser gespeichert – unten in der Projektleiste wechseln, anlegen, umbenennen (Doppelklick), kopieren oder löschen.
+        Browser gespeichert. Unten in der Projektleiste kannst du wechseln, anlegen, umbenennen (Doppelklick), kopieren oder löschen.
       </div>
     </Modal>
   );

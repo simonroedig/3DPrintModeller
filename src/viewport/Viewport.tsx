@@ -53,7 +53,8 @@ function Lights() {
       <hemisphereLight args={["#e8eefc", "#3a3f4a", 1.35]} />
       <directionalLight position={[180, -260, 420]} intensity={1.6} />
       <directionalLight position={[-300, 200, 160]} intensity={0.55} />
-      <directionalLight position={[0, 0, -300]} intensity={0.25} />
+      {/* enough light from below for the bottom view */}
+      <directionalLight position={[60, -120, -300]} intensity={0.75} />
     </>
   );
 }

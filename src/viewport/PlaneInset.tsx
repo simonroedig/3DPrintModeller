@@ -176,7 +176,7 @@ export function InsetScene() {
   );
 }
 
-const EYE_LABEL: Record<PlaneOrient, string> = { top: "Oben", front: "Vorne", back: "Hinten", left: "Links", right: "Rechts" };
+const EYE_LABEL: Record<PlaneOrient, string> = { top: "Oben", bottom: "Unten", front: "Vorne", back: "Hinten", left: "Links", right: "Rechts" };
 
 /** round badge with an eye and the name of the side you look from */
 function eyeTexture(color: string, label: string) {

@@ -163,7 +163,7 @@ function EditPicker() {
           const p = a.clone().lerp(b, u);
           const depth = p.distanceTo(rc.ray.origin);
           if (depth > hitDist + 0.5) {
-            // something is in front – unless it is one of the edge's own faces seen at a grazing angle
+            // something is in front, unless it is one of the edge's own faces seen at a grazing angle
             seg.set(a, b);
             const near = seg.closestPointToPoint(hitPoint!, true, tmp).distanceTo(hitPoint!);
             if (near > Math.max(1.5, worldPerPixel(state, p) * 10)) continue;
@@ -235,7 +235,7 @@ function EditPicker() {
         ...noEdit,
         edgeSel: idx.length ? { bodyId: h.bodyId, idx, refs: edgeRefsFor(mesh, idx) } : null,
         selection: [h.bodyId],
-        // a fresh selection starts at zero – drag out for a rounding, in for a chamfer
+        // a fresh selection starts at zero: drag out for a rounding, in for a chamfer
         fillet: fresh ? { ...s.fillet, radius: 0 } : s.fillet,
       });
     };

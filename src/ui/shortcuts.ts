@@ -19,6 +19,7 @@ import {
   ungroupSelection,
   updateBodies,
   useStore,
+  centerOnBed,
 } from "../store/store";
 import type { Vec3 } from "../types";
 import { openProject, saveProject } from "./files";
@@ -59,7 +60,9 @@ export function useShortcuts() {
           d,
         );
       };
-      const vertical = s.view !== "iso" && s.view !== "top";
+      const vertical = s.view !== "iso" && s.view !== "top" && s.view !== "bottom";
+      // seen from below, "up" on the screen is towards the front
+      const ahead = s.view === "bottom" ? -step : step;
       // screen-right direction of the current view
       const right: Vec3 =
         s.view === "back" ? [-step, 0, 0] : s.view === "right" ? [0, step, 0] : s.view === "left" ? [0, -step, 0] : [step, 0, 0];
@@ -84,9 +87,9 @@ export function useShortcuts() {
         case "ArrowRight":
           return nudge(right);
         case "ArrowUp":
-          return nudge(vertical ? [0, 0, step] : [0, step, 0]);
+          return nudge(vertical ? [0, 0, step] : [0, ahead, 0]);
         case "ArrowDown":
-          return nudge(vertical ? [0, 0, -step] : [0, -step, 0]);
+          return nudge(vertical ? [0, 0, -step] : [0, -ahead, 0]);
         case "PageUp":
           return nudge([0, 0, step]);
         case "PageDown":
@@ -131,6 +134,12 @@ export function useShortcuts() {
           break;
         case "6":
           setView("right");
+          break;
+        case "7":
+          setView("bottom");
+          break;
+        case "m":
+          centerOnBed(e.shiftKey);
           break;
         case " ":
           e.preventDefault();

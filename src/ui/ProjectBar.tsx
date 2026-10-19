@@ -54,7 +54,7 @@ export function ProjectBar() {
           </>
         )}
         <div className="flex-1" />
-        <button className="btn ghost !h-7" title="Neues Projekt anlegen – das aktuelle bleibt gespeichert" onClick={newProject}>
+        <button className="btn ghost !h-7" title="Neues Projekt anlegen, das aktuelle bleibt gespeichert" onClick={newProject}>
           <Plus size={15} /> Neu
         </button>
       </div>

@@ -200,7 +200,7 @@ function commonAll(shapes: Shape3D[]): Shape3D {
     shapes[i].delete();
     result = next;
   }
-  if (!result.faces.length) throw new Error("Die Teile überschneiden sich nicht – die Schnittmenge ist leer");
+  if (!result.faces.length) throw new Error("Die Teile überschneiden sich nicht, die Schnittmenge ist leer");
   return result;
 }
 
@@ -468,7 +468,7 @@ function featureWarning(f: Feature, err: unknown) {
     case "fillet":
     case "chamfer": {
       const what = f.type === "fillet" ? "Rundung" : "Fase";
-      return lost ? `${what}: Kante nicht mehr gefunden` : `${what} ${round(f.radius)} mm passt nicht – Radius zu groß für diese Kante(n)`;
+      return lost ? `${what}: Kante nicht mehr gefunden` : `${what} ${round(f.radius)} mm passt nicht: Radius zu groß für diese Kante(n)`;
     }
     case "push":
       return lost ? "Fläche verschieben: Fläche nicht mehr gefunden" : "Fläche konnte nicht verschoben werden";

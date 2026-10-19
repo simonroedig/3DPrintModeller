@@ -106,13 +106,14 @@ export function CameraRig() {
     const dims = box.getSize(new THREE.Vector3());
     const dir = VIEW_DIR[view];
     if (view === "top") camera.up.set(0, 1, 0);
+    else if (view === "bottom") camera.up.set(0, -1, 0);
     else camera.up.set(0, 0, 1);
     if ((camera as THREE.OrthographicCamera).isOrthographicCamera) {
       const cam = camera as THREE.OrthographicCamera;
       cam.position.copy(center).addScaledVector(dir, 2000);
       const { width, height } = sizeRef.current;
       const sw = view === "right" || view === "left" ? dims.y : dims.x;
-      const sh = view === "top" ? dims.y : dims.z;
+      const sh = view === "top" || view === "bottom" ? dims.y : dims.z;
       cam.zoom = Math.min(width / (Math.max(sw, 1) * 1.6), height / (Math.max(sh, 1) * 1.6));
       cam.updateProjectionMatrix();
     } else {

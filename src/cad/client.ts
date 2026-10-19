@@ -18,7 +18,7 @@ let generation = 0;
 let reqCounter = 1;
 const resolvers = new Map<number, (r: WorkerResponse) => void>();
 
-/** latest wanted geometry per "slot" (usually a body id) — older wishes get dropped */
+/** latest wanted geometry per "slot" (usually a body id); older wishes get dropped */
 const wanted = new Map<string, { key: string; shape: Shape; features: Feature[] }>();
 const inflightKeys = new Set<string>();
 let inflight = 0;

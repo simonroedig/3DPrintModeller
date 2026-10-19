@@ -41,7 +41,7 @@ export function toBinarySTL(parts: ExportPart[]): Uint8Array {
   for (const p of parts) triCount += p.indices.length / 3;
   const buf = new ArrayBuffer(84 + triCount * 50);
   const dv = new DataView(buf);
-  const header = "PrintModeller binary STL (mm)";
+  const header = "3DPrintModeller binary STL (mm)";
   for (let i = 0; i < header.length; i++) dv.setUint8(i, header.charCodeAt(i));
   dv.setUint32(80, triCount, true);
   let o = 84;
@@ -111,7 +111,7 @@ export function to3MF(parts: ExportPart[], together = false): Uint8Array {
   const model =
     `<?xml version="1.0" encoding="UTF-8"?>\n` +
     `<model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">` +
-    `<metadata name="Application">PrintModeller</metadata>` +
+    `<metadata name="Application">3DPrintModeller</metadata>` +
     `<resources>${objects.join("")}</resources><build>${items.join("")}</build></model>`;
   const contentTypes =
     `<?xml version="1.0" encoding="UTF-8"?>\n` +

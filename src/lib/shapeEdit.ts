@@ -144,7 +144,7 @@ export function scaleBodyAbout(body: Body, anchor: Vec3, f: Vec3): { body: Body;
   };
 }
 
-/** scales a combined body about its local box (min corner; x/y centre when proportional) – features follow */
+/** scales a combined body about its local box (min corner; x/y centre when proportional); features follow */
 export function scaleGroup(body: Body, f: Vec3, centred = false): Partial<Body> | null {
   if (body.shape.kind !== "group") return null;
   const box = localBox(body.shape);
