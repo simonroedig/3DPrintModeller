@@ -20,6 +20,10 @@
 </p>
 
 <p align="center">
+  <a href="https://3d-print-modeller.vercel.app/"><img alt="Live ausprobieren: 3d-print-modeller.vercel.app" src="https://img.shields.io/badge/Live_ausprobieren-3d--print--modeller.vercel.app-3b82f6?style=for-the-badge&logo=vercel&logoColor=white" /></a>
+</p>
+
+<p align="center">
   <a href="#warum">Warum?</a> ·
   <a href="#funktionen">Funktionen</a> ·
   <a href="#beispiel-handyständer">Beispiel</a> ·
@@ -28,7 +32,7 @@
   <a href="https://simonroedig.com">simonroedig.com</a>
 </p>
 
-![3DPrintModeller mit dem Beispiel-Handyständer](docs/screenshots/hero.jpg)
+[![3DPrintModeller mit dem Beispiel-Handyständer](docs/screenshots/hero.jpg)](https://3d-print-modeller.vercel.app/)
 
 <p align="center"><sub>Der Beispiel-Handyständer: aus einfachen Grundkörpern gebaut, Kabelkanal und Kabelschlitz abgezogen (der Kanal ist orange markiert), Ecken gerundet. Jedes Teil bleibt änderbar.</sub></p>
 
@@ -37,7 +41,7 @@
 Für meine 3D-Druck-Projekte gab es keine Software, die genau auf meine Bedürfnisse zugeschnitten war.
 Tinkercad ist intuitiv, stößt aber schnell an Grenzen. Shapr3D ist mächtig, für ein schnelles Druckteil aber oft zu viel.
 **3DPrintModeller verbindet beides**: intuitives Bauen mit einfachen Grundkörpern und echte CAD-Werkzeuge für die komplexen Teile.
-Alles läuft im Browser, ohne Installation und ohne Konto.
+Alles läuft im Browser, ohne Installation und ohne Konto: **[3d-print-modeller.vercel.app](https://3d-print-modeller.vercel.app/)**
 
 | Das Einfache, wie bei Tinkercad | Das Präzise, wie in CAD-Programmen wie Shapr3D |
 | --- | --- |
@@ -185,7 +189,7 @@ src/
 ## Deployment
 
 Eine rein statische Seite mit relativen Pfaden, läuft auf jedem statischen Hoster.
-Gehostet wird sie auf **Vercel**: Framework-Preset **Vite**, Build-Befehl `npm run build`, Ausgabeordner `dist`.
+Gehostet wird sie auf **Vercel** unter [3d-print-modeller.vercel.app](https://3d-print-modeller.vercel.app/): Framework-Preset **Vite**, Build-Befehl `npm run build`, Ausgabeordner `dist`.
 Netlify oder GitHub Pages funktionieren genauso.
 
 Bei jedem Push auf `main` und bei Pull Requests prüft GitHub Actions Typecheck und Build (`.github/workflows/ci.yml`).
