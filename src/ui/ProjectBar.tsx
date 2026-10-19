@@ -10,14 +10,15 @@ import {
   useProjects,
   type ProjectMeta,
 } from "../store/projects";
+import { locale, t } from "../i18n";
 
-function ago(t: number, now: number) {
-  const s = Math.max(0, (now - t) / 1000);
-  if (s < 45) return "gerade eben";
-  if (s < 3600) return `vor ${Math.round(s / 60)} Min.`;
-  if (s < 86400) return `vor ${Math.round(s / 3600)} Std.`;
-  if (s < 2 * 86400) return "gestern";
-  return new Date(t).toLocaleDateString("de-DE", { day: "numeric", month: "short", year: "numeric" });
+function ago(time: number, now: number) {
+  const s = Math.max(0, (now - time) / 1000);
+  if (s < 45) return t("just now");
+  if (s < 3600) return t("{n} min ago", { n: Math.round(s / 60) });
+  if (s < 86400) return t("{n} h ago", { n: Math.round(s / 3600) });
+  if (s < 2 * 86400) return t("yesterday");
+  return new Date(time).toLocaleDateString(locale(), { day: "numeric", month: "short", year: "numeric" });
 }
 
 const newProject = () => useStore.setState({ startDialog: true });
@@ -37,10 +38,10 @@ export function ProjectBar() {
       <div className="h-9 flex items-center gap-2 px-3">
         <button
           className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-ink-400 hover:text-ink-100"
-          title={open ? "Projektliste einklappen" : "Projektliste aufklappen"}
+          title={open ? t("Collapse project list") : t("Expand project list")}
           onClick={() => setProjectBarOpen(!open)}
         >
-          <FolderOpen size={14} /> Projekte
+          <FolderOpen size={14} /> {t("Projects")}
           <span className="normal-case tracking-normal text-ink-500">{list.length}</span>
           {open ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
         </button>
@@ -49,20 +50,20 @@ export function ProjectBar() {
             <span className="text-ink-600">/</span>
             <NameEdit project={cur} className="text-[12.5px] font-medium text-ink-100" />
             <span className="text-[11px] text-ink-500">
-              {cur.bodies} Körper · gespeichert {ago(cur.updated, now)}
+              {t(cur.bodies === 1 ? "{n} body · saved {when}" : "{n} bodies · saved {when}", { n: cur.bodies, when: ago(cur.updated, now) })}
             </span>
           </>
         )}
         <div className="flex-1" />
-        <button className="btn ghost !h-7" title="Neues Projekt anlegen, das aktuelle bleibt gespeichert" onClick={newProject}>
-          <Plus size={15} /> Neu
+        <button className="btn ghost !h-7" title={t("Create a new project, the current one stays saved")} onClick={newProject}>
+          <Plus size={15} /> {t("New")}
         </button>
       </div>
       {open && (
         <div className="project-strip flex gap-2.5 px-3 pb-3 overflow-x-auto scroll-thin">
-          <button className="project-card project-new" title="Neues Projekt anlegen" onClick={newProject}>
+          <button className="project-card project-new" title={t("Create a new project")} onClick={newProject}>
             <Plus size={22} />
-            <span>Neues Projekt</span>
+            <span>{t("New project")}</span>
           </button>
           {list.map((p) => (
             <ProjectCard key={p.id} project={p} active={p.id === current} now={now} />
@@ -80,12 +81,12 @@ function ProjectCard({ project, active, now }: { project: ProjectMeta; active: b
       onClick={() => switchProject(project.id)}
     >
       <div className="project-thumb">
-        {project.thumb ? <img src={project.thumb} alt="" draggable={false} /> : <span className="text-ink-600 text-[11px]">keine Vorschau</span>}
+        {project.thumb ? <img src={project.thumb} alt="" draggable={false} /> : <span className="text-ink-600 text-[11px]">{t("no preview")}</span>}
         <div className="project-actions" onClick={(e) => e.stopPropagation()}>
-          <button title="Duplizieren" onClick={() => duplicateProject(project.id)}>
+          <button title={t("Duplicate")} onClick={() => duplicateProject(project.id)}>
             <Copy size={13} />
           </button>
-          <button title="Löschen" className="danger" onClick={() => deleteProject(project.id)}>
+          <button title={t("Delete")} className="danger" onClick={() => deleteProject(project.id)}>
             <Trash2 size={13} />
           </button>
         </div>
@@ -93,7 +94,7 @@ function ProjectCard({ project, active, now }: { project: ProjectMeta; active: b
       <div className="px-2 pt-1.5 pb-2 min-w-0">
         <NameEdit project={project} className="text-[12px] font-medium text-ink-100 block truncate" />
         <div className="text-[10.5px] text-ink-500 truncate">
-          {project.bodies} Körper · {ago(project.updated, now)}
+          {t(project.bodies === 1 ? "{n} body · {when}" : "{n} bodies · {when}", { n: project.bodies, when: ago(project.updated, now) })}
         </div>
       </div>
     </div>
@@ -125,7 +126,7 @@ function NameEdit({ project, className }: { project: ProjectMeta; className: str
   return (
     <span
       className={`${className} cursor-text`}
-      title="Doppelklick zum Umbenennen"
+      title={t("Double-click to rename")}
       onDoubleClick={(e) => {
         e.stopPropagation();
         setEditing(true);

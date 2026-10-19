@@ -2,35 +2,35 @@ import type { ReactNode } from "react";
 import { Group, SquaresIntersect, SquaresSubtract, SquaresUnite } from "lucide-react";
 import type { BoolOp } from "../types";
 
-/** the ways to combine bodies, in menu order */
+/** the ways to combine bodies, in menu order (English texts, rendered with t()) */
 export const OPS: { op: BoolOp; label: string; short: string; icon: (size: number) => ReactNode; tip: string; kbd?: string }[] = [
   {
     op: "union",
-    label: "Vereinen",
-    short: "Vereinen",
+    label: "Union",
+    short: "Union",
     icon: (s) => <SquaresUnite size={s} />,
-    tip: "Zu einem Körper verschmelzen. Löcher werden abgezogen, Übergangskanten lassen sich runden",
-    kbd: "Strg G",
+    tip: "Merge into one body. Holes are subtracted, the joining edges can be filleted",
+    kbd: "Ctrl G",
   },
   {
     op: "subtract",
-    label: "Abziehen",
-    short: "Abziehen",
+    label: "Subtract",
+    short: "Subtract",
     icon: (s) => <SquaresSubtract size={s} />,
-    tip: "Vom zuerst gewählten Körper alle weiteren abziehen. Die Werkzeuge bleiben erhalten und änderbar",
+    tip: "Subtract all other bodies from the first one selected. The cutting bodies are kept and stay editable",
   },
   {
     op: "intersect",
-    label: "Schnittmenge",
-    short: "Schnitt",
+    label: "Intersection",
+    short: "Intersect",
     icon: (s) => <SquaresIntersect size={s} />,
-    tip: "Nur das Volumen behalten, das alle gewählten Körper gemeinsam haben",
+    tip: "Keep only the volume that all selected bodies share",
   },
   {
     op: "group",
-    label: "Gruppieren",
-    short: "Gruppe",
+    label: "Group",
+    short: "Group",
     icon: (s) => <Group size={s} />,
-    tip: "Nur zusammenfassen (gemeinsam verschieben/skalieren), Teile bleiben getrennte Volumen",
+    tip: "Just bundle them (move and scale together), the parts stay separate volumes",
   },
 ];

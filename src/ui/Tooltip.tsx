@@ -12,7 +12,7 @@ interface Tip {
 /**
  * One consistent, quick tooltip for every element with a `title` (or `data-tip`) attribute.
  * Native titles are converted on first hover so the slow browser tooltip never shows.
- * A trailing "(Kürzel)" in the text is rendered as a key hint.
+ * A trailing "(shortcut)" in the text is rendered as a key hint.
  */
 export function TooltipLayer() {
   const [tip, setTip] = useState<Tip | null>(null);

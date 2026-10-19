@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLang } from "./i18n";
+import { t, useLang } from "./i18n";
 import { FileUp } from "lucide-react";
 import { importFiles, useStore } from "./store/store";
 import { Viewport } from "./viewport/Viewport";
@@ -69,8 +69,8 @@ export function App() {
         <div className="fixed inset-0 z-[60] grid place-items-center bg-black/50 pointer-events-none">
           <div className="overlay-card !border-sky-400 px-8 py-6 text-center">
             <FileUp size={32} className="mx-auto mb-2 text-sky-400" />
-            <div className="text-[15px] font-semibold">Datei hier ablegen</div>
-            <div className="text-ink-400 text-[12px] mt-1">STEP (empfohlen), STL, 3MF oder OBJ</div>
+            <div className="text-[15px] font-semibold">{t("Drop file here")}</div>
+            <div className="text-ink-400 text-[12px] mt-1">{t("STEP (recommended), STL, 3MF or OBJ")}</div>
           </div>
         </div>
       )}

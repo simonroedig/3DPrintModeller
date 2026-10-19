@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { beginTx, endTx, useStore } from "../store/store";
 import { fmtNum, parseLen, parseNumber, snapTo, UNIT_LABEL } from "../lib/units";
+import { getLang, t } from "../i18n";
 
 function useDraft(display: string) {
   const [draft, setDraft] = useState<string | null>(null);
@@ -98,7 +99,7 @@ export function LenField({
       {label && (
         <span
           className="lbl scrub"
-          title="Ziehen zum Ändern (Shift ×10, Alt ×0,1)"
+          title={t("Drag to change (Shift ×10, Alt ×0.1)")}
           onPointerDown={(e) => startScrub(e, mm, snap || 1, (v) => v >= min && onChange(v), () => inputRef.current?.focus(), min)}
         >
           {label}
@@ -167,7 +168,8 @@ export function NumField({
   max?: number;
 }) {
   const r = Math.round(value * 10 ** digits) / 10 ** digits;
-  const display = String(Object.is(r, -0) ? 0 : r).replace(".", ",");
+  const plain = String(Object.is(r, -0) ? 0 : r);
+  const display = getLang() === "de" ? plain.replace(".", ",") : plain;
   const { value: v, setDraft, focused } = useDraft(display);
   const commit = (text: string) => {
     const n = parseNumber(text);
@@ -182,7 +184,7 @@ export function NumField({
       {label && (
         <span
           className="lbl scrub"
-          title="Ziehen zum Ändern (Shift ×10, Alt ×0,1)"
+          title={t("Drag to change (Shift ×10, Alt ×0.1)")}
           onPointerDown={(e) => startScrub(e, value, step, onChange, () => inputRef.current?.focus(), min, max)}
         >
           {label}
