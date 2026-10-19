@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLang } from "./i18n";
 import { FileUp } from "lucide-react";
 import { importFiles, useStore } from "./store/store";
 import { Viewport } from "./viewport/Viewport";
@@ -14,6 +15,8 @@ import { ContextBar } from "./ui/ContextBar";
 
 export function App() {
   useShortcuts();
+  // a language switch re-renders the whole interface
+  useLang((s) => s.lang);
   const startDialog = useStore((s) => s.startDialog);
   const exportOpen = useStore((s) => s.exportOpen);
   const helpOpen = useStore((s) => s.helpOpen);

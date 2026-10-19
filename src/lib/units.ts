@@ -1,29 +1,23 @@
 import type { Unit } from "../types";
+import { getLang } from "../i18n";
+
+/** decimal separator of the current language */
+const dec = (s: string) => (getLang() === "de" ? s.replace(".", ",") : s);
+/** snap option whose label follows the language ("0.5 mm" / "0,5 mm") */
+const opt = (num: string, unit: string, mm: number) => ({
+  get label() {
+    return `${dec(num)} ${unit}`;
+  },
+  mm,
+});
 
 export const UNIT_FACTOR: Record<Unit, number> = { mm: 1, cm: 10, in: 25.4 };
 export const UNIT_LABEL: Record<Unit, string> = { mm: "mm", cm: "cm", in: "in" };
 
 export const SNAP_OPTIONS: Record<Unit, { label: string; mm: number }[]> = {
-  mm: [
-    { label: "0,1 mm", mm: 0.1 },
-    { label: "0,5 mm", mm: 0.5 },
-    { label: "1 mm", mm: 1 },
-    { label: "2 mm", mm: 2 },
-    { label: "5 mm", mm: 5 },
-    { label: "10 mm", mm: 10 },
-  ],
-  cm: [
-    { label: "0,1 cm", mm: 1 },
-    { label: "0,5 cm", mm: 5 },
-    { label: "1 cm", mm: 10 },
-  ],
-  in: [
-    { label: "1/32 in", mm: 25.4 / 32 },
-    { label: "1/16 in", mm: 25.4 / 16 },
-    { label: "1/8 in", mm: 25.4 / 8 },
-    { label: "1/4 in", mm: 25.4 / 4 },
-    { label: "1 in", mm: 25.4 },
-  ],
+  mm: [opt("0.1", "mm", 0.1), opt("0.5", "mm", 0.5), opt("1", "mm", 1), opt("2", "mm", 2), opt("5", "mm", 5), opt("10", "mm", 10)],
+  cm: [opt("0.1", "cm", 1), opt("0.5", "cm", 5), opt("1", "cm", 10)],
+  in: [opt("1/32", "in", 25.4 / 32), opt("1/16", "in", 25.4 / 16), opt("1/8", "in", 25.4 / 8), opt("1/4", "in", 25.4 / 4), opt("1", "in", 25.4)],
 };
 
 export const DEFAULT_SNAP: Record<Unit, number> = { mm: 1, cm: 10, in: 25.4 / 16 };
@@ -42,7 +36,7 @@ export function fromUnit(v: number, unit: Unit) {
 export function fmtNum(mm: number, unit: Unit, digits = DIGITS[unit]) {
   const v = toUnit(mm, unit);
   const r = Math.round(v * 10 ** digits) / 10 ** digits;
-  return String(Object.is(r, -0) ? 0 : r).replace(".", ",");
+  return dec(String(Object.is(r, -0) ? 0 : r));
 }
 
 export function fmtLen(mm: number, unit: Unit, digits?: number) {

@@ -1,12 +1,12 @@
 <p align="center">
-  <img src="docs/logo.svg" width="84" alt="3DPrintModeller Logo" />
+  <img src="docs/logo.svg" width="84" alt="3DPrintModeller logo" />
 </p>
 
 <h1 align="center">3DPrintModeller</h1>
 
 <p align="center">
-  <b>Präzise Teile für den 3D-Druck, direkt im Browser.</b><br />
-  So intuitiv wie Tinkercad, so genau wie echtes CAD.
+  <b>Precise parts for 3D printing, right in your browser.</b><br />
+  As intuitive as Tinkercad, as precise as real CAD.
 </p>
 
 <p align="center">
@@ -20,125 +20,125 @@
 </p>
 
 <p align="center">
-  <a href="https://3d-print-modeller.vercel.app/"><img alt="Live ausprobieren: 3d-print-modeller.vercel.app" src="https://img.shields.io/badge/Live_ausprobieren-3d--print--modeller.vercel.app-3b82f6?style=for-the-badge&logo=vercel&logoColor=white" /></a>
+  <a href="https://3d-print-modeller.vercel.app/"><img alt="Try it live: 3d-print-modeller.vercel.app" src="https://img.shields.io/badge/Try_it_live-3d--print--modeller.vercel.app-3b82f6?style=for-the-badge&logo=vercel&logoColor=white" /></a>
 </p>
 
+<p align="center"><b>English</b> · <a href="README.de.md">Deutsch</a></p>
+
 <p align="center">
-  <a href="#warum">Warum?</a> ·
-  <a href="#funktionen">Funktionen</a> ·
-  <a href="#beispiel-handyständer">Beispiel</a> ·
-  <a href="#schnellstart">Schnellstart</a> ·
-  <a href="#technik">Technik</a> ·
+  <a href="#why">Why?</a> ·
+  <a href="#features">Features</a> ·
+  <a href="#example-phone-stand">Example</a> ·
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#tech">Tech</a> ·
   <a href="https://simonroedig.com">simonroedig.com</a>
 </p>
 
-[![3DPrintModeller mit dem Beispiel-Handyständer](docs/screenshots/hero.jpg)](https://3d-print-modeller.vercel.app/)
+[![3DPrintModeller with the example phone stand](docs/screenshots/hero.jpg)](https://3d-print-modeller.vercel.app/)
 
-<p align="center"><sub>Der Beispiel-Handyständer: aus einfachen Grundkörpern gebaut, Kabelkanal und Kabelschlitz abgezogen (der Kanal ist orange markiert), Ecken gerundet. Jedes Teil bleibt änderbar.</sub></p>
+<p align="center"><sub>The example phone stand: built from simple primitives, cable channel and cable slot subtracted (the channel is highlighted in orange), corners rounded. Every part stays editable.</sub></p>
 
-## Warum?
+## Why?
 
-Für meine 3D-Druck-Projekte gab es keine Software, die genau auf meine Bedürfnisse zugeschnitten war.
-Tinkercad ist intuitiv, stößt aber schnell an Grenzen. Shapr3D ist mächtig, für ein schnelles Druckteil aber oft zu viel.
-**3DPrintModeller verbindet beides**: intuitives Bauen mit einfachen Grundkörpern und echte CAD-Werkzeuge für die komplexen Teile.
-Alles läuft im Browser, ohne Installation und ohne Konto: **[3d-print-modeller.vercel.app](https://3d-print-modeller.vercel.app/)**
+For my 3D printing projects there was no software tailored to my needs.
+Tinkercad is intuitive but quickly hits its limits. Shapr3D is powerful, but often too much for a quick print part.
+**3DPrintModeller combines both**: intuitive building with simple primitives plus real CAD tools for the complex parts.
+Everything runs in the browser, no installation, no account: **[3d-print-modeller.vercel.app](https://3d-print-modeller.vercel.app/)**
 
-| Das Einfache, wie bei Tinkercad | Das Präzise, wie in CAD-Programmen wie Shapr3D |
+| The simple part, like Tinkercad | The precise part, like CAD tools such as Shapr3D |
 | --- | --- |
-| Grundkörper per Klick: Quader, Zylinder, Keil, Kegel, Kugel, Rohr | Skizzen auf jeder Ebene, auch direkt auf Flächen anderer Teile |
-| Teile ziehen, sie rasten an Flächen und am Druckbett ein | Exakte Maße, Eingabe mit Rechnungen wie `120/2` oder `2cm+5` |
-| Löcher sind einfach Körper, die abgezogen werden | Echte Rundungen und Fasen auf einem B-Rep-CAD-Kern (OpenCascade) |
-| Griffe an jeder Seite zum Ziehen der Maße | Flächen verschieben und neigen, auch an vereinten Teilen |
-| Sofort loslegen, Beispiele im Startdialog | Nicht-destruktive Boolesche Operationen, STEP-Import und -Export |
+| Primitives in one click: box, cylinder, wedge, cone, sphere, tube | Sketches on any plane, even directly on faces of other parts |
+| Drag parts around, they snap to faces and to the print bed | Exact dimensions, input with math like `120/2` or `2cm+5` |
+| Holes are just bodies that get subtracted | Real fillets and chamfers on a B-rep CAD kernel (OpenCascade) |
+| Handles on every side to drag dimensions | Push and tilt faces, even on combined parts |
+| Start right away, examples in the start dialog | Non-destructive boolean operations, STEP import and export |
 
-## Funktionen
+## Features
 
-### Bauen
-- **Einheit und Raster** beim Start wählen (mm, cm, Zoll). Alles rastet auf das Raster, `Alt` beim Ziehen hebt das auf.
-- **Grundkörper**: Quader, Zylinder, Keil (mit Winkel), Kegel, Kugel, Rohr. Mit `Shift` direkt als Loch.
-- **Verschieben mit Einrasten** an Flächen anderer Körper (bündig, anliegend, mittig) und am Druckbett, pinke Hilfslinien zeigen woran.
-- **Griffe als Pfeile** in der Farbe ihrer Achse (X rot, Y grün, Z blau), Maß-Labels direkt im Modell editierbar.
-- **Drehen** in 90°-Schritten oder frei, **Fläche aufs Bett legen** per Klick, **Zentrieren** auf dem Druckbett (im Raster oder exakt),
-  **Ausrichten** mehrerer Teile.
+### Build
+- **Unit and grid** chosen at the start (mm, cm, inch). Everything snaps to the grid, hold `Alt` while dragging to move freely.
+- **Primitives**: box, cylinder, wedge (with angle), cone, sphere, tube. Hold `Shift` to add one as a hole.
+- **Move with snapping** to faces of other bodies (flush, touching, centered) and to the print bed; pink guides show what it snapped to.
+- **Arrow handles** in the color of their axis (X red, Y green, Z blue), dimension labels editable right in the model.
+- **Rotate** in 90° steps or freely, **lay a face flat** on the bed with one click, **center** on the print bed (on the grid or exactly),
+  **align** several parts.
 
-### Skizzieren in jeder Ebene
+### Sketch on any plane
 
-![Skizze auf der Vorderseite der Lippe, oben rechts die Ebenen-Vorschau](docs/screenshots/sketch.png)
+![Sketch on the front face of the lip, the plane preview at the top right](docs/screenshots/sketch.png)
 
-- Rechteck, Kreis und Polygon, gezeichnet in der Ebene der aktuellen Ansicht: Oben, Unten, Vorne, Hinten, Links, Rechts
-  (in 3D auf dem Boden).
-- **Ebenen-Vorschau oben rechts**: ein kleines 3D-Bild zeigt, wo die Skizze im Raum liegt, ein Auge in der Achsfarbe zeigt,
-  von wo du schaust. Ziehen verschiebt die Ebene live und rastet bündig an Flächen ein. Oder eine Fläche anklicken,
-  dann liegt die Skizze genau darauf.
-- **Extrudieren** per Eingabe oder am Pfeil, auch direkt als Loch.
+- Rectangle, circle and polygon, drawn on the plane of the current view: top, bottom, front, back, left, right (in 3D on the floor).
+- **Plane preview at the top right**: a small 3D picture shows where the sketch lives in space, and an eye in the axis color shows
+  where you are looking from. Dragging moves the plane live and snaps flush to faces. Or click a face and the sketch lies exactly on it.
+- **Extrude** by typing a height or dragging the arrow, also directly as a hole.
 
-### Kanten und Flächen
+### Edges and faces
 
-![Kante auswählen und runden](docs/screenshots/fillet.jpg)
+![Selecting and rounding an edge](docs/screenshots/fillet.jpg)
 
-- `F` oder Doppelklick auf einen Körper: Kanten und Flächen leuchten beim Darüberfahren auf.
-- **Kante**: Pfeil nach außen ziehen ergibt eine Rundung, nach innen eine Fase. Klappt auch an den Übergängen vereinter Teile.
-- **Fläche**: verschieben (nach außen oder innen) oder um eine Kante neigen.
-- Alles bleibt als Bearbeitungsschritt im Panel änderbar oder entfernbar.
+- `F` or double click a body: edges and faces light up on hover.
+- **Edge**: drag the arrow outwards for a fillet, inwards for a chamfer. Works at the seams of combined parts too.
+- **Face**: push it (outwards or inwards) or tilt it around one of its edges.
+- Everything stays in the panel as an editing step that can be changed or removed later.
 
-### Kombinieren
-- **Vereinen** zu einem echten Körper, **Abziehen** (der zuerst gewählte Körper ist die Basis), **Schnittmenge** und reines **Gruppieren**.
-- **Nicht-destruktiv**: abgezogene Werkzeuge bleiben unsichtbar erhalten und lassen sich im Panel aufklappen, ändern, tauschen
-  oder herauslösen.
-- Kombinierte Körper sind **skalierbar** (Griffe, Maße oder Prozent), parametrisch: runde Teile bleiben rund, alles bleibt exakt.
+### Combine
+- **Union** into one real solid, **Subtract** (the body picked first is the base), **Intersect**, and plain **Group**.
+- **Non-destructive**: subtracted tools are kept invisibly, and can be expanded in the panel, edited, swapped or pulled out again.
+- Combined bodies are **scalable** (handles, dimensions or percent), parametrically: round parts stay round, everything stays exact.
 
-### Für den Druck
-- **Export** als 3MF (empfohlen), STL oder STEP, mit wählbarer Qualität, wasserdichtem Netz und Volumen- und Gewichtsschätzung.
-- **Import** von STEP (exakt), STL, 3MF und OBJ. Netze werden in CAD-Körper umgewandelt (ebene Bereiche werden echte Flächen),
-  sehr große Netze bleiben schnelle Mesh-Objekte.
-- **Druckbett** mit Presets (Bambu, Prusa, Ender, Voron), ein- und ausblendbar.
+### Made for printing
+- **Export** as 3MF (recommended), STL or STEP, with selectable quality, watertight meshes and volume and weight estimate.
+- **Import** STEP (exact), STL, 3MF and OBJ. Meshes are converted into CAD solids (flat regions become real faces),
+  very large meshes stay fast mesh objects.
+- **Print bed** with presets (Bambu, Prusa, Ender, Voron), can be shown or hidden.
 
-### Komfort
-- **Projekte** in einer einklappbaren Leiste unten, mit Vorschaubild, automatisch im Browser gespeichert (IndexedDB).
-- **Kontextleiste** zur Auswahl mit den nächsten sinnvollen Schritten, **Tooltips** mit Tastenkürzeln an allen Buttons.
-- **Farben mit Bedeutung**: Skizze hellblau, Körper indigo, Kanten und Flächen orange, Vereinen grün, Abziehen rot, Schnittmenge lila.
-- Rückgängig und Wiederholen, Kopieren und Einfügen, lange Berechnungen lassen sich abbrechen.
+### Comfort
+- **Projects** in a collapsible bar at the bottom, with preview images, saved automatically in the browser (IndexedDB).
+- **Context bar** for the selection with the next useful steps, **tooltips** with shortcuts on every button.
+- **Colors with meaning**: sketch light blue, bodies indigo, edges and faces orange, union green, subtract red, intersect purple.
+- Undo and redo, copy and paste, long computations can be cancelled.
+- **Language**: English or German, switchable in the top bar.
 
-## Beispiel: Handyständer
+## Example: phone stand
 
-Im Startdialog unter **„Oder ein Beispiel ansehen“** lässt sich der Handyständer aus dem Bild oben öffnen.
-Er zeigt den typischen Ablauf:
+In the start dialog under **“Or open an example”** you can open the phone stand from the picture above.
+It shows the typical workflow:
 
-1. **Grundplatte**: ein Quader, 84 × 70 × 6 mm.
-2. **Lehne**: ein Keil, der auf etwa 65° ansteigt.
-3. **Lippe**: ein flacher Quader vorne, damit das Handy nicht wegrutscht.
-4. **Kabelschlitz** und **Kabelkanal**: ein Quader und ein gedrehter Zylinder, beide als Loch.
-5. **Vereinen**: alles wird ein Körper, die Löcher werden abgezogen.
-6. **Kanten runden**: Ecken der Platte und Oberkante der Lippe.
-7. **Exportieren** als 3MF und drucken.
+1. **Base plate**: a box, 84 × 70 × 6 mm.
+2. **Backrest**: a wedge rising to about 65°.
+3. **Lip**: a flat box at the front so the phone does not slide off.
+4. **Cable slot** and **cable channel**: a box and a rotated cylinder, both as holes.
+5. **Union**: everything becomes one solid, the holes are subtracted.
+6. **Round edges**: the corners of the plate and the top of the lip.
+7. **Export** as 3MF and print.
 
-Jeder Schritt bleibt änderbar: Teil im Panel aufklappen, Maße anpassen, fertig.
+Every step stays editable: expand a part in the panel, change its dimensions, done.
 
-## Bedienung
+## Controls
 
-| Taste | Aktion |
+| Key | Action |
 | --- | --- |
-| `V` | Auswählen und verschieben |
-| `R` / `C` / `P` | Rechteck / Kreis / Polygon |
-| `F` | Kanten und Flächen bearbeiten |
-| `L` | Fläche aufs Bett legen |
-| `1` bis `6`, `7` | 3D, Oben, Vorne, Hinten, Links, Rechts, Unten |
-| `Leertaste` / `0` | Oben und 3D wechseln / alles einpassen |
-| `Strg+G` / `Strg+Shift+G` | Vereinen / Trennen |
-| `M` / `Shift+M` | Mittig aufs Bett (im Raster / exakt) |
-| `Q` / `E` | 90° um Z drehen |
-| `H` | Volumen oder Loch |
-| `Strg+D`, `Strg+C`, `Strg+V` | Duplizieren, Kopieren, Einfügen |
-| `Strg+Z` / `Strg+Shift+Z` | Rückgängig / Wiederholen |
-| Pfeiltasten, Bild ↑↓ | Auswahl um einen Rasterschritt verschieben (`Shift` ×10) |
-| `Esc` | Abbrechen, Werkzeug beenden |
+| `V` | Select and move |
+| `R` / `C` / `P` | Rectangle / circle / polygon |
+| `F` | Edit edges and faces |
+| `L` | Lay a face flat on the bed |
+| `1` to `6`, `7` | 3D, top, front, back, left, right, bottom |
+| `Space` / `0` | Toggle top and 3D / fit everything |
+| `Ctrl+G` / `Ctrl+Shift+G` | Union / split |
+| `M` / `Shift+M` | Center on the bed (on the grid / exactly) |
+| `Q` / `E` | Rotate 90° around Z |
+| `H` | Solid or hole |
+| `Ctrl+D`, `Ctrl+C`, `Ctrl+V` | Duplicate, copy, paste |
+| `Ctrl+Z` / `Ctrl+Shift+Z` | Undo / redo |
+| Arrow keys, Page Up/Down | Move the selection by one grid step (`Shift` ×10) |
+| `Esc` | Cancel, leave the tool |
 
-Maus: links auswählen, ziehen und zeichnen, rechte Taste halten zum Drehen (aus einer 2D-Ansicht geht es direkt in 3D weiter),
-mittlere Taste verschieben, Mausrad zoomen.
+Mouse: left button selects, drags and draws, hold the right button to orbit (from a 2D view it continues in 3D right away),
+middle button pans, wheel zooms.
 
-## Schnellstart
+## Quick start
 
-Voraussetzung: Node.js 22 (mindestens 20.19).
+Requires Node.js 22 (at least 20.19).
 
 ```bash
 git clone https://github.com/simonroedig/3DPrintModeller.git
@@ -148,54 +148,55 @@ npm run dev       # http://localhost:5173
 ```
 
 ```bash
-npm run build     # Typecheck und Produktions-Build nach dist/
-npm run preview   # Build lokal ansehen
+npm run build     # typecheck and production build into dist/
+npm run preview   # serve the build locally
 ```
 
-## Technik
+## Tech
 
-| Bereich | Technologie |
+| Area | Technology |
 | --- | --- |
-| Oberfläche | React 19, TypeScript, Tailwind CSS 4, lucide-react |
-| 3D-Ansicht | Three.js, React Three Fiber, drei |
-| CAD-Kern | OpenCascade als WebAssembly über [replicad](https://replicad.xyz), in einem Web Worker |
-| Zustand | Zustand, Rückgängig und Wiederholen über Dokument-Snapshots |
-| Speicher | IndexedDB (Projekte, Vorschaubilder, importierte Dateien) |
+| Interface | React 19, TypeScript, Tailwind CSS 4, lucide-react |
+| 3D view | Three.js, React Three Fiber, drei |
+| CAD kernel | OpenCascade compiled to WebAssembly via [replicad](https://replicad.xyz), running in a Web Worker |
+| App state | [Zustand](https://github.com/pmndrs/zustand) (state management library), undo and redo via document snapshots |
+| Storage | IndexedDB (projects, preview images, imported files) |
 | Build | Vite 8 |
-| Export | eigener 3MF-Writer (fflate), binäres STL, STEP über OpenCascade |
+| Export | custom 3MF writer (fflate), binary STL, STEP via OpenCascade |
+| Languages | small built-in i18n: English source texts, German dictionary |
 
-Ein paar Details:
+A few details:
 
-- **Parametrisches Modell**: Jeder Körper ist eine Form mit Parametern plus eine Liste von Bearbeitungsschritten
-  (Rundung, Fase, Fläche verschieben oder neigen). Die Schritte merken sich ihre Kanten und Flächen geometrisch,
-  deshalb überleben sie Änderungen davor.
-- **CAD im Hintergrund**: Der OpenCascade-Kern rechnet in einem Web Worker mit einer Warteschlange. Netze werden nach Geometrie
-  zwischengespeichert, lange Berechnungen lassen sich abbrechen (der Worker startet dann neu).
-- **Robuste Rundungen**: Gelingt eine Rundung nicht auf einmal, wird Kante für Kante versucht und notfalls ein eigenes Profil
-  verrundet. So klappen auch Übergänge zwischen vereinten Teilen.
-- **Import**: STEP wird exakt gelesen. Dreiecksnetze bis etwa 12.000 Dreiecke werden in ebene Bereiche zerlegt, zu Flächen
-  vernäht und zu Volumenkörpern repariert. Größere Netze bleiben Mesh-Objekte und werden direkt angezeigt.
-- **Ebenen-Vorschau**: wird im selben WebGL-Kontext in einen Ausschnitt gerendert (Scissor), ohne zweiten Canvas.
+- **Parametric model**: every body is a shape with parameters plus a list of editing steps (fillet, chamfer, push or tilt a face).
+  The steps remember their edges and faces geometrically, so they survive changes made before them.
+- **CAD in the background**: the OpenCascade kernel runs in a Web Worker with a job queue. Meshes are cached by geometry,
+  long computations can be cancelled (the worker restarts).
+- **Robust fillets**: if a fillet fails in one go, the edges are tried one by one, and as a last resort a custom profile is rounded.
+  That is what makes the seams between combined parts work.
+- **Import**: STEP is read exactly. Triangle meshes up to about 12,000 triangles are split into flat regions, sewn into faces
+  and repaired into solids. Larger meshes stay mesh objects and are displayed directly.
+- **Plane preview**: rendered into a scissored region of the same WebGL context, no second canvas.
 
 ```
 src/
-  cad/        CAD-Worker (OpenCascade), Mesh-Cache, Import, STL/3MF-Writer
-  store/      Dokument, Auswahl, Undo/Redo, Modell-Operationen, Projekte
-  lib/        Einheiten, Ebenen, Geometrie, Einrasten, Skalieren
-  viewport/   3D-Ansicht: Kameras, Körper, Skizzen, Griffe, Kanten-Werkzeug, Vorschau
-  ui/         Werkzeugleiste, Panels, Dialoge, Tastenkürzel
+  cad/        CAD worker (OpenCascade), mesh cache, import, STL/3MF writers
+  store/      document, selection, undo/redo, model operations, projects
+  lib/        units, planes, geometry, snapping, scaling
+  viewport/   3D view: cameras, bodies, sketches, handles, edge tool, previews
+  ui/         toolbar, panels, dialogs, shortcuts
+  i18n/       translation helper and German dictionary
 ```
 
 ## Deployment
 
-Eine rein statische Seite mit relativen Pfaden, läuft auf jedem statischen Hoster.
-Gehostet wird sie auf **Vercel** unter [3d-print-modeller.vercel.app](https://3d-print-modeller.vercel.app/): Framework-Preset **Vite**, Build-Befehl `npm run build`, Ausgabeordner `dist`.
-Netlify oder GitHub Pages funktionieren genauso.
+A purely static site with relative paths that runs on any static host.
+It is hosted on **Vercel** at [3d-print-modeller.vercel.app](https://3d-print-modeller.vercel.app/): framework preset **Vite**,
+build command `npm run build`, output directory `dist`. Netlify or GitHub Pages work the same way.
 
-Bei jedem Push auf `main` und bei Pull Requests prüft GitHub Actions Typecheck und Build (`.github/workflows/ci.yml`).
+On every push to `main` and on pull requests, GitHub Actions checks typecheck and build (`.github/workflows/ci.yml`).
 
-## Autor
+## Author
 
-Entworfen und entwickelt von **Simon R.**, [simonroedig.com](https://simonroedig.com).
+Designed and built by **Simon R.**, [simonroedig.com](https://simonroedig.com).
 
-![Startbildschirm von 3DPrintModeller](docs/screenshots/welcome.png)
+![Start screen of 3DPrintModeller](docs/screenshots/welcome.png)
