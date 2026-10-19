@@ -8,3 +8,23 @@ export function Logo({ size = 22 }: { size?: number }) {
     </svg>
   );
 }
+
+/**
+ * The logo as a real 3D cube (CSS 3D). Inside a `.brand` element it spins once on hover
+ * and briefly spreads its faces apart, like an exploded CAD view.
+ */
+export function CubeLogo({ size = 40 }: { size?: number }) {
+  const s = Math.round(size * 0.58);
+  return (
+    <span className="cube3d-scene" style={{ width: size, height: size, ["--s" as string]: `${s}px` }} aria-hidden>
+      <span className="cube3d">
+        <span className="cube3d-f top" />
+        <span className="cube3d-f bottom" />
+        <span className="cube3d-f front" />
+        <span className="cube3d-f back" />
+        <span className="cube3d-f right" />
+        <span className="cube3d-f left" />
+      </span>
+    </span>
+  );
+}

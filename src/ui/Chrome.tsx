@@ -46,7 +46,7 @@ import { openProject, pickImportFiles, saveProject } from "./files";
 import { OPS } from "./ops";
 import { TOOL_COLOR } from "./theme";
 import { APP_NAME, AUTHOR } from "./brand";
-import { Logo } from "./Logo";
+import { CubeLogo } from "./Logo";
 import { MODE_COLOR, MODE_NAME } from "./Overlays";
 import { AXIS_COLOR, viewAxis } from "../lib/planes";
 import { setLang, t, useLang } from "../i18n";
@@ -75,15 +75,17 @@ export function TopBar() {
   const snap = useStore((s) => s.doc.settings.snap);
   const opts = SNAP_OPTIONS[unit];
   return (
-    <header className="h-12 shrink-0 flex items-center gap-2 px-3 bg-ink-900 border-b border-ink-750">
+    <header className="h-14 shrink-0 flex items-center gap-2 px-3 bg-ink-900 border-b border-ink-750">
       <button
-        className="brand flex items-center gap-2 pr-3 mr-1 border-r border-ink-750"
+        className="brand flex items-center gap-2.5 h-full pr-4 mr-1 border-r border-ink-750 text-left"
         title={t("About {app}", { app: APP_NAME })}
         onClick={() => useStore.setState({ aboutOpen: true })}
       >
-        <Logo size={22} />
-        <span className="font-semibold tracking-tight text-[14px]">{APP_NAME}</span>
-        <span className="text-[11px] text-ink-500 font-normal">by {AUTHOR}</span>
+        <CubeLogo size={40} />
+        <span className="flex flex-col">
+          <span className="brand-name font-semibold tracking-tight text-[17px] leading-tight text-ink-100 transition-colors">{APP_NAME}</span>
+          <span className="text-[11px] text-ink-500 font-normal leading-tight">by {AUTHOR}</span>
+        </span>
       </button>
       <button className="btn ghost" title={t("Open a project file (.json) as a new project (Ctrl+O)")} onClick={openProject}>
         <FolderOpen size={16} /> {t("Open")}

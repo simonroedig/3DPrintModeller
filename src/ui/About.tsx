@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { ExternalLink, Printer, Ruler, Shapes, SquaresSubtract } from "lucide-react";
 import { TOOL_COLOR } from "./theme";
 import { APP_NAME, AUTHOR, AUTHOR_URL, REPO_URL, TAGLINE } from "./brand";
-import { Logo } from "./Logo";
+import { CubeLogo } from "./Logo";
 import { t, tn } from "../i18n";
 
 const HIGHLIGHTS: { icon: ReactNode; color: string; title: string; text: string }[] = [
@@ -46,7 +46,9 @@ export const STACK: { name: string; what: string }[] = [
 export function BrandHeader({ size = 40 }: { size?: number }) {
   return (
     <div className="flex items-center gap-3">
-      <Logo size={size} />
+      <span className="cube-hover">
+        <CubeLogo size={size + 6} />
+      </span>
       <div>
         <div className="text-[22px] font-semibold tracking-tight leading-tight text-white">{APP_NAME}</div>
         <a className="text-ink-400 text-[12.5px] hover:text-sky-300" href={AUTHOR_URL} target="_blank" rel="noreferrer">
