@@ -1,8 +1,8 @@
 import { useState, type ReactNode } from "react";
-import { Download, LoaderCircle, X } from "lucide-react";
+import { Download, LoaderCircle, Smartphone, Speaker, X } from "lucide-react";
 import type { ExportFormat, ExportQuality, Unit } from "../types";
 import { useStore } from "../store/store";
-import { createEmptyProject, createExampleProject, useProjects } from "../store/projects";
+import { createEmptyProject, createExampleProject, createPhoneStandProject, useProjects } from "../store/projects";
 import { Logo } from "./Logo";
 import { Pitch } from "./About";
 import { exportModel } from "../cad/client";
@@ -84,15 +84,25 @@ export function StartDialog() {
         <button className="btn primary !h-9 !px-4" onClick={() => createEmptyProject(unit, snap)}>
           Leeres Projekt starten
         </button>
-        <button className="btn !h-9" onClick={() => createExampleProject(unit)} title="Zwei Keile + Steg als Lautsprecher-Ständer">
-          Beispiel: Lautsprecher-Keil
-        </button>
         <div className="flex-1" />
         {hasDoc && (
           <button className="btn ghost !h-9" onClick={close}>
             Abbrechen
           </button>
         )}
+      </div>
+      <div className="text-ink-300 mt-5 mb-2 text-[12.5px]">Oder ein Beispiel ansehen</div>
+      <div className="flex flex-wrap gap-2">
+        <button
+          className="btn !h-9"
+          onClick={() => createPhoneStandProject(unit)}
+          title="Aus Platte, Keil und Lippe gebaut, Kabelkanal abgezogen, Kanten gerundet. Alles bleibt änderbar."
+        >
+          <Smartphone size={15} /> Handyständer
+        </button>
+        <button className="btn !h-9" onClick={() => createExampleProject(unit)} title="Zwei Keile und ein Steg als Lautsprecher-Ständer">
+          <Speaker size={15} /> Lautsprecher-Keil
+        </button>
       </div>
     </>
   );

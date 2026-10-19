@@ -8,6 +8,7 @@ import {
   fitView,
   keepHeavyMeshesAsMesh,
   loadDocument,
+  loadPhoneStandExample,
   loadSpeakerExample,
   newDocument,
   noEdit,
@@ -220,6 +221,7 @@ function startProject(fill: () => void, name?: string) {
 
 export const createEmptyProject = (unit: Unit, snap?: number) => startProject(() => newDocument(unit, snap));
 export const createExampleProject = (unit: Unit) => startProject(() => loadSpeakerExample(unit), "Lautsprecher-Keil");
+export const createPhoneStandProject = (unit: Unit) => startProject(() => loadPhoneStandExample(unit), "Handyständer");
 export const openDocumentAsProject = (doc: Doc, name: string) => startProject(() => loadDocument(doc), name);
 
 export function renameProject(id: string, name: string) {

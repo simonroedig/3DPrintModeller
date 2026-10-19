@@ -960,6 +960,55 @@ export function loadSpeakerExample(unit: Unit) {
   fitView();
 }
 
+/**
+ * Example: phone stand. Built the Tinkercad way from simple parts (plate, wedge, lip) with two cut-outs
+ * (cable slot and channel), then combined and finished CAD-style with real fillets. Everything stays editable.
+ */
+export function loadPhoneStandExample(unit: Unit) {
+  const doc = emptyDoc(unit);
+  doc.settings.bed = get().doc.settings.bed;
+  const color = "#4f8ff7";
+  const part = (name: string, shape: Shape, position: Vec3, hole = false, quaternion: Quat = [0, 0, 0, 1]): Body => ({
+    id: uid(),
+    name,
+    shape,
+    position,
+    quaternion,
+    hole,
+    color,
+    features: [],
+  });
+  const s45 = Math.SQRT1_2;
+  const children = [
+    part("Grundplatte", { kind: "box", w: 84, d: 70, h: 6 }, [-42, -45, 0]),
+    // leans back at about 65°
+    part("Lehne", { kind: "wedge", w: 76, d: 35, h: 75 }, [-38, -16, 6]),
+    part("Lippe", { kind: "box", w: 76, d: 6, h: 14 }, [-38, -36, 6]),
+    part("Kabelschlitz", { kind: "box", w: 16, d: 8, h: 16 }, [-8, -37, 6], true),
+    // a cylinder turned onto the Y axis: the channel for the charging cable
+    part("Kabelkanal", { kind: "cylinder", d: 10, h: 40 }, [0, 22, 12.5], true, [s45, 0, 0, s45]),
+  ];
+  const stand: Body = {
+    id: uid(),
+    name: "Handyständer",
+    shape: { kind: "group", op: "union", children },
+    position: [0, 0, 0],
+    quaternion: [0, 0, 0, 1],
+    hole: false,
+    color,
+    features: [
+      // rounded corners of the plate
+      { id: uid(), type: "fillet", radius: 6, edges: [-42, 42].flatMap((x) => [-45, 25].map((y) => ({ mid: [x, y, 3] as Vec3, dir: [0, 0, 1] as Vec3 }))) },
+      // soft top of the lip, both halves, front and back
+      { id: uid(), type: "fillet", radius: 2, edges: [-23, 23].flatMap((x) => [-36, -30].map((y) => ({ mid: [x, y, 20] as Vec3, dir: [1, 0, 0] as Vec3 }))) },
+    ],
+  };
+  doc.bodies = [stand];
+  const st = get();
+  set({ doc, past: st.doc.bodies.length ? [...st.past, st.doc] : st.past, future: [], selection: [], ...noEdit, startDialog: false, tool: "select", view: "iso" });
+  fitView();
+}
+
 /* ------------------------------------------------------------------ */
 /* import                                                               */
 /* ------------------------------------------------------------------ */

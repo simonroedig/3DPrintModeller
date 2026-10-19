@@ -89,7 +89,7 @@ export function ToolOptions() {
   const color = MODE_COLOR[tool] ?? "#3b82f6";
   return (
     <div
-      className="absolute top-3 left-3 z-10 overlay-card flex items-center gap-3 pl-1.5 pr-2 py-1.5 max-w-[calc(100%-310px)] flex-wrap"
+      className="absolute top-3 left-3 z-10 overlay-card flex items-center gap-3 pl-1.5 pr-2 py-1.5 max-w-[calc(100%-500px)] flex-wrap"
       style={{ borderColor: `${color}99` }}
     >
       <span className="px-2.5 h-7 grid place-items-center rounded-md font-semibold text-[12px] text-ink-950" style={{ background: color }}>
