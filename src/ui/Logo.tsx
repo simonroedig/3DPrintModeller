@@ -16,7 +16,7 @@ export function Logo({ size = 22 }: { size?: number }) {
  * smooth half turn while the faces glide apart and settle back, like an exploded CAD view.
  * The motion always finishes (no snapping back when the mouse leaves) and only animates transforms.
  */
-export function CubeLogo({ size = 40 }: { size?: number }) {
+export function CubeLogo({ size = 40, autoPlay }: { size?: number; /** replay every n ms */ autoPlay?: number }) {
   const s = Math.round(size * 0.58);
   const ref = useRef<HTMLSpanElement>(null);
 
@@ -59,8 +59,17 @@ export function CubeLogo({ size = 40 }: { size?: number }) {
       };
     };
     host.addEventListener("mouseenter", play);
-    return () => host.removeEventListener("mouseenter", play);
-  }, [s]);
+    // touch screens have no hover: a tap plays it
+    host.addEventListener("pointerdown", play);
+    const first = autoPlay ? window.setTimeout(play, 700) : 0;
+    const timer = autoPlay ? window.setInterval(play, autoPlay) : 0;
+    return () => {
+      host.removeEventListener("mouseenter", play);
+      host.removeEventListener("pointerdown", play);
+      window.clearTimeout(first);
+      window.clearInterval(timer);
+    };
+  }, [s, autoPlay]);
 
   return (
     <span ref={ref} className="cube3d-scene" style={{ width: size, height: size, ["--s" as string]: `${s}px` }} aria-hidden>

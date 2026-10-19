@@ -101,6 +101,7 @@ Alles läuft im Browser, ohne Installation und ohne Konto: **[3d-print-modeller.
 - **Farben mit Bedeutung**: Skizze hellblau, Körper indigo, Kanten und Flächen orange, Vereinen grün, Abziehen rot, Schnittmenge lila.
 - Rückgängig und Wiederholen, Kopieren und Einfügen, lange Berechnungen lassen sich abbrechen.
 - **Sprache**: Englisch oder Deutsch, umschaltbar oben in der Kopfzeile.
+- **Handys** bekommen statt des Editors eine kurze Vorstellung mit Link zum Teilen; der CAD-Kern lädt nur auf einem richtigen Bildschirm.
 
 ## Beispiel: Handyständer
 

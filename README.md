@@ -98,6 +98,7 @@ Everything runs in the browser, no installation, no account: **[3d-print-modelle
 - **Colors with meaning**: sketch light blue, bodies indigo, edges and faces orange, union green, subtract red, intersect purple.
 - Undo and redo, copy and paste, long computations can be cancelled.
 - **Language**: English or German, switchable in the top bar.
+- **Phones** get a short intro with a link to share instead of the editor; the CAD kernel only loads on a real screen.
 
 ## Example: phone stand
 

@@ -1,14 +1,32 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
-import { App } from "./App";
-import { useStore } from "./store/store";
-import { useMeshes } from "./cad/client";
+import { isSmallScreen, MobileGate } from "./ui/MobileGate";
 
-if (import.meta.env.DEV) Object.assign(window, { __pm: { useStore, useMeshes } });
+const root = createRoot(document.getElementById("root")!);
 
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-);
+/** loads the modeller itself (incl. the CAD kernel) only when it is going to be used */
+function boot() {
+  void import("./App").then(({ App }) => {
+    root.render(
+      <StrictMode>
+        <App />
+      </StrictMode>,
+    );
+  });
+  if (import.meta.env.DEV) {
+    void Promise.all([import("./store/store"), import("./cad/client")]).then(([s, c]) =>
+      Object.assign(window, { __pm: { useStore: s.useStore, useMeshes: c.useMeshes } }),
+    );
+  }
+}
+
+if (isSmallScreen()) {
+  root.render(
+    <StrictMode>
+      <MobileGate onContinue={boot} />
+    </StrictMode>,
+  );
+} else {
+  boot();
+}
