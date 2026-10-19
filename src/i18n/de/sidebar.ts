@@ -1,5 +1,6 @@
 /** German texts for the properties panel (src/ui/Sidebar.tsx) */
 const de: Record<string, string> = {
+  Wall: "W",
   // scene tree
   Objects: "Objekte",
   "Nothing here yet. Draw a sketch or add a body.": "Noch nichts da. Zeichne eine Skizze oder füge einen Körper ein.",

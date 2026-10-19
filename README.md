@@ -101,7 +101,7 @@ Everything runs in the browser, no installation, no account: **[3d-print-modelle
 
 ## Example: phone stand
 
-In the start dialog under **“Or open an example”** you can open the phone stand from the picture above.
+In the start dialog under **“Or explore an example”** you can open the phone stand from the picture above.
 It shows the typical workflow:
 
 1. **Base plate**: a box, 84 × 70 × 6 mm.

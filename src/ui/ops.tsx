@@ -28,7 +28,8 @@ export const OPS: { op: BoolOp; label: string; short: string; icon: (size: numbe
   },
   {
     op: "group",
-    label: "Group",
+    // "op|": the button says "Gruppieren" in German, a body of this kind is a "Gruppe"
+    label: "op|Group",
     short: "Group",
     icon: (s) => <Group size={s} />,
     tip: "Just bundle them (move and scale together), the parts stay separate volumes",

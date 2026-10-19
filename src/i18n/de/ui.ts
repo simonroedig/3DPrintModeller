@@ -45,6 +45,8 @@ const de: Record<string, string> = {
 
   // combine operations (OPS in ops.tsx)
   Union: "Vereinen",
+  "op|Group": "Gruppieren",
+  "btn|Lay flat": "Aufs Bett",
   Subtract: "Abziehen",
   Intersection: "Schnittmenge",
   Intersect: "Schnitt",

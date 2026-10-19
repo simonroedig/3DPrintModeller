@@ -7,7 +7,7 @@ import { planeSnapTargets } from "../lib/planeSnap";
 import { fmtLen, snapTo } from "../lib/units";
 import { INSET_ID, insetMmPerPx, invalidateInset, usePlaneTarget } from "../viewport/PlaneInset";
 import { LenField } from "./fields";
-import { t } from "../i18n";
+import { t, useLang } from "../i18n";
 
 const COLLAPSE_KEY = "printmodeller.planePanel.collapsed";
 
@@ -100,7 +100,9 @@ export function PlanePanel() {
   const viewRef = useRef<HTMLDivElement>(null);
   const plane = target?.plane;
   const axis = plane ? PLANE_AXIS[plane.orient] : 2;
-  const targets = useMemo(() => (plane ? planeSnapTargets(axis) : []), [plane ? axis : -1, bodies, meshes]); // eslint-disable-line react-hooks/exhaustive-deps
+  const lang = useLang((s) => s.lang);
+  // labels are translated when built, so the language is a dependency too
+  const targets = useMemo(() => (plane ? planeSnapTargets(axis) : []), [plane ? axis : -1, bodies, meshes, lang]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // the canvas only redraws on demand: ask for a frame whenever the preview appears or changes size
   useLayoutEffect(() => {

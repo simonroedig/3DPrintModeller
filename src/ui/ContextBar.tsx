@@ -80,7 +80,7 @@ export function ContextBar() {
             onClick={() => setTool("edit")}
           />
         )}
-        <CtxButton icon={<ArrowDownToLine size={16} />} label={t("Lay flat")} kbd="L" color={TOOL_COLOR.layflat} tip={t("Click a face that should rest on the bed")} onClick={() => setTool("layflat")} />
+        <CtxButton icon={<ArrowDownToLine size={16} />} label={t("btn|Lay flat")} kbd="L" color={TOOL_COLOR.layflat} tip={t("Click a face that should rest on the bed")} onClick={() => setTool("layflat")} />
         <CtxButton icon={<RotateCw size={16} />} kbd="E" tip={t("Rotate 90° around the vertical axis")} color={TOOL_COLOR.select} onClick={() => rotateSelection(2, -90)} />
         <CtxButton icon={<LocateFixed size={16} />} kbd="M" tip={t("Center on the print bed (on the grid), Shift+M: exact")} color={TOOL_COLOR.select} onClick={() => centerOnBed(false)} />
         {!mesh && (

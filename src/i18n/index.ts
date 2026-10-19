@@ -41,15 +41,21 @@ type Vars = Record<string, string | number>;
 
 const missing = new Set<string>();
 
+/**
+ * A key may carry a context before a "|" when one English word needs two German ones,
+ * e.g. "name|Union" (a body called "Vereinigung") versus "Union" (the button "Vereinen").
+ */
+const plain = (key: string) => key.slice(key.indexOf("|") + 1);
+
 function lookup(key: string): string {
-  if (getLang() === "en") return key;
+  if (getLang() === "en") return plain(key);
   const hit = DE[key];
   if (hit !== undefined) return hit;
   if (import.meta.env.DEV && !missing.has(key)) {
     missing.add(key);
     console.warn(`[i18n] missing German text for: ${JSON.stringify(key)}`);
   }
-  return key;
+  return plain(key);
 }
 
 function fill(text: string, vars?: Vars) {

@@ -254,7 +254,7 @@ function BodyProps({ body }: { body: Body }) {
       <div className="px-3.5 pt-3 pb-3">
         <div className="flex items-center gap-2 text-ink-400 text-[11px] mb-1">
           <span style={{ color: body.hole ? "#94a3b8" : body.color }}>{ICON[body.shape.kind]}</span>
-          {body.shape.kind === "group" ? t(OP_NAME[body.shape.op ?? "union"]) : t(KIND_LABEL[body.shape.kind])}
+          {body.shape.kind === "group" ? t(`name|${OP_NAME[body.shape.op ?? "union"]}`) : t(KIND_LABEL[body.shape.kind])}
           {body.shape.kind === "group" && ` · ${t("{count} parts", { count: body.shape.children.length })}`}
         </div>
         <NameField value={body.name} onChange={(name) => updateBody(body.id, { name })} />
@@ -485,7 +485,7 @@ function ShapeParams({ body, onShape }: { body: Body; onShape?: (shape: Shape) =
       return (
         <div className="grid grid-cols-3 gap-1.5">
           <LenField label="Ø" title={t("Outer diameter")} mm={s.d} min={min} onChange={(d) => set({ ...s, d, t: Math.min(s.t, d / 2 - 0.01) })} />
-          <LenField label="W" title={t("Wall thickness")} mm={s.t} min={0.05} onChange={(t) => set({ ...s, t: Math.min(t, s.d / 2 - 0.01) })} />
+          <LenField label={t("Wall")} title={t("Wall thickness")} mm={s.t} min={0.05} onChange={(t) => set({ ...s, t: Math.min(t, s.d / 2 - 0.01) })} />
           <LenField label={t("H")} title={t("Height")} mm={s.h} min={min} onChange={(h) => set({ ...s, h })} />
         </div>
       );

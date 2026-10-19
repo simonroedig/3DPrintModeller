@@ -51,13 +51,29 @@ import { MODE_COLOR, MODE_NAME } from "./Overlays";
 import { AXIS_COLOR, viewAxis } from "../lib/planes";
 import { setLang, t, useLang } from "../i18n";
 
+/** EN | DE switch (top bar and welcome screen) */
+export function LangToggle() {
+  const lang = useLang((s) => s.lang);
+  return (
+    <div className="flex items-center gap-1.5 text-ink-400" title={t("Language")}>
+      <Languages size={15} />
+      <div className="seg">
+        {(["en", "de"] as const).map((l) => (
+          <button key={l} className={l === lang ? "on" : ""} onClick={() => setLang(l)}>
+            {l.toUpperCase()}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function TopBar() {
   const canUndo = useStore((s) => s.past.length > 0);
   const canRedo = useStore((s) => s.future.length > 0);
   const unit = useStore((s) => s.doc.settings.unit);
   const snap = useStore((s) => s.doc.settings.snap);
   const opts = SNAP_OPTIONS[unit];
-  const lang = useLang((s) => s.lang);
   return (
     <header className="h-12 shrink-0 flex items-center gap-2 px-3 bg-ink-900 border-b border-ink-750">
       <button
@@ -87,16 +103,7 @@ export function TopBar() {
       </button>
       <div className="flex-1" />
       <div className="flex items-center gap-2 text-ink-400">
-        <div className="flex items-center gap-1.5" title={t("Language")}>
-          <Languages size={15} />
-          <div className="seg">
-            {(["en", "de"] as const).map((l) => (
-              <button key={l} className={l === lang ? "on" : ""} onClick={() => setLang(l)}>
-                {l.toUpperCase()}
-              </button>
-            ))}
-          </div>
-        </div>
+        <LangToggle />
         <div className="w-px h-6 bg-ink-750 mx-1" />
         <span className="text-[11px] uppercase tracking-wider">{t("Unit")}</span>
         <div className="seg">

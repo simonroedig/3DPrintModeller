@@ -10,7 +10,11 @@ const de: Record<string, string> = {
   Prism: "Prisma",
   Group: "Gruppe",
   Imported: "Import",
-  Union: "Vereinigung",
+  // names of combined bodies ("Vereinigung 1"); the buttons say "Vereinen" etc.
+  "name|Union": "Vereinigung",
+  "name|Difference": "Differenz",
+  "name|Intersection": "Schnittmenge",
+  "name|Group": "Gruppe",
   Difference: "Differenz",
   Intersection: "Schnittmenge",
   Sketch: "Skizze",

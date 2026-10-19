@@ -4,6 +4,7 @@ import type { ExportFormat, ExportQuality, Unit } from "../types";
 import { useStore } from "../store/store";
 import { createEmptyProject, createExampleProject, createPhoneStandProject, useProjects } from "../store/projects";
 import { Logo } from "./Logo";
+import { LangToggle } from "./Chrome";
 import { Pitch } from "./About";
 import { exportModel } from "../cad/client";
 import { DEFAULT_SNAP, SNAP_OPTIONS } from "../lib/units";
@@ -55,6 +56,11 @@ export function StartDialog() {
           <div className="text-[18px] font-semibold">{firstVisit ? t("Let's get started") : t("New project")}</div>
           <div className="text-ink-400 text-[12.5px]">{firstVisit ? t("Create your first project.") : t("Your current project stays saved.")}</div>
         </div>
+        {firstVisit && (
+          <div className="ml-auto self-start">
+            <LangToggle />
+          </div>
+        )}
       </div>
       <div className="text-ink-300 mt-5 mb-2 text-[12.5px]">{t("Which unit do you work in?")}</div>
       <div className="grid grid-cols-3 gap-2">

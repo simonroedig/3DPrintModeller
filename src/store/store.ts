@@ -756,7 +756,7 @@ export function combineSelection(op: BoolOp) {
   const base = children.find((c) => !c.hole) ?? children[0];
   const group: Body = {
     id: uid(),
-    name: nextName(doc, t(OP_NAME[op])),
+    name: nextName(doc, t(`name|${OP_NAME[op]}`)),
     shape: { kind: "group", children, op },
     position: [0, 0, 0],
     quaternion: [0, 0, 0, 1],
@@ -787,8 +787,8 @@ export function setGroupOp(id: string, op: BoolOp) {
   if (from === op) return;
   const children = rolesFor(op, g.shape.children, from);
   // the name may come from either language
-  const prefix = [t(OP_NAME[from]), OP_NAME[from]].find((p) => g.name.startsWith(p));
-  const name = prefix ? t(OP_NAME[op]) + g.name.slice(prefix.length) : g.name;
+  const prefix = [t(`name|${OP_NAME[from]}`), OP_NAME[from]].find((p) => g.name.startsWith(p));
+  const name = prefix ? t(`name|${OP_NAME[op]}`) + g.name.slice(prefix.length) : g.name;
   updateBody(id, { name, shape: { ...g.shape, op, children }, hole: children.every((c) => c.hole) });
 }
 
