@@ -12,7 +12,7 @@ export function meshToSolids(positions: ArrayLike<number>, indices: ArrayLike<nu
   const oc = getOC();
   const { P, I, N, regions } = planarRegions(positions, indices);
   const nV = P.length / 3;
-  if (!regions.length) throw new Error("Keine Dreiecke");
+  if (!regions.length) throw new Error("No triangles");
 
   const pt = (i: number): Vec3 => [P[i * 3], P[i * 3 + 1], P[i * 3 + 2]];
   const sew = new oc.BRepBuilderAPI_Sewing(1e-4, true, true, true, false);
@@ -96,7 +96,7 @@ export function meshToSolids(positions: ArrayLike<number>, indices: ArrayLike<nu
     unify.delete();
   }
   ex.delete();
-  if (!solids.length) throw new Error("Das Netz ist nicht geschlossen, kein Volumenkörper");
+  if (!solids.length) throw new Error("The mesh is not closed, so it is not a solid");
   return solids;
 }
 
@@ -108,7 +108,7 @@ export function readSTEP(bytes: Uint8Array): Shape3D[] {
   const reader = new oc.STEPControl_Reader();
   try {
     const status = reader.ReadFile(name);
-    if (status !== oc.IFSelect_ReturnStatus.IFSelect_RetDone) throw new Error("STEP-Datei konnte nicht gelesen werden");
+    if (status !== oc.IFSelect_ReturnStatus.IFSelect_RetDone) throw new Error("The STEP file could not be read");
     reader.TransferRoots(new oc.Message_ProgressRange());
     const shape = cast(reader.OneShape());
     const solids = (shape as Shape3D & { solids?: Shape3D[] }).solids ?? [];

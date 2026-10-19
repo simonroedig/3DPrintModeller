@@ -94,7 +94,7 @@ function importedParts(id: string): Shape3D[] {
   let solids = assetSolids.get(id);
   if (solids) return solids;
   const payload = assets.get(id);
-  if (!payload) throw new Error("Importierte Datei fehlt");
+  if (!payload) throw new Error("Imported file is missing");
   if (payload.format === "step") solids = readSTEP(payload.bytes);
   else solids = payload.parts.flatMap((p) => meshToSolids(p.positions, p.indices));
   assetSolids.set(id, solids);
@@ -163,9 +163,9 @@ function buildBase(shape: Shape): Shape3D {
       return pen.close().sketchOnPlane("XY").extrude(shape.h) as Shape3D;
     }
     case "imported": {
-      if (shape.mode === "mesh") throw new Error("Mesh-Körper können nicht mit CAD-Operationen bearbeitet werden");
+      if (shape.mode === "mesh") throw new Error("Mesh bodies cannot be edited with CAD operations");
       const solid = importedParts(shape.asset)[shape.part];
-      if (!solid) throw new Error("Importierte Datei fehlt");
+      if (!solid) throw new Error("Imported file is missing");
       return shape.scale === 1 ? solid : solid.clone().scale(shape.scale, [0, 0, 0]);
     }
     case "group": {
@@ -200,7 +200,7 @@ function commonAll(shapes: Shape3D[]): Shape3D {
     shapes[i].delete();
     result = next;
   }
-  if (!result.faces.length) throw new Error("Die Teile überschneiden sich nicht, die Schnittmenge ist leer");
+  if (!result.faces.length) throw new Error("The parts do not overlap, the intersection is empty");
   return result;
 }
 
@@ -467,13 +467,13 @@ function featureWarning(f: Feature, err: unknown) {
   switch (f.type) {
     case "fillet":
     case "chamfer": {
-      const what = f.type === "fillet" ? "Rundung" : "Fase";
-      return lost ? `${what}: Kante nicht mehr gefunden` : `${what} ${round(f.radius)} mm passt nicht: Radius zu groß für diese Kante(n)`;
+      const what = f.type === "fillet" ? "Fillet" : "Chamfer";
+      return lost ? `${what}: edge no longer found` : `${what} ${round(f.radius)} mm does not fit: radius too large for these edges`;
     }
     case "push":
-      return lost ? "Fläche verschieben: Fläche nicht mehr gefunden" : "Fläche konnte nicht verschoben werden";
+      return lost ? "Push face: face no longer found" : "Face could not be pushed";
     case "tilt":
-      return lost ? "Neigen: Fläche oder Drehkante nicht mehr gefunden" : "Fläche konnte nicht geneigt werden";
+      return lost ? "Tilt face: face or hinge edge no longer found" : "Face could not be tilted";
   }
 }
 
@@ -754,7 +754,7 @@ async function exportBodies(allBodies: Body[], format: ExportFormat, quality: Ex
   const bodies = allBodies.filter((b) => !isMeshBody(b));
   if (format === "step") {
     const shape = combine(bodies);
-    if (!shape) throw new Error(meshParts.length ? "Mesh-Körper (große STL/3MF/OBJ) lassen sich nicht als STEP exportieren" : "Nichts zu exportieren");
+    if (!shape) throw new Error(meshParts.length ? "Mesh bodies (large STL/3MF/OBJ) cannot be exported as STEP" : "Nothing to export");
     const blob = shape.blobSTEP();
     const volume = measureVolume(shape);
     shape.delete();
@@ -781,7 +781,7 @@ async function exportBodies(allBodies: Body[], format: ExportFormat, quality: Ex
     parts.push(p);
     volume += meshVolume(p);
   }
-  if (!parts.length) throw new Error("Nichts zu exportieren");
+  if (!parts.length) throw new Error("Nothing to export");
   return { data: format === "stl" ? toBinarySTL(parts) : to3MF(parts, !separate), volume };
 }
 

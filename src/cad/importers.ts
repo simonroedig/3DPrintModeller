@@ -135,7 +135,7 @@ function parse3MF(bytes: Uint8Array, name: string): MeshPart[] {
     if (path.toLowerCase().endsWith(".model")) models.set("/" + path.replace(/^\//, ""), new DOMParser().parseFromString(strFromU8(data), "application/xml"));
   }
   const rootPath = [...models.keys()].find((p) => /3dmodel\.model$/i.test(p)) ?? [...models.keys()][0];
-  if (!rootPath) throw new Error("Keine 3D-Daten in der 3MF-Datei");
+  if (!rootPath) throw new Error("No 3D data in the 3MF file");
   const root = models.get(rootPath)!;
   const unit = UNIT_SCALE[root.documentElement.getAttribute("unit") ?? "millimeter"] ?? 1;
   const local = (el: Element) => Array.from(el.children);
@@ -184,7 +184,7 @@ function parse3MF(bytes: Uint8Array, name: string): MeshPart[] {
 
 export function parseMeshFile(format: Exclude<ImportFormat, "step">, bytes: Uint8Array, name: string): MeshPart[] {
   const parts = format === "stl" ? parseSTL(bytes, name) : format === "obj" ? parseOBJ(bytes, name) : parse3MF(bytes, name);
-  if (!parts.length) throw new Error("Die Datei enthält keine Dreiecke");
+  if (!parts.length) throw new Error("The file contains no triangles");
   return parts;
 }
 

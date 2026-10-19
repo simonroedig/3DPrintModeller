@@ -99,7 +99,7 @@ export function requestMesh(slot: string, key: string, shape: Shape, features: F
     const payload = assetPayloads.get(shape.asset);
     const part = payload?.format === "mesh" ? payload.parts[shape.part] : undefined;
     if (!part) {
-      setMesh(key, { error: "Importierte Datei fehlt" });
+      setMesh(key, { error: "Imported file is missing" });
       return;
     }
     try {
@@ -133,13 +133,16 @@ export function setRestartHandler(fn: () => void) {
   onRestart = fn;
 }
 
+/** error of requests cut off by `cancelWork` (English; the UI translates it) */
+const CANCELED = "Canceled";
+
 /** Aborts whatever the CAD kernel is doing by restarting it. */
 export function cancelWork() {
   generation++;
   worker.terminate();
-  for (const [reqId, resolve] of resolvers) resolve({ type: "export", reqId, error: "Abgebrochen" });
+  for (const [reqId, resolve] of resolvers) resolve({ type: "export", reqId, error: CANCELED });
   resolvers.clear();
-  for (const key of inflightKeys) setMesh(key, { error: "Berechnung abgebrochen" });
+  for (const key of inflightKeys) setMesh(key, { error: "Calculation canceled" });
   inflightKeys.clear();
   inflight = 0;
   wanted.clear();
@@ -158,7 +161,7 @@ export async function exportModel(bodies: Body[], format: ExportFormat, quality:
     quality,
     separate,
   });
-  if (res.error || !res.data) throw new Error(res.error ?? "Export fehlgeschlagen");
+  if (res.error || !res.data) throw new Error(res.error ?? "Export failed");
   return { data: res.data, volume: res.volume ?? 0 };
 }
 
@@ -197,8 +200,8 @@ export async function importAsset(id: string, payload: AssetPayload): Promise<Im
   registeredAssets.add(id);
   const res = await call<Extract<WorkerResponse, { type: "import" }>>({ type: "import", reqId: reqCounter++, id, payload });
   if (res.error || !res.parts) {
-    if (res.error !== "Abgebrochen") registeredAssets.delete(id);
-    throw new Error(res.error ?? "Import fehlgeschlagen");
+    if (res.error !== CANCELED) registeredAssets.delete(id);
+    throw new Error(res.error ?? "Import failed");
   }
   return res.parts;
 }
