@@ -205,6 +205,7 @@ export interface HandleSpec {
   pos: Vec3;
   /** local direction */
   dir: Vec3;
+  /** English; translated where shown */
   label: string;
   /** returns the new shape plus a local shift of the origin */
   apply: (
@@ -220,7 +221,7 @@ function bottomHandle(shape: Shape & { h: number }, pos: Vec3, sn: (v: number, s
     id: "h-",
     pos,
     dir: [0, 0, -1],
-    label: "Höhe (unten)",
+    label: "Height (bottom)",
     apply: (t, snap) => {
       const v = sn(shape.h + t, snap);
       return { shape: { ...shape, h: v } as Shape, shift: [0, 0, shape.h - v], value: v };
@@ -252,7 +253,7 @@ export function handleSpecs(shape: Shape): HandleSpec[] {
           id: `${neg ? "-" : "+"}${axis}`,
           pos,
           dir,
-          label: ["Breite", "Tiefe", "Höhe"][axis],
+          label: ["Width", "Depth", "Height"][axis],
           apply: (t, snap) => {
             const v = sn(cur + t, snap);
             const shift: Vec3 = [0, 0, 0];
@@ -273,7 +274,7 @@ export function handleSpecs(shape: Shape): HandleSpec[] {
           id: "r",
           pos: [r, 0, h / 2],
           dir: [1, 0, 0],
-          label: "Durchmesser",
+          label: "Diameter",
           apply: (t, snap) => {
             const v = sn(shape.d + 2 * t, snap);
             const next = shape.kind === "tube" ? { ...shape, d: v, t: Math.min(shape.t, v / 2 - 0.01) } : { ...shape, d: v };
@@ -287,7 +288,7 @@ export function handleSpecs(shape: Shape): HandleSpec[] {
           id: "h",
           pos: [0, 0, shape.h],
           dir: [0, 0, 1],
-          label: "Höhe",
+          label: "Height",
           apply: (t, snap) => {
             const v = sn(shape.h + t, snap);
             return { shape: { ...shape, h: v }, shift: [0, 0, 0], value: v };
@@ -302,7 +303,7 @@ export function handleSpecs(shape: Shape): HandleSpec[] {
           id: "d1",
           pos: [shape.d1 / 2, 0, 0],
           dir: [1, 0, 0],
-          label: "Ø unten",
+          label: "Ø bottom",
           apply: (t, snap) => {
             const v = Math.max(snapTo(shape.d1 + 2 * t, snap), 0);
             return { shape: { ...shape, d1: v }, shift: [0, 0, 0], value: v };
@@ -312,7 +313,7 @@ export function handleSpecs(shape: Shape): HandleSpec[] {
           id: "d2",
           pos: [shape.d2 / 2, 0, shape.h],
           dir: [1, 0, 0],
-          label: "Ø oben",
+          label: "Ø top",
           apply: (t, snap) => {
             const v = Math.max(snapTo(shape.d2 + 2 * t, snap), 0);
             return { shape: { ...shape, d2: v }, shift: [0, 0, 0], value: v };
@@ -322,7 +323,7 @@ export function handleSpecs(shape: Shape): HandleSpec[] {
           id: "h",
           pos: [0, 0, shape.h],
           dir: [0, 0, 1],
-          label: "Höhe",
+          label: "Height",
           apply: (t, snap) => {
             const v = sn(shape.h + t, snap);
             return { shape: { ...shape, h: v }, shift: [0, 0, 0], value: v };
@@ -337,7 +338,7 @@ export function handleSpecs(shape: Shape): HandleSpec[] {
           id: "h",
           pos: [(pb.minX + pb.maxX) / 2, (pb.minY + pb.maxY) / 2, shape.h],
           dir: [0, 0, 1],
-          label: "Höhe",
+          label: "Height",
           apply: (t, snap) => {
             const v = sn(shape.h + t, snap);
             return { shape: { ...shape, h: v }, shift: [0, 0, 0], value: v };
@@ -361,7 +362,7 @@ export function handleSpecs(shape: Shape): HandleSpec[] {
           id: `${neg ? "-" : "+"}${axis}`,
           pos,
           dir,
-          label: ["Breite", "Tiefe", "Höhe"][axis],
+          label: ["Width", "Depth", "Height"][axis],
           apply: (t, snap, uniform) => {
             const v = sn(cur + t, snap);
             const k = v / Math.max(cur, MIN);

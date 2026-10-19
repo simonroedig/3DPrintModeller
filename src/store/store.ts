@@ -7,6 +7,7 @@ import { assetPayload, importAsset, isAssetRegistered, registerAsset, setRestart
 import { BREP_TRIANGLE_LIMIT } from "../cad/regions";
 import { detectFormat, payloadFromAsset, toBase64 } from "../cad/importers";
 import { cleanQuat, localBox, polyBounds, polygonArea, quatFromEulerDeg, unionBox, worldBox } from "../lib/geom";
+import { locale, t, tMsg } from "../i18n";
 
 export type Tool = "select" | "rect" | "circle" | "poly" | "edit" | "layflat";
 export type View = "iso" | "top" | "bottom" | "front" | "back" | "right" | "left";
@@ -220,15 +221,15 @@ type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K>
 export const uid = () => Math.random().toString(36).slice(2, 10);
 
 export const KIND_LABEL: Record<ShapeKind, string> = {
-  box: "Quader",
-  wedge: "Keil",
-  cylinder: "Zylinder",
-  cone: "Kegel",
-  sphere: "Kugel",
-  tube: "Rohr",
-  prism: "Prisma",
-  group: "Gruppe",
-  imported: "Import",
+  box: "Box",
+  wedge: "Wedge",
+  cylinder: "Cylinder",
+  cone: "Cone",
+  sphere: "Sphere",
+  tube: "Tube",
+  prism: "Prism",
+  group: "Group",
+  imported: "Imported",
 };
 
 const PALETTE = ["#4f8ff7", "#f5a524", "#22c55e", "#ef4444", "#a855f7", "#14b8a6", "#f97316", "#e879f9"];
@@ -370,7 +371,7 @@ export function defaultShape(kind: Exclude<ShapeKind, "group" | "prism" | "impor
 function makeBody(doc: Doc, shape: Shape, extra: Partial<Body> = {}): Body {
   return {
     id: uid(),
-    name: nextName(doc, KIND_LABEL[shape.kind]),
+    name: nextName(doc, t(KIND_LABEL[shape.kind])),
     shape,
     position: [0, 0, 0],
     quaternion: [0, 0, 0, 1],
@@ -401,7 +402,7 @@ export function addPrimitive(kind: Exclude<ShapeKind, "group" | "prism" | "impor
   const doc = get().doc;
   const shape = defaultShape(kind);
   const body = makeBody(doc, shape, { hole });
-  if (hole) body.name = `Loch ${body.name}`;
+  if (hole) body.name = t("Hole {name}", { name: body.name });
   body.position = placeNewBody(doc, shape);
   commit({ ...doc, bodies: [...doc.bodies, body] });
   set({ selection: [body.id], tool: "select", ...noEdit });
@@ -442,20 +443,20 @@ export function pickSketchPlane(normal: THREE.Vector3, point: THREE.Vector3) {
   const a = [Math.abs(normal.x), Math.abs(normal.y), Math.abs(normal.z)];
   const axis = a.indexOf(Math.max(...a)) as 0 | 1 | 2;
   if (a[axis] < 0.999) {
-    toast("Diese Fläche ist schräg. Skizzen gehen auf Flächen, die nach oben, vorne/hinten oder zur Seite zeigen", "error");
+    toast(t("This face is slanted. Sketches go on faces that point up, to the front/back or to the side"), "error");
     return;
   }
   const sign = normal.getComponent(axis) > 0 ? 1 : -1;
   const orient: PlaneOrient = axis === 2 ? (sign > 0 ? "top" : "bottom") : axis === 1 ? (sign < 0 ? "front" : "back") : sign > 0 ? "right" : "left";
   const value = Math.round(point.getComponent(axis) * 1e4) / 1e4;
   const s = get();
-  const t = planeTarget(s);
-  if (t?.sketch) {
-    if (PLANE_AXIS[t.sketch.plane.orient] !== axis) {
-      toast("Die Fläche liegt nicht parallel zu dieser Skizze", "error");
+  const target = planeTarget(s);
+  if (target?.sketch) {
+    if (PLANE_AXIS[target.sketch.plane.orient] !== axis) {
+      toast(t("The face is not parallel to this sketch"), "error");
       return;
     }
-    updateSketch(t.sketch.id, t.sketch.shape, { ...t.sketch.plane, value });
+    updateSketch(target.sketch.id, target.sketch.shape, { ...target.sketch.plane, value });
     return;
   }
   set({ sketchPlanes: { ...s.sketchPlanes, [orient]: value } });
@@ -463,12 +464,12 @@ export function pickSketchPlane(normal: THREE.Vector3, point: THREE.Vector3) {
     // draw straight onto the face: look at it
     set({ view: orient, fitNonce: s.fitNonce + 1, viewFlash: s.viewFlash + 1 });
   }
-  toast(`Skizzenebene auf Fläche gesetzt (${PLANE_AXIS_NAME[axis]} = ${fmtLen(value, s.doc.settings.unit)})`);
+  toast(t("Sketch plane set to the face ({axis} = {value})", { axis: PLANE_AXIS_NAME[axis], value: fmtLen(value, s.doc.settings.unit) }));
 }
 
 export function addSketch(shape: SketchShape) {
   const doc = get().doc;
-  const sketch: Sketch = { id: uid(), name: nextName(doc, "Skizze"), plane: currentSketchPlane(), shape };
+  const sketch: Sketch = { id: uid(), name: nextName(doc, t("Sketch")), plane: currentSketchPlane(), shape };
   commit({ ...doc, sketches: [...doc.sketches, sketch] });
   set({ selection: [sketch.id], ...noEdit, tool: "select" });
 }
@@ -524,7 +525,7 @@ export function sketchToBody(doc: Doc, sketch: Sketch, height: number, hole: boo
     quaternion = quat;
   }
   const body = makeBody(doc, shape, { position: position.map(round6) as Vec3, quaternion: cleanQuat(new THREE.Quaternion(...quaternion)), hole });
-  if (hole) body.name = `Loch ${body.name}`;
+  if (hole) body.name = t("Hole {name}", { name: body.name });
   return body;
 }
 
@@ -534,7 +535,7 @@ export function extrudeSketch(id: string, height: number, hole = false) {
   if (!sketch) return;
   const body = sketchToBody(doc, sketch, height, hole);
   if (!body) {
-    toast("Die Skizze ist zu klein zum Extrudieren", "error");
+    toast(t("The sketch is too small to extrude"), "error");
     return;
   }
   commit({ ...doc, bodies: [...doc.bodies, body], sketches: doc.sketches.filter((s) => s.id !== id) });
@@ -657,7 +658,7 @@ export function centerOnBed(exact = false) {
     dy = snapTo(dy, step);
   }
   if (Math.abs(dx) < 1e-6 && Math.abs(dy) < 1e-6) {
-    toast(exact ? "Liegt schon exakt mittig" : "Liegt schon mittig (im Raster)");
+    toast(exact ? t("Already exactly centered") : t("Already centered (on the grid)"));
     return;
   }
   translateBodies(
@@ -717,7 +718,7 @@ function insertCopies(src: Body[]) {
   set({ selection: copies.map((c) => c.id), ...noEdit });
 }
 
-export const OP_NAME: Record<BoolOp, string> = { union: "Vereinigung", subtract: "Differenz", intersect: "Schnittmenge", group: "Gruppe" };
+export const OP_NAME: Record<BoolOp, string> = { union: "Union", subtract: "Difference", intersect: "Intersection", group: "Group" };
 
 /** selected bodies in the order they were picked (for subtracting, the first one is the base) */
 export function orderedSelection(): Body[] {
@@ -734,7 +735,7 @@ function rolesFor(op: BoolOp, children: Body[], from?: BoolOp): Body[] {
 
 /**
  * Combines the selection into one body. Nothing is lost: the parts live on inside the result
- * (subtracted tools included) and stay editable in the panel or after "Trennen".
+ * (subtracted tools included) and stay editable in the panel or after splitting.
  */
 export function combineSelection(op: BoolOp) {
   const doc = get().doc;
@@ -742,20 +743,20 @@ export function combineSelection(op: BoolOp) {
   if (bodies.length < 2) {
     toast(
       op === "subtract"
-        ? "Erst den Körper wählen, von dem abgezogen wird, dann mit Shift+Klick die Teile, die weg sollen"
-        : "Wähle mindestens zwei Körper (Shift + Klick)",
+        ? t("First select the body to subtract from, then Shift+click the parts that should go")
+        : t("Select at least two bodies (Shift + click)"),
     );
     return;
   }
   if (bodies.some(isMeshBody)) {
-    toast("Mesh-Körper (große STL/3MF/OBJ) können nicht kombiniert werden. Erst im Panel in einen CAD-Körper umwandeln", "error");
+    toast(t("Mesh bodies (large STL/3MF/OBJ) cannot be combined. Convert them to a CAD body in the panel first"), "error");
     return;
   }
   const children = rolesFor(op, bodies.map((b) => ({ ...b, hidden: false })));
   const base = children.find((c) => !c.hole) ?? children[0];
   const group: Body = {
     id: uid(),
-    name: nextName(doc, OP_NAME[op]),
+    name: nextName(doc, t(OP_NAME[op])),
     shape: { kind: "group", children, op },
     position: [0, 0, 0],
     quaternion: [0, 0, 0, 1],
@@ -769,7 +770,7 @@ export function combineSelection(op: BoolOp) {
   commit({ ...doc, bodies: rest });
   set({ selection: [group.id], ...noEdit, groupFocus: null });
   if (op === "subtract")
-    toast(`Von „${bodies[0].name}“ abgezogen. Die abgezogenen Teile bleiben erhalten und sind im Panel änderbar`);
+    toast(t("Subtracted from “{name}”. The subtracted parts are kept and can be changed in the panel", { name: bodies[0].name }));
 }
 
 export const groupSelection = () => combineSelection("union");
@@ -785,7 +786,9 @@ export function setGroupOp(id: string, op: BoolOp) {
   const from = g.shape.op ?? "union";
   if (from === op) return;
   const children = rolesFor(op, g.shape.children, from);
-  const name = g.name.startsWith(OP_NAME[from]) ? OP_NAME[op] + g.name.slice(OP_NAME[from].length) : g.name;
+  // the name may come from either language
+  const prefix = [t(OP_NAME[from]), OP_NAME[from]].find((p) => g.name.startsWith(p));
+  const name = prefix ? t(OP_NAME[op]) + g.name.slice(prefix.length) : g.name;
   updateBody(id, { name, shape: { ...g.shape, op, children }, hole: children.every((c) => c.hole) });
 }
 
@@ -857,7 +860,7 @@ export function ungroupSelection() {
   }
   commit({ ...doc, bodies });
   set({ selection: newSel, ...noEdit });
-  if (lostFeatures) toast("Rundungen der Gruppe wurden beim Trennen entfernt");
+  if (lostFeatures) toast(t("The group's fillets were removed when splitting"));
 }
 
 /* ------------------------------------------------------------------ */
@@ -951,9 +954,9 @@ export function loadSpeakerExample(unit: Unit) {
   const d = 180; // depth
   const h = 25; // rise at the back (~7.9°)
   doc.bodies = [
-    mk("Keil links", { kind: "wedge", w: 20, d, h }, [-w / 2, -d / 2, 0], "#4f8ff7"),
-    mk("Keil rechts", { kind: "wedge", w: 20, d, h }, [w / 2 - 20, -d / 2, 0], "#4f8ff7"),
-    mk("Steg hinten", { kind: "box", w: w - 40, d: 15, h: 10 }, [-w / 2 + 20, d / 2 - 15, 0], "#f5a524"),
+    mk(t("Left wedge"), { kind: "wedge", w: 20, d, h }, [-w / 2, -d / 2, 0], "#4f8ff7"),
+    mk(t("Right wedge"), { kind: "wedge", w: 20, d, h }, [w / 2 - 20, -d / 2, 0], "#4f8ff7"),
+    mk(t("Back bar"), { kind: "box", w: w - 40, d: 15, h: 10 }, [-w / 2 + 20, d / 2 - 15, 0], "#f5a524"),
   ];
   const s = get();
   set({ doc, past: s.doc.bodies.length ? [...s.past, s.doc] : s.past, future: [], selection: [], ...noEdit, startDialog: false, tool: "select", view: "iso" });
@@ -980,17 +983,17 @@ export function loadPhoneStandExample(unit: Unit) {
   });
   const s45 = Math.SQRT1_2;
   const children = [
-    part("Grundplatte", { kind: "box", w: 84, d: 70, h: 6 }, [-42, -45, 0]),
+    part(t("Base plate"), { kind: "box", w: 84, d: 70, h: 6 }, [-42, -45, 0]),
     // leans back at about 65°
-    part("Lehne", { kind: "wedge", w: 76, d: 35, h: 75 }, [-38, -16, 6]),
-    part("Lippe", { kind: "box", w: 76, d: 6, h: 14 }, [-38, -36, 6]),
-    part("Kabelschlitz", { kind: "box", w: 16, d: 8, h: 16 }, [-8, -37, 6], true),
+    part(t("Backrest"), { kind: "wedge", w: 76, d: 35, h: 75 }, [-38, -16, 6]),
+    part(t("Lip"), { kind: "box", w: 76, d: 6, h: 14 }, [-38, -36, 6]),
+    part(t("Cable slot"), { kind: "box", w: 16, d: 8, h: 16 }, [-8, -37, 6], true),
     // a cylinder turned onto the Y axis: the channel for the charging cable
-    part("Kabelkanal", { kind: "cylinder", d: 10, h: 40 }, [0, 22, 12.5], true, [s45, 0, 0, s45]),
+    part(t("Cable channel"), { kind: "cylinder", d: 10, h: 40 }, [0, 22, 12.5], true, [s45, 0, 0, s45]),
   ];
   const stand: Body = {
     id: uid(),
-    name: "Handyständer",
+    name: t("Phone stand"),
     shape: { kind: "group", op: "union", children },
     position: [0, 0, 0],
     quaternion: [0, 0, 0, 1],
@@ -1020,7 +1023,7 @@ export async function importFiles(files: File[]) {
   for (const file of files) {
     const format = detectFormat(file.name);
     if (!format) {
-      toast(`„${file.name}“: Format nicht unterstützt (STEP, STL, 3MF oder OBJ)`, "error");
+      toast(t("“{file}”: format not supported (STEP, STL, 3MF or OBJ)", { file: file.name }), "error");
       continue;
     }
     const base = file.name.replace(/\.[^.]+$/, "");
@@ -1042,12 +1045,12 @@ export async function importFiles(files: File[]) {
       } else {
         toast(
           format === "step"
-            ? `Importiere „${file.name}“ …`
-            : `Importiere „${file.name}“: ${triangles.toLocaleString("de-DE")} Dreiecke werden in CAD-Flächen umgewandelt …`,
+            ? t("Importing “{file}”…", { file: file.name })
+            : t("Importing “{file}”: converting {n} triangles into CAD faces…", { file: file.name, n: triangles.toLocaleString(locale()) }),
         );
         parts = await importAsset(id, payload);
       }
-      if (!parts.length) throw new Error("keine Volumenkörper gefunden");
+      if (!parts.length) throw new Error("no solids found");
 
       // keep the parts' arrangement, sit them on the bed next to what is already there
       const all = new THREE.Box3();
@@ -1078,14 +1081,17 @@ export async function importFiles(files: File[]) {
       fitView();
       const maxDim = Math.max(size.x, size.y, size.z);
       toast(
-        `„${file.name}“ importiert: ${parts.length} Körper` +
+        (parts.length === 1 ? t("“{file}” imported: 1 body", { file: file.name }) : t("“{file}” imported: {n} bodies", { file: file.name, n: parts.length })) +
           (asMesh
-            ? ` als Mesh (${triangles.toLocaleString("de-DE")} Dreiecke): verschieben, drehen, exportieren. Für Kanten/Flächen/Vereinen mit weniger Auflösung oder als STEP exportieren`
+            ? " " +
+              t("as a mesh ({n} triangles): move, rotate, export. For edges/faces/combining, export with less resolution or as STEP", {
+                n: triangles.toLocaleString(locale()),
+              })
             : "") +
-          (maxDim < 2 ? " · sehr klein: evtl. in Metern/Zoll exportiert → Skalierung im Panel anpassen" : ""),
+          (maxDim < 2 ? " · " + t("very small: maybe exported in meters/inches → adjust the scale in the panel") : ""),
       );
     } catch (err) {
-      toast(`„${file.name}“ konnte nicht importiert werden: ${(err as Error).message}`, "error");
+      toast(t("“{file}” could not be imported: {error}", { file: file.name, error: tMsg((err as Error).message) }), "error");
     }
   }
 }
@@ -1096,7 +1102,7 @@ export const isMeshBody = (b: Body) => b.shape.kind === "imported" && b.shape.mo
 export async function convertMeshAsset(assetId: string) {
   const payload = assetPayload(assetId);
   if (!payload || payload.format !== "mesh") return;
-  toast(`Wandle ${triangleCountOf(payload).toLocaleString("de-DE")} Dreiecke in CAD-Flächen um … (unten rechts abbrechbar)`);
+  toast(t("Converting {n} triangles into CAD faces… (can be canceled at the bottom right)", { n: triangleCountOf(payload).toLocaleString(locale()) }));
   try {
     const parts = await importAsset(assetId, payload);
     const doc = get().doc;
@@ -1115,9 +1121,9 @@ export async function convertMeshAsset(assetId: string) {
     rest.splice(Math.min(firstIdx, rest.length), 0, ...created);
     commit({ ...doc, bodies: rest });
     set({ selection: created.map((b) => b.id) });
-    toast("In CAD-Körper umgewandelt. Kanten, Flächen und Vereinen sind jetzt möglich");
+    toast(t("Converted to CAD bodies. Edges, faces and combining are now possible"));
   } catch (err) {
-    toast(`Umwandlung fehlgeschlagen: ${(err as Error).message}`, "error");
+    toast(t("Conversion failed: {error}", { error: tMsg((err as Error).message) }), "error");
   }
 }
 

@@ -74,6 +74,7 @@ import { assetPayload, useMeshes } from "../cad/client";
 import { fmtLen, SNAP_OPTIONS } from "../lib/units";
 import { ORIENT_LABEL, PLANE_AXIS, PLANE_AXIS_NAME, viewAxis } from "../lib/planes";
 import { LenField, NumField, Seg, Switch } from "./fields";
+import { locale, t, tMsg, tn } from "../i18n";
 
 const ICON: Record<ShapeKind, ReactNode> = {
   box: <Box size={14} />,
@@ -119,11 +120,11 @@ function SceneTree() {
   return (
     <div className="max-h-[38%] min-h-[110px] flex flex-col border-b border-ink-750">
       <div className="panel-title px-3.5 pt-3 !mb-1.5">
-        <span>Objekte</span>
+        <span>{t("Objects")}</span>
         <span className="normal-case tracking-normal text-ink-500">{bodies.length + sketches.length}</span>
       </div>
       <div className="overflow-y-auto scroll-thin px-1.5 pb-2">
-        {empty && <div className="text-ink-500 px-2 py-3 text-[12px]">Noch nichts da. Zeichne eine Skizze oder füge einen Körper ein.</div>}
+        {empty && <div className="text-ink-500 px-2 py-3 text-[12px]">{t("Nothing here yet. Draw a sketch or add a body.")}</div>}
         {bodies.map((b) => (
           <div key={b.id}>
             <div
@@ -146,10 +147,10 @@ function SceneTree() {
               </span>
               <span className={`truncate flex-1 ${b.hidden ? "opacity-40" : ""}`}>{b.name}</span>
               {b.features.length > 0 && <SquareRoundCorner size={12} className="text-ink-500" />}
-              {b.hole && <span className="text-[10px] px-1.5 rounded bg-ink-700 text-ink-300">Loch</span>}
+              {b.hole && <span className="text-[10px] px-1.5 rounded bg-ink-700 text-ink-300">{t("Hole")}</span>}
               <button
                 className="opacity-0 group-hover:opacity-100 text-ink-400 hover:text-white"
-                title={b.hidden ? "Einblenden" : "Ausblenden"}
+                title={b.hidden ? t("Show") : t("Hide")}
                 onClick={(e) => {
                   e.stopPropagation();
                   updateBody(b.id, { hidden: !b.hidden });
@@ -164,7 +165,7 @@ function SceneTree() {
                   <div key={c.id} className="flex items-center gap-1.5 h-6 px-2 text-ink-400 text-[12px]">
                     <span style={{ color: c.hole ? "#94a3b8" : c.color }}>{ICON[c.shape.kind]}</span>
                     <span className="truncate">{c.name}</span>
-                    {c.hole && <span className="text-[10px] px-1 rounded bg-ink-750">Loch</span>}
+                    {c.hole && <span className="text-[10px] px-1 rounded bg-ink-750">{t("Hole")}</span>}
                   </div>
                 ))}
               </div>
@@ -179,7 +180,7 @@ function SceneTree() {
           >
             <span className="text-sky-400">{SKETCH_ICON[s.shape.kind]}</span>
             <span className="truncate flex-1">{s.name}</span>
-            <span className="text-[10px] px-1.5 rounded bg-sky-900/50 text-sky-300">Skizze</span>
+            <span className="text-[10px] px-1.5 rounded bg-sky-900/50 text-sky-300">{t("Sketch")}</span>
           </div>
         ))}
       </div>
@@ -235,7 +236,7 @@ function NameField({ value, onChange }: { value: string; onChange: (v: string) =
   );
 }
 
-const FEATURE_NAME = { fillet: "Rundung", chamfer: "Fase", push: "Fläche versetzt", tilt: "Fläche geneigt" } as const;
+const FEATURE_NAME = { fillet: "Fillet", chamfer: "Chamfer", push: "Face offset", tilt: "Face tilt" } as const;
 
 const COLORS = ["#4f8ff7", "#f5a524", "#22c55e", "#ef4444", "#a855f7", "#14b8a6", "#e5e7eb", "#475569"];
 
@@ -244,14 +245,17 @@ function BodyProps({ body }: { body: Body }) {
   useStore((s) => s.doc); // refresh box after mesh updates
   const box = unionBox([body]);
   const euler = eulerDeg(body.quaternion);
-  const warnings = [...(entry?.mesh?.warnings ?? []), ...(entry?.error ? [`Geometriefehler: ${entry.error}`] : [])];
+  const warnings = [
+    ...(entry?.mesh?.warnings ?? []).map((w) => tMsg(w)),
+    ...(entry?.error ? [t("Geometry error: {error}", { error: tMsg(entry.error) })] : []),
+  ];
   return (
     <>
       <div className="px-3.5 pt-3 pb-3">
         <div className="flex items-center gap-2 text-ink-400 text-[11px] mb-1">
           <span style={{ color: body.hole ? "#94a3b8" : body.color }}>{ICON[body.shape.kind]}</span>
-          {body.shape.kind === "group" ? OP_NAME[body.shape.op ?? "union"] : KIND_LABEL[body.shape.kind]}
-          {body.shape.kind === "group" && ` · ${body.shape.children.length} Teile`}
+          {body.shape.kind === "group" ? t(OP_NAME[body.shape.op ?? "union"]) : t(KIND_LABEL[body.shape.kind])}
+          {body.shape.kind === "group" && ` · ${t("{count} parts", { count: body.shape.children.length })}`}
         </div>
         <NameField value={body.name} onChange={(name) => updateBody(body.id, { name })} />
         <div className="flex items-center gap-2 mt-3">
@@ -260,8 +264,8 @@ function BodyProps({ body }: { body: Body }) {
             disabled={isMeshBody(body)}
             onChange={(v) => updateBody(body.id, { hole: v === "hole" })}
             options={[
-              { value: "solid", label: "Volumen", title: "Normaler, gedruckter Körper" },
-              { value: "hole", label: "Loch", title: "Wird beim Vereinen/Export abgezogen" },
+              { value: "solid", label: t("Solid"), title: t("Normal, printed body") },
+              { value: "hole", label: t("Hole"), title: t("Subtracted on union/export") },
             ]}
           />
           {!body.hole && (
@@ -284,33 +288,36 @@ function BodyProps({ body }: { body: Body }) {
         ))}
       </div>
 
-      <Section title="Abmessungen">
+      <Section title={t("Dimensions")}>
         <ShapeParams body={body} />
       </Section>
 
       {body.shape.kind === "group" && <GroupParts body={body as GroupBody} />}
 
       <Section
-        title="Position"
+        title={t("Position")}
         right={
-          <button className="btn ghost !h-6 !px-1.5 normal-case tracking-normal text-[11px]" title="Unterkante auf Z = 0" onClick={dropToBed}>
-            <ArrowDownToLine size={13} /> Aufs Bett
+          <button className="btn ghost !h-6 !px-1.5 normal-case tracking-normal text-[11px]" title={t("Bottom to Z = 0")} onClick={dropToBed}>
+            <ArrowDownToLine size={13} /> {t("Drop to bed")}
           </button>
         }
       >
         <div className="grid grid-cols-3 gap-1.5">
-          <LenField label="X" mm={box.min.x} onChange={(v) => setSelectionMin(0, v)} title="Linke Kante (Bounding Box)" />
-          <LenField label="Y" mm={box.min.y} onChange={(v) => setSelectionMin(1, v)} title="Vordere Kante (Bounding Box)" />
-          <LenField label="Z" mm={box.min.z} onChange={(v) => setSelectionMin(2, v)} title="Unterkante (Bounding Box)" />
+          <LenField label="X" mm={box.min.x} onChange={(v) => setSelectionMin(0, v)} title={t("Left edge (bounding box)")} />
+          <LenField label="Y" mm={box.min.y} onChange={(v) => setSelectionMin(1, v)} title={t("Front edge (bounding box)")} />
+          <LenField label="Z" mm={box.min.z} onChange={(v) => setSelectionMin(2, v)} title={t("Bottom edge (bounding box)")} />
         </div>
         <div className="text-[11px] text-ink-500 mt-1.5">
-          Größe gesamt: {fmtLen(box.max.x - box.min.x, useStore.getState().doc.settings.unit)} ×{" "}
-          {fmtLen(box.max.y - box.min.y, useStore.getState().doc.settings.unit)} × {fmtLen(box.max.z - box.min.z, useStore.getState().doc.settings.unit)}
+          {t("Overall size: {x} × {y} × {z}", {
+            x: fmtLen(box.max.x - box.min.x, useStore.getState().doc.settings.unit),
+            y: fmtLen(box.max.y - box.min.y, useStore.getState().doc.settings.unit),
+            z: fmtLen(box.max.z - box.min.z, useStore.getState().doc.settings.unit),
+          })}
         </div>
         <CenterButtons />
       </Section>
 
-      <Section title="Drehung">
+      <Section title={t("Rotation")}>
         <div className="grid grid-cols-3 gap-1.5 mb-2">
           <NumField label="X" value={euler[0]} suffix="°" step={15} onChange={(v) => setBodyEuler(body.id, [v, euler[1], euler[2]])} />
           <NumField label="Y" value={euler[1]} suffix="°" step={15} onChange={(v) => setBodyEuler(body.id, [euler[0], v, euler[2]])} />
@@ -318,40 +325,40 @@ function BodyProps({ body }: { body: Body }) {
         </div>
         <RotateButtons />
         <button className="btn w-full mt-2" onClick={() => setTool("layflat")}>
-          <ArrowDownToLine size={14} /> Fläche aufs Bett legen…
+          <ArrowDownToLine size={14} /> {t("Lay a face flat…")}
         </button>
       </Section>
 
       {!isMeshBody(body) && <Section
-        title="Bearbeitungen"
+        title={t("Edits")}
         right={
           <button className="btn ghost !h-6 !px-1.5 normal-case tracking-normal text-[11px]" style={{ color: TOOL_COLOR.edit }} onClick={() => setTool("edit")}>
-            <SquareRoundCorner size={13} /> Kanten & Flächen
+            <SquareRoundCorner size={13} /> {t("Edges & Faces")}
           </button>
         }
       >
         {body.features.length === 0 ? (
           <div className="text-ink-500 text-[12px]">
-            Noch keine. Mit <kbd>F</kbd> (oder Doppelklick auf den Körper) Kanten runden/fasen sowie Flächen verschieben oder neigen.
+            {tn("None yet. Press {key} (or double-click the body) to fillet or chamfer edges and to move or tilt faces.", { key: <kbd>F</kbd> })}
           </div>
         ) : (
           <div className="flex flex-col gap-1.5">
             {body.features.map((f, i) => (
               <div key={f.id} className="flex items-center gap-1.5">
-                <span className="text-ink-400 text-[12px] w-[104px] shrink-0 truncate" title={FEATURE_NAME[f.type]}>
-                  {i + 1}. {FEATURE_NAME[f.type]}
+                <span className="text-ink-400 text-[12px] w-[104px] shrink-0 truncate" title={t(FEATURE_NAME[f.type])}>
+                  {i + 1}. {t(FEATURE_NAME[f.type])}
                   {(f.type === "fillet" || f.type === "chamfer") && ` · ${f.edges.length}`}
                 </span>
                 <div className="flex-1 min-w-0">
                   {f.type === "fillet" || f.type === "chamfer" ? (
                     <LenField label={f.type === "fillet" ? "R" : "D"} mm={f.radius} min={0.01} onChange={(v) => updateFeature(body.id, f.id, { radius: v })} />
                   ) : f.type === "push" ? (
-                    <LenField label="↕" mm={f.distance} onChange={(v) => updateFeature(body.id, f.id, { distance: v })} title="Positiv = nach außen, negativ = nach innen" />
+                    <LenField label="↕" mm={f.distance} onChange={(v) => updateFeature(body.id, f.id, { distance: v })} title={t("Positive = outward, negative = inward")} />
                   ) : (
                     <NumField label="∠" value={(f as TiltFeature).angle} suffix="°" step={1} min={-85} max={85} onChange={(v) => updateFeature(body.id, f.id, { angle: v })} />
                   )}
                 </div>
-                <button className="btn ghost danger !px-1.5" title="Entfernen" onClick={() => removeFeature(body.id, f.id)}>
+                <button className="btn ghost danger !px-1.5" title={t("Remove")} onClick={() => removeFeature(body.id, f.id)}>
                   <Trash2 size={14} />
                 </button>
               </div>
@@ -360,17 +367,17 @@ function BodyProps({ body }: { body: Body }) {
         )}
       </Section>}
 
-      <Section title="Aktionen">
+      <Section title={t("Actions")}>
         <div className="grid grid-cols-2 gap-1.5">
           <button className="btn" onClick={duplicateSelection}>
-            <Copy size={14} /> Duplizieren
+            <Copy size={14} /> {t("Duplicate")}
           </button>
           <button className="btn danger" onClick={deleteSelection}>
-            <Trash2 size={14} /> Löschen
+            <Trash2 size={14} /> {t("Delete")}
           </button>
           {body.shape.kind === "group" && (
             <button className="btn col-span-2" onClick={ungroupSelection}>
-              <Ungroup size={14} /> Gruppe trennen
+              <Ungroup size={14} /> {t("Ungroup")}
             </button>
           )}
         </div>
@@ -380,18 +387,18 @@ function BodyProps({ body }: { body: Body }) {
 }
 
 /** middle of the bed in X/Y: by default in whole grid steps (stays on the grid), or exactly */
-function CenterButtons({ label = "Zentrieren" }: { label?: string }) {
+function CenterButtons({ label }: { label?: string }) {
   return (
     <div className="flex gap-1.5 mt-2">
       <button
         className="btn flex-1"
-        title="Mittig aufs Druckbett (X und Y, die Höhe bleibt), in ganzen Rasterschritten, damit alles im Raster bleibt (M)"
+        title={t("Center on the print bed (X and Y, the height stays), in whole grid steps so everything stays on the grid (M)")}
         onClick={() => centerOnBed(false)}
       >
-        <LocateFixed size={14} /> {label}
+        <LocateFixed size={14} /> {label ?? t("Center")}
       </button>
-      <button className="btn !px-2.5" title="Exakt mittig, auch wenn es dann nicht mehr genau im Raster liegt (Shift+M)" onClick={() => centerOnBed(true)}>
-        exakt
+      <button className="btn !px-2.5" title={t("Exactly centered, even if it is then no longer exactly on the grid (Shift+M)")} onClick={() => centerOnBed(true)}>
+        {t("exactly")}
       </button>
     </div>
   );
@@ -403,11 +410,11 @@ function RotateButtons() {
     <div className="grid grid-cols-3 gap-1.5">
       {axes.map((a, i) => (
         <div key={a} className="flex">
-          <button className="btn flex-1 !rounded-r-none !px-1" title={`-90° um ${a}`} onClick={() => rotateSelection(i as 0 | 1 | 2, -90)}>
+          <button className="btn flex-1 !rounded-r-none !px-1" title={t("-90° around {axis}", { axis: a })} onClick={() => rotateSelection(i as 0 | 1 | 2, -90)}>
             <RotateCcw size={13} />
           </button>
           <span className="w-6 grid place-items-center bg-ink-900 border-y border-ink-700 text-[11px] text-ink-300">{a}</span>
-          <button className="btn flex-1 !rounded-l-none !px-1" title={`+90° um ${a}`} onClick={() => rotateSelection(i as 0 | 1 | 2, 90)}>
+          <button className="btn flex-1 !rounded-l-none !px-1" title={t("+90° around {axis}", { axis: a })} onClick={() => rotateSelection(i as 0 | 1 | 2, 90)}>
             <RotateCw size={13} />
           </button>
         </div>
@@ -424,9 +431,9 @@ function ShapeParams({ body, onShape }: { body: Body; onShape?: (shape: Shape) =
     case "box":
       return (
         <div className="grid grid-cols-3 gap-1.5">
-          <LenField label="B" title="Breite (X)" mm={s.w} min={min} onChange={(w) => set({ ...s, w })} />
-          <LenField label="T" title="Tiefe (Y)" mm={s.d} min={min} onChange={(d) => set({ ...s, d })} />
-          <LenField label="H" title="Höhe (Z)" mm={s.h} min={min} onChange={(h) => set({ ...s, h })} />
+          <LenField label={t("W")} title={t("Width (X)")} mm={s.w} min={min} onChange={(w) => set({ ...s, w })} />
+          <LenField label={t("D")} title={t("Depth (Y)")} mm={s.d} min={min} onChange={(d) => set({ ...s, d })} />
+          <LenField label={t("H")} title={t("Height (Z)")} mm={s.h} min={min} onChange={(h) => set({ ...s, h })} />
         </div>
       );
     case "wedge": {
@@ -434,13 +441,13 @@ function ShapeParams({ body, onShape }: { body: Body; onShape?: (shape: Shape) =
       return (
         <>
           <div className="grid grid-cols-3 gap-1.5">
-            <LenField label="B" title="Breite (X)" mm={s.w} min={min} onChange={(w) => set({ ...s, w })} />
-            <LenField label="T" title="Tiefe / Länge der Rampe (Y)" mm={s.d} min={min} onChange={(d) => set({ ...s, d })} />
-            <LenField label="H" title="Höhe am hohen Ende (Z)" mm={s.h} min={min} onChange={(h) => set({ ...s, h })} />
+            <LenField label={t("W")} title={t("Width (X)")} mm={s.w} min={min} onChange={(w) => set({ ...s, w })} />
+            <LenField label={t("D")} title={t("Depth / ramp length (Y)")} mm={s.d} min={min} onChange={(d) => set({ ...s, d })} />
+            <LenField label={t("H")} title={t("Height at the high end (Z)")} mm={s.h} min={min} onChange={(h) => set({ ...s, h })} />
           </div>
           <div className="grid grid-cols-2 gap-1.5 mt-1.5">
             <NumField
-              label="Winkel"
+              label={t("Angle")}
               value={angle}
               suffix="°"
               step={1}
@@ -448,7 +455,7 @@ function ShapeParams({ body, onShape }: { body: Body; onShape?: (shape: Shape) =
               max={89.9}
               onChange={(a) => set({ ...s, h: Math.round(s.d * Math.tan((a * Math.PI) / 180) * 1000) / 1000 })}
             />
-            <div className="text-[11px] text-ink-500 self-center leading-tight">Winkel ändert die Höhe, Tiefe bleibt</div>
+            <div className="text-[11px] text-ink-500 self-center leading-tight">{t("Angle changes the height, depth stays")}</div>
           </div>
         </>
       );
@@ -456,30 +463,30 @@ function ShapeParams({ body, onShape }: { body: Body; onShape?: (shape: Shape) =
     case "cylinder":
       return (
         <Grid2>
-          <LenField label="Ø" title="Durchmesser" mm={s.d} min={min} onChange={(d) => set({ ...s, d })} />
-          <LenField label="H" title="Höhe" mm={s.h} min={min} onChange={(h) => set({ ...s, h })} />
+          <LenField label="Ø" title={t("Diameter")} mm={s.d} min={min} onChange={(d) => set({ ...s, d })} />
+          <LenField label={t("H")} title={t("Height")} mm={s.h} min={min} onChange={(h) => set({ ...s, h })} />
         </Grid2>
       );
     case "cone":
       return (
         <div className="grid grid-cols-3 gap-1.5">
-          <LenField label="Ø↓" title="Durchmesser unten" mm={s.d1} min={0} onChange={(d1) => set({ ...s, d1 })} />
-          <LenField label="Ø↑" title="Durchmesser oben" mm={s.d2} min={0} onChange={(d2) => set({ ...s, d2 })} />
-          <LenField label="H" title="Höhe" mm={s.h} min={min} onChange={(h) => set({ ...s, h })} />
+          <LenField label="Ø↓" title={t("Bottom diameter")} mm={s.d1} min={0} onChange={(d1) => set({ ...s, d1 })} />
+          <LenField label="Ø↑" title={t("Top diameter")} mm={s.d2} min={0} onChange={(d2) => set({ ...s, d2 })} />
+          <LenField label={t("H")} title={t("Height")} mm={s.h} min={min} onChange={(h) => set({ ...s, h })} />
         </div>
       );
     case "sphere":
       return (
         <Grid2>
-          <LenField label="Ø" title="Durchmesser" mm={s.d} min={min} onChange={(d) => set({ ...s, d })} />
+          <LenField label="Ø" title={t("Diameter")} mm={s.d} min={min} onChange={(d) => set({ ...s, d })} />
         </Grid2>
       );
     case "tube":
       return (
         <div className="grid grid-cols-3 gap-1.5">
-          <LenField label="Ø" title="Außendurchmesser" mm={s.d} min={min} onChange={(d) => set({ ...s, d, t: Math.min(s.t, d / 2 - 0.01) })} />
-          <LenField label="W" title="Wandstärke" mm={s.t} min={0.05} onChange={(t) => set({ ...s, t: Math.min(t, s.d / 2 - 0.01) })} />
-          <LenField label="H" title="Höhe" mm={s.h} min={min} onChange={(h) => set({ ...s, h })} />
+          <LenField label="Ø" title={t("Outer diameter")} mm={s.d} min={min} onChange={(d) => set({ ...s, d, t: Math.min(s.t, d / 2 - 0.01) })} />
+          <LenField label="W" title={t("Wall thickness")} mm={s.t} min={0.05} onChange={(t) => set({ ...s, t: Math.min(t, s.d / 2 - 0.01) })} />
+          <LenField label={t("H")} title={t("Height")} mm={s.h} min={min} onChange={(h) => set({ ...s, h })} />
         </div>
       );
     case "prism": {
@@ -494,9 +501,9 @@ function ShapeParams({ body, onShape }: { body: Body; onShape?: (shape: Shape) =
       };
       return (
         <div className="grid grid-cols-3 gap-1.5">
-          <LenField label="B" mm={pb.maxX - pb.minX} min={min} onChange={(v) => scale(0, v)} />
-          <LenField label="T" mm={pb.maxY - pb.minY} min={min} onChange={(v) => scale(1, v)} />
-          <LenField label="H" mm={s.h} min={min} onChange={(h) => set({ ...s, h })} />
+          <LenField label={t("W")} mm={pb.maxX - pb.minX} min={min} onChange={(v) => scale(0, v)} />
+          <LenField label={t("D")} mm={pb.maxY - pb.minY} min={min} onChange={(v) => scale(1, v)} />
+          <LenField label={t("H")} mm={s.h} min={min} onChange={(h) => set({ ...s, h })} />
         </div>
       );
     }
@@ -510,25 +517,25 @@ function ShapeParams({ body, onShape }: { body: Body; onShape?: (shape: Shape) =
       return (
         <>
           <div className="grid grid-cols-3 gap-1.5">
-            {(["B", "T", "H"] as const).map((l, a) => (
+            {(["W", "D", "H"] as const).map((l, a) => (
               <LenField
                 key={l}
-                label={l}
+                label={t(l)}
                 mm={dims[a]}
                 min={0.01}
-                title="Ändert die Größe proportional"
+                title={t("Resizes proportionally")}
                 onChange={(v) => dims[a] > 0 && scaleTo((k * v) / dims[a])}
               />
             ))}
           </div>
           <div className="flex items-center gap-1.5 mt-1.5">
             <div className="w-[120px]">
-              <NumField label="Faktor" value={k} step={0.1} digits={4} min={0.0001} onChange={scaleTo} />
+              <NumField label={t("Factor")} value={k} step={0.1} digits={4} min={0.0001} onChange={scaleTo} />
             </div>
-            <button className="btn !h-7 !px-2 text-[11px]" title="Datei war in cm" onClick={() => scaleTo(10)}>
+            <button className="btn !h-7 !px-2 text-[11px]" title={t("File was in cm")} onClick={() => scaleTo(10)}>
               cm→mm
             </button>
-            <button className="btn !h-7 !px-2 text-[11px]" title="Datei war in Zoll" onClick={() => scaleTo(25.4)}>
+            <button className="btn !h-7 !px-2 text-[11px]" title={t("File was in inches")} onClick={() => scaleTo(25.4)}>
               in→mm
             </button>
             <button className="btn ghost !h-7 !px-2 text-[11px]" onClick={() => scaleTo(1)}>
@@ -537,15 +544,21 @@ function ShapeParams({ body, onShape }: { body: Body; onShape?: (shape: Shape) =
           </div>
           <div className="text-[11px] text-ink-500 mt-2 leading-snug">
             {asset?.format === "step"
-              ? `Aus „${asset.name}“ (STEP): exakte CAD-Geometrie.`
+              ? t('From "{name}" (STEP): exact CAD geometry.', { name: asset.name })
               : s.mode === "mesh"
-                ? `Aus „${asset?.name ?? "Datei"}“ als Mesh (${tris.toLocaleString("de-DE")} Dreiecke): verschieben, drehen, aufs Bett legen und exportieren. Für Kanten, Flächen, Löcher und Vereinen in einen CAD-Körper umwandeln.`
-                : `Aus „${asset?.name ?? "Datei"}“ (${asset?.format.toUpperCase()}): ebene Flächen wurden zu CAD-Flächen zusammengefasst, Rundungen bleiben facettiert.`}
+                ? t(
+                    'From "{name}" as a mesh ({tris} triangles): move, rotate, lay flat and export. Convert to a CAD body for edges, faces, holes and union.',
+                    { name: asset?.name ?? t("File"), tris: tris.toLocaleString(locale()) },
+                  )
+                : t('From "{name}" ({format}): flat faces were merged into CAD faces, curves stay faceted.', {
+                    name: asset?.name ?? t("File"),
+                    format: asset?.format.toUpperCase() ?? "",
+                  })}
           </div>
           {s.mode === "mesh" && (
             <button className="btn w-full mt-2" onClick={() => convertMeshAsset(s.asset)}>
-              In CAD-Körper umwandeln
-              {tris > 40_000 && <span className="text-amber-300 text-[11px]">· kann Minuten dauern</span>}
+              {t("Convert to CAD body")}
+              {tris > 40_000 && <span className="text-amber-300 text-[11px]">· {t("may take minutes")}</span>}
             </button>
           )}
         </>
@@ -579,13 +592,13 @@ function GroupDims({ body, onShape }: { body: Body; onShape?: (shape: Shape) => 
   return (
     <>
       <div className="grid grid-cols-3 gap-1.5">
-        {(["B", "T", "H"] as const).map((l, a) => (
+        {(["W", "D", "H"] as const).map((l, a) => (
           <LenField
             key={l}
-            label={l}
+            label={t(l)}
             mm={dims[a]}
             min={0.05}
-            title={`${["Breite", "Tiefe", "Höhe"][a]}: skaliert alle Teile in dieser Richtung`}
+            title={t("{dim}: scales all parts in this direction", { dim: t(["Width", "Depth", "Height"][a]) })}
             onChange={(v) => {
               const f: Vec3 = [1, 1, 1];
               f[a] = v / Math.max(dims[a], 1e-6);
@@ -596,31 +609,31 @@ function GroupDims({ body, onShape }: { body: Body; onShape?: (shape: Shape) => 
       </div>
       <div className="flex items-center gap-1.5 mt-1.5">
         <div className="w-[130px]">
-          <NumField label="Skalieren" value={pct} suffix="%" step={5} min={1} onChange={setPct} />
+          <NumField label={t("Scale")} value={pct} suffix="%" step={5} min={1} onChange={setPct} />
         </div>
         <button
           className="btn !h-7 !px-2 text-[12px]"
           disabled={Math.abs(pct - 100) < 1e-9}
-          title="Alles proportional skalieren (bleibt mittig auf dem Bett)"
+          title={t("Scale everything proportionally (stays centered on the bed)")}
           onClick={() => {
             const k = pct / 100;
             apply([k, k, k], true);
             setPct(100);
           }}
         >
-          Anwenden
+          {t("Apply")}
         </button>
       </div>
-      <div className="text-[11px] text-ink-500 mt-1.5 leading-snug">Ziehen an den Griffen skaliert ebenfalls · mit Shift proportional.</div>
+      <div className="text-[11px] text-ink-500 mt-1.5 leading-snug">{t("Dragging the handles scales too · with Shift proportionally.")}</div>
     </>
   );
 }
 
 const ROLE: Record<string, { label: string; cls: string }> = {
-  base: { label: "Basis", cls: "bg-accent/25 text-sky-200" },
-  tool: { label: "wird abgezogen", cls: "bg-rose-500/20 text-rose-300" },
-  solid: { label: "Volumen", cls: "bg-ink-700 text-ink-300" },
-  hole: { label: "Loch", cls: "bg-ink-700 text-ink-300" },
+  base: { label: "Base", cls: "bg-accent/25 text-sky-200" },
+  tool: { label: "subtracted", cls: "bg-rose-500/20 text-rose-300" },
+  solid: { label: "Solid", cls: "bg-ink-700 text-ink-300" },
+  hole: { label: "Hole", cls: "bg-ink-700 text-ink-300" },
 };
 
 /** the parts inside a combined body: operation, roles, and each part's own dimensions/position */
@@ -631,17 +644,17 @@ function GroupParts({ body }: { body: GroupBody }) {
   const setOpen = (childId: string | null) => useStore.setState({ groupFocus: childId ? { groupId: body.id, childId } : null });
   const rotated = body.quaternion.some((v, i) => Math.abs(v - (i === 3 ? 1 : 0)) > 1e-9);
   return (
-    <Section title="Teile & Verknüpfung">
+    <Section title={t("Parts & Operation")}>
       <div className="seg w-full mb-2 !flex">
         {OPS.map((o) => (
           <button
             key={o.op}
             className={`flex-1 ${op === o.op ? "on" : ""}`}
             style={op === o.op ? { background: `${TOOL_COLOR[o.op]}33`, color: TOOL_COLOR[o.op], boxShadow: `inset 0 0 0 1px ${TOOL_COLOR[o.op]}99` } : undefined}
-            title={o.tip}
+            title={t(o.tip)}
             onClick={() => setGroupOp(body.id, o.op as BoolOp)}
           >
-            {o.short}
+            {t(o.short)}
           </button>
         ))}
       </div>
@@ -658,7 +671,7 @@ function GroupParts({ body }: { body: GroupBody }) {
                 {isOpen ? <ChevronUp size={13} className="text-ink-400" /> : <ChevronDown size={13} className="text-ink-400" />}
                 <span style={{ color: c.hole ? "#94a3b8" : c.color }}>{ICON[c.shape.kind]}</span>
                 <span className="truncate flex-1 text-[12px]">{c.name}</span>
-                <span className={`text-[10px] px-1.5 rounded ${ROLE[role].cls}`}>{ROLE[role].label}</span>
+                <span className={`text-[10px] px-1.5 rounded ${ROLE[role].cls}`}>{t(ROLE[role].label)}</span>
               </div>
               {isOpen && (
                 <div className="px-2 pb-2 pt-0.5 flex flex-col gap-1.5">
@@ -669,7 +682,7 @@ function GroupParts({ body }: { body: GroupBody }) {
                         key={l}
                         label={l}
                         mm={cb.min.getComponent(a) + off[a]}
-                        title={rotated ? "Position innerhalb des gedrehten Körpers" : "Position (Unterkante / linke / vordere Kante)"}
+                        title={rotated ? t("Position inside the rotated body") : t("Position (bottom / left / front edge)")}
                         onChange={(v) => {
                           const p: Vec3 = [...c.position];
                           p[a] += v - (cb.min.getComponent(a) + off[a]);
@@ -680,17 +693,17 @@ function GroupParts({ body }: { body: GroupBody }) {
                   </div>
                   <div className="flex gap-1.5">
                     {op === "subtract" && i > 0 && (
-                      <button className="btn flex-1 !h-7 text-[12px]" title="Dieses Teil wird zur Basis, alles andere wird davon abgezogen" onClick={() => setGroupBase(body.id, c.id)}>
-                        Als Basis
+                      <button className="btn flex-1 !h-7 text-[12px]" title={t("This part becomes the base, everything else is subtracted from it")} onClick={() => setGroupBase(body.id, c.id)}>
+                        {t("Set as base")}
                       </button>
                     )}
                     {op !== "subtract" && op !== "intersect" && (
                       <button className="btn flex-1 !h-7 text-[12px]" onClick={() => updateGroupChild(body.id, c.id, { hole: !c.hole })}>
-                        {c.hole ? "Als Volumen" : "Als Loch"}
+                        {c.hole ? t("Set as solid") : t("Set as hole")}
                       </button>
                     )}
-                    <button className="btn flex-1 !h-7 text-[12px]" title="Aus dem Körper herauslösen, bleibt an seinem Platz" onClick={() => extractGroupChild(body.id, c.id)}>
-                      <LogOut size={13} /> Herauslösen
+                    <button className="btn flex-1 !h-7 text-[12px]" title={t("Take out of the body, stays in place")} onClick={() => extractGroupChild(body.id, c.id)}>
+                      <LogOut size={13} /> {t("Extract")}
                     </button>
                   </div>
                 </div>
@@ -701,12 +714,12 @@ function GroupParts({ body }: { body: GroupBody }) {
       </div>
       <div className="text-[11px] text-ink-500 mt-2 leading-snug">
         {op === "subtract"
-          ? "Die abgezogenen Teile sind unsichtbar, aber da: Teil aufklappen zum Ändern, es wird im Modell orange angezeigt."
+          ? t("Subtracted parts are invisible but still there: expand a part to edit it, it is shown in orange in the model.")
           : op === "intersect"
-            ? "Übrig bleibt nur, was alle Teile gemeinsam haben."
+            ? t("Only what all parts have in common remains.")
             : op === "group"
-              ? "Teile bleiben getrennte Volumen und bewegen sich gemeinsam."
-              : "Teile sind zu einem Körper verschmolzen; Löcher werden abgezogen."}
+              ? t("Parts stay separate solids and move together.")
+              : t("Parts are merged into one body; holes are subtracted.")}
       </div>
     </Section>
   );
@@ -722,7 +735,7 @@ function MultiProps({ bodies }: { bodies: Body[] }) {
     <div className="flex items-center gap-1.5">
       <span className="w-4 text-ink-400 text-[11px]">{label}</span>
       {(["min", "center", "max"] as const).map((m, i) => (
-        <button key={m} className="btn flex-1" title={`${label}: ${m === "min" ? "Anfang" : m === "center" ? "Mitte" : "Ende"} bündig`} onClick={() => alignSelection(axis, m)}>
+        <button key={m} className="btn flex-1" title={t(m === "min" ? "{axis}: align start" : m === "center" ? "{axis}: align center" : "{axis}: align end", { axis: label })} onClick={() => alignSelection(axis, m)}>
           {icons[i]}
         </button>
       ))}
@@ -731,7 +744,7 @@ function MultiProps({ bodies }: { bodies: Body[] }) {
   return (
     <>
       <div className="px-3.5 pt-3 pb-3">
-        <div className="text-[15px] font-semibold">{bodies.length} Körper ausgewählt</div>
+        <div className="text-[15px] font-semibold">{t("{count} bodies selected", { count: bodies.length })}</div>
         <div className="text-[11px] text-ink-500 mt-0.5">
           {fmtLen(box.max.x - box.min.x, unit)} × {fmtLen(box.max.y - box.min.y, unit)} × {fmtLen(box.max.z - box.min.z, unit)}
         </div>
@@ -741,47 +754,59 @@ function MultiProps({ bodies }: { bodies: Body[] }) {
               key={o.op}
               className="btn op-btn !h-9"
               style={{ "--tc": TOOL_COLOR[o.op] } as React.CSSProperties}
-              title={o.tip + (o.kbd ? ` (${o.kbd})` : "")}
+              title={t(o.tip) + (o.kbd ? ` (${t(o.kbd)})` : "")}
               onClick={() => combineSelection(o.op)}
             >
-              {o.icon(16)} {o.label}
+              {o.icon(16)} {t(o.label)}
             </button>
           ))}
         </div>
         <div className="text-[11px] text-ink-500 mt-2 leading-snug">
-          Reihenfolge zählt beim Abziehen: <b className="text-ink-300">{ordered[0]?.name}</b> ist die Basis
-          {ordered.length > 1 && <>, {ordered.slice(1).map((b) => b.name).join(", ")} {ordered.length > 2 ? "werden" : "wird"} abgezogen</>}.
-          Nichts geht verloren: alle Teile bleiben im Ergebnis erhalten und änderbar.
+          {tn(
+            ordered.length > 2
+              ? "Order matters when subtracting: {base} is the base, {rest} are subtracted."
+              : ordered.length > 1
+                ? "Order matters when subtracting: {base} is the base, {rest} is subtracted."
+                : "Order matters when subtracting: {base} is the base.",
+            {
+              base: <b className="text-ink-300">{ordered[0]?.name}</b>,
+              rest: ordered
+                .slice(1)
+                .map((b) => b.name)
+                .join(", "),
+            },
+          )}{" "}
+          {t("Nothing gets lost: all parts stay in the result and remain editable.")}
         </div>
       </div>
-      <Section title="Ausrichten">
+      <Section title={t("Align")}>
         <div className="flex flex-col gap-1.5">
           <AlignRow axis={0} label="X" icons={[<AlignStartVertical size={14} />, <AlignCenterVertical size={14} />, <AlignEndVertical size={14} />]} />
           <AlignRow axis={1} label="Y" icons={[<AlignEndHorizontal size={14} />, <AlignCenterHorizontal size={14} />, <AlignStartHorizontal size={14} />]} />
           <AlignRow axis={2} label="Z" icons={[<AlignEndHorizontal size={14} />, <AlignCenterHorizontal size={14} />, <AlignStartHorizontal size={14} />]} />
         </div>
       </Section>
-      <Section title="Position (gemeinsam)">
+      <Section title={t("Position (together)")}>
         <div className="grid grid-cols-3 gap-1.5">
           <LenField label="X" mm={box.min.x} onChange={(v) => setSelectionMin(0, v)} />
           <LenField label="Y" mm={box.min.y} onChange={(v) => setSelectionMin(1, v)} />
           <LenField label="Z" mm={box.min.z} onChange={(v) => setSelectionMin(2, v)} />
         </div>
         <button className="btn w-full mt-2" onClick={dropToBed}>
-          <ArrowDownToLine size={14} /> Alle aufs Bett
+          <ArrowDownToLine size={14} /> {t("Drop all to bed")}
         </button>
-        <CenterButtons label="Gemeinsam zentrieren" />
+        <CenterButtons label={t("Center together")} />
       </Section>
-      <Section title="Drehen (gemeinsam)">
+      <Section title={t("Rotate (together)")}>
         <RotateButtons />
       </Section>
-      <Section title="Aktionen">
+      <Section title={t("Actions")}>
         <div className="grid grid-cols-2 gap-1.5">
           <button className="btn" onClick={duplicateSelection}>
-            <Copy size={14} /> Duplizieren
+            <Copy size={14} /> {t("Duplicate")}
           </button>
           <button className="btn danger" onClick={deleteSelection}>
-            <Trash2 size={14} /> Löschen
+            <Trash2 size={14} /> {t("Delete")}
           </button>
         </div>
       </Section>
@@ -801,21 +826,22 @@ function SketchProps({ sketch }: { sketch: Sketch }) {
     <>
       <div className="px-3.5 pt-3 pb-3">
         <div className="flex items-center gap-2 text-sky-400 text-[11px] mb-1">
-          {SKETCH_ICON[s.kind]} Skizze · {s.kind === "rect" ? "Rechteck" : s.kind === "circle" ? "Kreis" : "Polygon"} · {ORIENT_LABEL[sketch.plane.orient]}
+          {SKETCH_ICON[s.kind]} {t("Sketch")} · {t(s.kind === "rect" ? "Rectangle" : s.kind === "circle" ? "Circle" : "Polygon")} ·{" "}
+          {t(ORIENT_LABEL[sketch.plane.orient])}
         </div>
         <div className="text-[15px] font-semibold">{sketch.name}</div>
       </div>
-      <Section title="Abmessungen">
+      <Section title={t("Dimensions")}>
         {s.kind === "rect" && (
           <>
             <Grid2>
-              <LenField label="Breite" mm={s.w} min={0.05} onChange={(w) => upd({ ...s, w })} />
-              <LenField label={flat || sketch.plane.orient === "bottom" ? "Tiefe" : "Höhe"} mm={s.d} min={0.05} onChange={(d) => upd({ ...s, d })} />
-              <LenField label={flat ? "X" : "Links"} mm={s.x} onChange={(x) => upd({ ...s, x })} title="Linke Kante (in der Skizzenebene)" />
-              <LenField label={flat ? "Y" : "Unten"} mm={s.y} onChange={(y) => upd({ ...s, y })} title={flat ? "Vordere Kante" : "Untere Kante (in der Skizzenebene)"} />
+              <LenField label={t("Width")} mm={s.w} min={0.05} onChange={(w) => upd({ ...s, w })} />
+              <LenField label={flat || sketch.plane.orient === "bottom" ? t("Depth") : t("Height")} mm={s.d} min={0.05} onChange={(d) => upd({ ...s, d })} />
+              <LenField label={flat ? "X" : t("Left")} mm={s.x} onChange={(x) => upd({ ...s, x })} title={t("Left edge (in the sketch plane)")} />
+              <LenField label={flat ? "Y" : t("Bottom")} mm={s.y} onChange={(y) => upd({ ...s, y })} title={flat ? t("Front edge") : t("Bottom edge (in the sketch plane)")} />
             </Grid2>
             <div className="text-[11px] text-ink-500 mt-1.5">
-              Mitte: {fmtLen(s.x + s.w / 2, unit)} / {fmtLen(s.y + s.d / 2, unit)}
+              {t("Center: {x} / {y}", { x: fmtLen(s.x + s.w / 2, unit), y: fmtLen(s.y + s.d / 2, unit) })}
             </div>
           </>
         )}
@@ -823,44 +849,47 @@ function SketchProps({ sketch }: { sketch: Sketch }) {
           <Grid2>
             <LenField label="Ø" mm={s.d} min={0.05} onChange={(d) => upd({ ...s, d })} />
             <div />
-            <LenField label={flat ? "Mitte X" : "Mitte ↔"} mm={s.cx} onChange={(cx) => upd({ ...s, cx })} />
-            <LenField label={flat ? "Mitte Y" : "Mitte ↕"} mm={s.cy} onChange={(cy) => upd({ ...s, cy })} />
+            <LenField label={t("Center {axis}", { axis: flat ? "X" : "↔" })} mm={s.cx} onChange={(cx) => upd({ ...s, cx })} />
+            <LenField label={t("Center {axis}", { axis: flat ? "Y" : "↕" })} mm={s.cy} onChange={(cy) => upd({ ...s, cy })} />
           </Grid2>
         )}
         {s.kind === "poly" && (
           <div className="text-ink-300 text-[12px]">
-            {s.points.length} Punkte · Fläche {fmtLen(Math.abs(polygonArea(s.points)), unit).replace(/ (\w+)$/, " $1²")}
+            {t("{count} points · Area {area}", {
+              count: s.points.length,
+              area: fmtLen(Math.abs(polygonArea(s.points)), unit).replace(/ (\w+)$/, " $1²"),
+            })}
           </div>
         )}
         <div className="mt-1.5">
           <LenField
-            label={`Ebene ${PLANE_AXIS_NAME[PLANE_AXIS[sketch.plane.orient]]}`}
+            label={t("Plane {axis}", { axis: PLANE_AXIS_NAME[PLANE_AXIS[sketch.plane.orient]] })}
             mm={sketch.plane.value}
             onChange={(value) => updateSketch(sketch.id, s, { ...sketch.plane, value })}
-            title="Lage der Skizzenebene (auch oben rechts in der Ebenen-Vorschau ziehbar)"
+            title={t("Position of the sketch plane (can also be dragged in the plane preview at the top right)")}
           />
         </div>
       </Section>
-      <Section title="Extrudieren → 3D">
-        <LenField label="Höhe" mm={height} onChange={setHeight} />
+      <Section title={t("Extrude → 3D")}>
+        <LenField label={t("Height")} mm={height} onChange={setHeight} />
         <div className="grid grid-cols-2 gap-1.5 mt-2">
           <button className="btn primary" onClick={() => extrudeSketch(sketch.id, height)}>
-            Extrudieren
+            {t("Extrude")}
           </button>
           <button className="btn" onClick={() => extrudeSketch(sketch.id, height, true)}>
-            Als Loch
+            {t("As hole")}
           </button>
         </div>
         <div className="text-[11px] text-ink-500 mt-2">
           {viewAxis(view) === PLANE_AXIS[sketch.plane.orient]
-            ? "Tipp: In der 3D-Ansicht kannst du auch am Pfeil ziehen."
-            : "Oder am Pfeil in der Ansicht ziehen."}{" "}
-          Negative Höhe extrudiert in die Gegenrichtung.
+            ? t("Tip: in the 3D view you can also drag the arrow.")
+            : t("Or drag the arrow in the view.")}{" "}
+          {t("A negative height extrudes in the opposite direction.")}
         </div>
       </Section>
-      <Section title="Aktionen">
+      <Section title={t("Actions")}>
         <button className="btn danger w-full" onClick={deleteSelection}>
-          <Trash2 size={14} /> Skizze löschen
+          <Trash2 size={14} /> {t("Delete sketch")}
         </button>
       </Section>
     </>
@@ -883,10 +912,12 @@ function DocProps() {
   return (
     <>
       <div className="px-3.5 pt-3 pb-3">
-        <div className="text-[15px] font-semibold">Projekt</div>
-        <div className="text-[12px] text-ink-500">{count} Körper · nichts ausgewählt</div>
+        <div className="text-[15px] font-semibold">{t("Project")}</div>
+        <div className="text-[12px] text-ink-500">
+          {count === 1 ? t("1 body · nothing selected") : t("{count} bodies · nothing selected", { count })}
+        </div>
       </div>
-      <Section title="Raster & Einheit">
+      <Section title={t("Grid & Units")}>
         <div className="flex flex-wrap gap-1.5">
           {SNAP_OPTIONS[settings.unit].map((o) => (
             <button key={o.label} className={`btn !h-7 ${Math.abs(o.mm - settings.snap) < 1e-9 ? "primary" : ""}`} onClick={() => setSettings({ snap: o.mm })}>
@@ -894,11 +925,13 @@ function DocProps() {
             </button>
           ))}
         </div>
-        <div className="text-[11px] text-ink-500 mt-2">Alles rastet auf dieses Raster. Beim Ziehen <kbd>Alt</kbd> halten für freie Werte.</div>
+        <div className="text-[11px] text-ink-500 mt-2">
+          {tn("Everything snaps to this grid. Hold {key} while dragging for free values.", { key: <kbd>Alt</kbd> })}
+        </div>
       </Section>
       <Section
-        title="Druckbett"
-        right={<Switch on={showBed} onChange={setShowBed} label="anzeigen" title="Druckbett im Modell ein- oder ausblenden" />}
+        title={t("Print bed")}
+        right={<Switch on={showBed} onChange={setShowBed} label={t("show")} title={t("Show or hide the print bed in the model")} />}
       >
         <Grid2>
           <LenField label="X" mm={settings.bed.x} min={10} onChange={(x) => setSettings({ bed: { ...settings.bed, x } })} />
@@ -911,22 +944,22 @@ function DocProps() {
             </button>
           ))}
         </div>
-        {count > 0 && <CenterButtons label="Alles zentrieren" />}
+        {count > 0 && <CenterButtons label={t("Center all")} />}
       </Section>
-      <Section title="So geht's">
+      <Section title={t("How it works")}>
         <ol className="text-[12px] text-ink-300 list-decimal pl-4 space-y-1.5">
           <li>
-            Skizze zeichnen (<kbd>R</kbd>/<kbd>C</kbd>/<kbd>P</kbd>), Maße direkt im Panel oder am Label anpassen.
+            {tn("Draw a sketch ({r}/{c}/{p}), adjust dimensions right in the panel or on the label.", {
+              r: <kbd>R</kbd>,
+              c: <kbd>C</kbd>,
+              p: <kbd>P</kbd>,
+            })}
           </li>
-          <li>Extrudieren: Höhe eingeben oder am Pfeil ziehen.</li>
-          <li>Teile aneinander ziehen, sie rasten an Flächen ein (pinke Linien).</li>
-          <li>
-            Mehrere wählen und vereinen (<kbd>Strg</kbd>+<kbd>G</kbd>).
-          </li>
-          <li>
-            Kanten runden (<kbd>F</kbd>): Kante klicken, Pfeil ziehen.
-          </li>
-          <li>Exportieren als 3MF oder STL.</li>
+          <li>{t("Extrude: enter a height or drag the arrow.")}</li>
+          <li>{t("Drag parts against each other, they snap to faces (pink lines).")}</li>
+          <li>{tn("Select several and unite them ({ctrl}+{g}).", { ctrl: <kbd>{t("Ctrl")}</kbd>, g: <kbd>G</kbd> })}</li>
+          <li>{tn("Fillet edges ({key}): click an edge, drag the arrow.", { key: <kbd>F</kbd> })}</li>
+          <li>{t("Export as 3MF or STL.")}</li>
         </ol>
       </Section>
     </>

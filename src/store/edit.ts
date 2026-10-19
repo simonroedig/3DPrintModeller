@@ -2,6 +2,7 @@ import * as THREE from "three";
 import type { Body, FaceRef, Feature, MeshData, Shape, Vec3 } from "../types";
 import { handleSpecs } from "../lib/shapeEdit";
 import { addFeature, emptyFaceOp, noEdit, toast, updateBodies, useStore, type State } from "./store";
+import { t } from "../i18n";
 
 /**
  * A face push on an unmodified primitive is expressed through its parameters
@@ -76,7 +77,7 @@ export function clearEditSelection() {
 export function selectFace(bodyId: string, mesh: MeshData, idx: number) {
   const f = mesh.faces[idx];
   if (!f?.normal || !f.center) {
-    toast("Nur ebene Flächen lassen sich verschieben oder neigen");
+    toast(t("Only flat faces can be pushed or tilted"));
     return;
   }
   useStore.setState({

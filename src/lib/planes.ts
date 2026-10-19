@@ -90,10 +90,10 @@ export function orientForView(view: ViewName): PlaneOrient {
 }
 
 export const ORIENT_LABEL: Record<PlaneOrient, string> = {
-  top: "Boden (XY)",
-  bottom: "Unten (XY)",
-  front: "Vorne (XZ)",
-  back: "Hinten (XZ)",
-  right: "Rechts (YZ)",
-  left: "Links (YZ)",
+  top: "Floor (XY)",
+  bottom: "Bottom (XY)",
+  front: "Front (XZ)",
+  back: "Back (XZ)",
+  right: "Right (YZ)",
+  left: "Left (YZ)",
 };

@@ -9,6 +9,7 @@ import { applyEdit, displayGeometry, hasPendingEdit } from "../store/edit";
 import { selectAllEdges } from "../viewport/EditTool";
 import { LenField, NumField, Seg } from "./fields";
 import { TOOL_COLOR } from "./theme";
+import { t, tMsg, tn } from "../i18n";
 
 export const MODE_COLOR: Partial<Record<Tool, string>> = {
   rect: TOOL_COLOR.sketch,
@@ -19,12 +20,12 @@ export const MODE_COLOR: Partial<Record<Tool, string>> = {
 };
 
 export const MODE_NAME: Partial<Record<Tool, string>> = {
-  select: "Auswahl",
-  rect: "Skizze · Rechteck",
-  circle: "Skizze · Kreis",
-  poly: "Skizze · Polygon",
-  edit: "Kanten & Flächen",
-  layflat: "Aufs Bett legen",
+  select: "Select",
+  rect: "Sketch · Rectangle",
+  circle: "Sketch · Circle",
+  poly: "Sketch · Polygon",
+  edit: "Edges & Faces",
+  layflat: "Lay flat",
 };
 
 /** coloured frame around the viewport so a non-default mode is impossible to miss */
@@ -59,8 +60,8 @@ export function ToolOptions() {
             value={rectMode}
             onChange={(v) => useStore.setState({ rectMode: v })}
             options={[
-              { value: "corner", label: "Ecke → Ecke", title: "Von einer Ecke zur gegenüberliegenden" },
-              { value: "center", label: "Aus der Mitte", title: "Vom Mittelpunkt aus" },
+              { value: "corner", label: t("Corner → corner"), title: t("From one corner to the opposite one") },
+              { value: "center", label: t("From center"), title: t("From the center point") },
             ]}
           />
         )}
@@ -69,21 +70,25 @@ export function ToolOptions() {
             value={circleMode}
             onChange={(v) => useStore.setState({ circleMode: v })}
             options={[
-              { value: "center", label: "Mittelpunkt", title: "Mittelpunkt, dann Radius" },
-              { value: "corner", label: "Ecke → Ecke", title: "Wie ein Rechteck aufziehen" },
+              { value: "center", label: t("Center point"), title: t("Center point, then radius") },
+              { value: "corner", label: t("Corner → corner"), title: t("Drag it out like a rectangle") },
             ]}
           />
         )}
-        {tool === "poly" && <span className="text-ink-300 text-[12px]">Klicken setzt Punkte · Klick auf Start / Enter schließt</span>}
-        <span className="text-ink-300 text-[12px]" title="Die Skizze liegt in der Ebene der aktuellen Ansicht (3D = Boden) · Lage oben rechts einstellen">
-          Ebene: {ORIENT_LABEL[plane.orient]} · {PLANE_AXIS_NAME[PLANE_AXIS[plane.orient]]} = {fmtLen(plane.value, unit)}
+        {tool === "poly" && <span className="text-ink-300 text-[12px]">{t("Click to place points · Click the start / Enter closes")}</span>}
+        <span className="text-ink-300 text-[12px]" title={t("The sketch lies in the plane of the current view (3D = floor) · set its position at the top right")}>
+          {t("Plane: {orient} · {axis} = {value}", {
+            orient: t(ORIENT_LABEL[plane.orient]),
+            axis: PLANE_AXIS_NAME[PLANE_AXIS[plane.orient]],
+            value: fmtLen(plane.value, unit),
+          })}
         </span>
       </>
     );
   } else if (tool === "edit") {
     content = <EditOptions />;
   } else if (tool === "layflat") {
-    content = <span className="text-ink-200">Klicke die Fläche, die unten aufliegen soll</span>;
+    content = <span className="text-ink-200">{t("Click the face that should rest on the bed")}</span>;
   }
 
   const color = MODE_COLOR[tool] ?? "#3b82f6";
@@ -93,10 +98,10 @@ export function ToolOptions() {
       style={{ borderColor: `${color}99` }}
     >
       <span className="px-2.5 h-7 grid place-items-center rounded-md font-semibold text-[12px] text-ink-950" style={{ background: color }}>
-        {MODE_NAME[tool]}
+        {t(MODE_NAME[tool] ?? "")}
       </span>
       {content}
-      <button className="btn ghost !h-7 !px-1.5" title="Modus verlassen (Esc)" onClick={() => setTool("select")}>
+      <button className="btn ghost !h-7 !px-1.5" title={t("Leave mode (Esc)")} onClick={() => setTool("select")}>
         <X size={15} />
       </button>
     </div>
@@ -123,14 +128,14 @@ function EditOptions() {
       {calculating && <LoaderCircle size={15} className="animate-spin text-sky-400" />}
       {warning && (
         <span className="flex items-center gap-1 text-amber-400 text-[12px]">
-          <TriangleAlert size={14} /> {warning}
+          <TriangleAlert size={14} /> {tMsg(warning)}
         </span>
       )}
     </>
   );
   const apply = (
-    <button className="btn primary" disabled={!pending || !!warning} onClick={applyEdit} title="Anwenden (Enter)">
-      <Check size={15} /> Anwenden
+    <button className="btn primary" disabled={!pending || !!warning} onClick={applyEdit} title={t("Apply (Enter)")}>
+      <Check size={15} /> {t("Apply")}
     </button>
   );
 
@@ -142,20 +147,20 @@ function EditOptions() {
           value={fillet.type}
           onChange={(v) => useStore.setState({ fillet: { ...fillet, type: v } })}
           options={[
-            { value: "fillet", label: "Rundung", title: "Pfeil nach außen ziehen" },
-            { value: "chamfer", label: "Fase", title: "Pfeil nach innen ziehen" },
+            { value: "fillet", label: t("Fillet"), title: t("Drag the arrow outward") },
+            { value: "chamfer", label: t("Chamfer"), title: t("Drag the arrow inward") },
           ]}
         />
         <div className="w-[130px]">
-          <LenField label={fillet.type === "fillet" ? "Radius" : "Abstand"} mm={fillet.radius} min={0} onChange={(v) => useStore.setState({ fillet: { ...fillet, radius: v } })} />
+          <LenField label={fillet.type === "fillet" ? t("Radius") : t("Distance")} mm={fillet.radius} min={0} onChange={(v) => useStore.setState({ fillet: { ...fillet, radius: v } })} />
         </div>
         <span className="text-ink-400 text-[12px]">
-          {edgeSel.idx.length} Kante{edgeSel.idx.length === 1 ? "" : "n"}
-          {fillet.radius === 0 && " · Pfeil ziehen: raus = Rundung, rein = Fase"}
+          {t(edgeSel.idx.length === 1 ? "{n} edge" : "{n} edges", { n: edgeSel.idx.length })}
+          {fillet.radius === 0 && ` · ${t("Drag the arrow: out = fillet, in = chamfer")}`}
         </span>
         {body && (
-          <button className="btn" onClick={() => selectAllEdges(body.id)} title="Alle Kanten des Körpers auswählen">
-            Alle Kanten
+          <button className="btn" onClick={() => selectAllEdges(body.id)} title={t("Select all edges of the body")}>
+            {t("All edges")}
           </button>
         )}
         {status}
@@ -171,29 +176,29 @@ function EditOptions() {
           value={faceOp.mode}
           onChange={(v) => useStore.setState({ faceOp: { ...faceOp, mode: v } })}
           options={[
-            { value: "push", label: "Verschieben", title: "Fläche nach außen/innen versetzen" },
-            { value: "tilt", label: "Neigen", title: "Fläche um eine Kante kippen (Keil dazu/weg)" },
+            { value: "push", label: t("Push"), title: t("Offset the face outward or inward") },
+            { value: "tilt", label: t("Tilt"), title: t("Tilt the face around an edge (add or remove a wedge)") },
           ]}
         />
         {faceOp.mode === "push" ? (
           <div className="w-[150px]">
-            <LenField label="Abstand" mm={faceOp.distance} onChange={(v) => useStore.setState({ faceOp: { ...faceOp, distance: v } })} title="Positiv = nach außen, negativ = nach innen" />
+            <LenField label={t("Distance")} mm={faceOp.distance} onChange={(v) => useStore.setState({ faceOp: { ...faceOp, distance: v } })} title={t("Positive = outward, negative = inward")} />
           </div>
         ) : !faceOp.hinge ? (
-          <span className="text-[12.5px] text-fuchsia-300 font-medium">→ Klicke die Kante, um die gekippt wird</span>
+          <span className="text-[12.5px] text-fuchsia-300 font-medium">→ {t("Click the edge to tilt around")}</span>
         ) : (
           <>
             <Seg
               value={faceOp.angle < 0 ? "remove" : "add"}
               onChange={(v) => useStore.setState({ faceOp: { ...faceOp, angle: (v === "add" ? 1 : -1) * Math.abs(faceOp.angle || 10) } })}
               options={[
-                { value: "add", label: "Keil dazu", title: "Material hinzufügen" },
-                { value: "remove", label: "Keil weg", title: "Material wegnehmen" },
+                { value: "add", label: t("Add wedge"), title: t("Add material") },
+                { value: "remove", label: t("Remove wedge"), title: t("Remove material") },
               ]}
             />
             <div className="w-[120px]">
               <NumField
-                label="Winkel"
+                label={t("Angle")}
                 value={Math.abs(faceOp.angle)}
                 suffix="°"
                 min={0}
@@ -203,7 +208,7 @@ function EditOptions() {
               />
             </div>
             <button className="btn ghost" onClick={() => useStore.setState({ faceOp: { ...faceOp, hinge: null, angle: 0 } })}>
-              Andere Kante
+              {t("Other edge")}
             </button>
           </>
         )}
@@ -214,10 +219,10 @@ function EditOptions() {
   }
   return (
     <>
-      <span className="text-ink-200 text-[12.5px]">Fahre über Kanten oder Flächen und klicke zum Auswählen</span>
+      <span className="text-ink-200 text-[12.5px]">{t("Hover over edges or faces and click to select")}</span>
       {body && (
-        <button className="btn" onClick={() => selectAllEdges(body.id)} title="Alle Kanten des ausgewählten Körpers">
-          Alle Kanten
+        <button className="btn" onClick={() => selectAllEdges(body.id)} title={t("All edges of the selected body")}>
+          {t("All edges")}
         </button>
       )}
     </>
@@ -239,7 +244,7 @@ export function KernelLoading() {
   if (ready) return null;
   return (
     <div className="absolute bottom-14 left-1/2 -translate-x-1/2 z-10 overlay-card px-4 py-2 flex items-center gap-2 text-ink-200 pointer-events-none">
-      <LoaderCircle size={16} className="animate-spin text-sky-400" /> CAD-Kern (OpenCascade) wird geladen…
+      <LoaderCircle size={16} className="animate-spin text-sky-400" /> {t("Loading CAD kernel (OpenCascade)…")}
     </div>
   );
 }
@@ -248,12 +253,12 @@ export function Toasts() {
   const toasts = useStore((s) => s.toasts);
   return (
     <div className="absolute bottom-[64px] left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2 pointer-events-none">
-      {toasts.map((t) => (
+      {toasts.map((item) => (
         <div
-          key={t.id}
-          className={`toast overlay-card px-3.5 py-2 text-[12.5px] ${t.kind === "error" ? "!border-red-500/60 text-red-200" : "text-ink-100"}`}
+          key={item.id}
+          className={`toast overlay-card px-3.5 py-2 text-[12.5px] ${item.kind === "error" ? "!border-red-500/60 text-red-200" : "text-ink-100"}`}
         >
-          {t.text}
+          {tMsg(item.text)}
         </div>
       ))}
     </div>
@@ -295,20 +300,23 @@ export function EmptyHint() {
   return (
     <div className="start-hint absolute left-3 bottom-3 z-[1] pointer-events-none overlay-card px-3.5 py-3 max-w-[310px] text-[12px] text-ink-300">
       <div className="flex items-center gap-2 mb-2">
-        <span className="text-ink-100 text-[13px] font-semibold flex-1">Leeres Projekt: so geht's los</span>
-        <button className="btn ghost !h-6 !px-1 -mr-1.5 pointer-events-auto" title="Startkarte ausblenden" onClick={close}>
+        <span className="text-ink-100 text-[13px] font-semibold flex-1">{t("Empty project: how to get started")}</span>
+        <button className="btn ghost !h-6 !px-1 -mr-1.5 pointer-events-auto" title={t("Hide start card")} onClick={close}>
           <X size={14} />
         </button>
       </div>
       <ol className="flex flex-col gap-1.5">
         <Step n={1} color={TOOL_COLOR.sketch}>
-          Skizze zeichnen: <kbd className="!ml-0">R</kbd> Rechteck, <kbd className="!ml-0">C</kbd> Kreis, oder links einen Grundkörper einfügen.
+          {tn("Draw a sketch: {r} rectangle, {c} circle, or add a basic body on the left.", {
+            r: <kbd className="!ml-0">R</kbd>,
+            c: <kbd className="!ml-0">C</kbd>,
+          })}
         </Step>
         <Step n={2} color={TOOL_COLOR.body}>
-          Extrudieren, Maße an den Pfeilen ziehen oder eintippen.
+          {t("Extrude, then drag the arrows or type in the dimensions.")}
         </Step>
         <Step n={3} color={TOOL_COLOR.edit}>
-          Kanten runden mit <kbd className="!ml-0">F</kbd>, Teile kombinieren, als 3MF exportieren.
+          {tn("Round edges with {key}, combine parts, export as 3MF.", { key: <kbd className="!ml-0">F</kbd> })}
         </Step>
       </ol>
     </div>

@@ -3,6 +3,7 @@ import type { Doc, Unit } from "../types";
 import { idbDel, idbGet, idbSet } from "../lib/persist";
 import { useMeshes } from "../cad/client";
 import { captureThumbnail } from "../viewport/capture";
+import { t } from "../i18n";
 import {
   STORAGE_KEY,
   fitView,
@@ -96,7 +97,7 @@ function snapshotLocal(doc: Doc) {
   }
 }
 
-function nextProjectName(base = "Projekt") {
+function nextProjectName(base = t("Project")) {
   const names = new Set(P().list.map((p) => p.name));
   for (let i = 1; ; i++) if (!names.has(`${base} ${i}`)) return `${base} ${i}`;
 }
@@ -116,7 +117,7 @@ function saveNow() {
   clearTimeout(saveTimer);
   const id = ensureCurrent();
   const doc = getDoc();
-  idbSet(docKey(id), doc).catch(() => toast("Speichern im Browser fehlgeschlagen (Speicher voll?)", "error"));
+  idbSet(docKey(id), doc).catch(() => toast(t("Saving in the browser failed (storage full?)"), "error"));
   snapshotLocal(doc);
   patchMeta(id, { updated: Date.now(), bodies: doc.bodies.length });
   dirty = false;
@@ -187,7 +188,7 @@ export async function switchProject(id: string) {
   const meta = P().list.find((p) => p.id === id);
   const doc = await idbGet<Doc>(docKey(id)).catch(() => undefined);
   if (!meta || !doc || !Array.isArray(doc.bodies)) {
-    toast("Projekt konnte nicht geladen werden", "error");
+    toast(t("The project could not be loaded"), "error");
     return;
   }
   flushCurrent();
@@ -220,8 +221,8 @@ function startProject(fill: () => void, name?: string) {
 }
 
 export const createEmptyProject = (unit: Unit, snap?: number) => startProject(() => newDocument(unit, snap));
-export const createExampleProject = (unit: Unit) => startProject(() => loadSpeakerExample(unit), "Lautsprecher-Keil");
-export const createPhoneStandProject = (unit: Unit) => startProject(() => loadPhoneStandExample(unit), "Handyständer");
+export const createExampleProject = (unit: Unit) => startProject(() => loadSpeakerExample(unit), t("Speaker wedge"));
+export const createPhoneStandProject = (unit: Unit) => startProject(() => loadPhoneStandExample(unit), t("Phone stand"));
 export const openDocumentAsProject = (doc: Doc, name: string) => startProject(() => loadDocument(doc), name);
 
 export function renameProject(id: string, name: string) {
@@ -235,19 +236,19 @@ export async function duplicateProject(id: string) {
   if (id === P().current && dirty) saveNow();
   const doc = id === P().current ? getDoc() : await idbGet<Doc>(docKey(id)).catch(() => undefined);
   if (!doc) return;
-  const copy: ProjectMeta = { ...src, id: uid(), name: `${src.name} (Kopie)`, created: Date.now(), updated: Date.now() };
+  const copy: ProjectMeta = { ...src, id: uid(), name: t("{name} (copy)", { name: src.name }), created: Date.now(), updated: Date.now() };
   await idbSet(docKey(copy.id), doc);
   const list = [...P().list];
   list.splice(list.indexOf(src) + 1, 0, copy);
   useProjects.setState({ list });
   writeIndex();
-  toast(`„${copy.name}“ angelegt`);
+  toast(t("“{name}” created", { name: copy.name }));
 }
 
 export async function deleteProject(id: string) {
   const meta = P().list.find((p) => p.id === id);
   if (!meta) return;
-  if (!window.confirm(`Projekt „${meta.name}“ endgültig löschen?`)) return;
+  if (!window.confirm(t("Delete project “{name}” permanently?", { name: meta.name }))) return;
   const list = P().list.filter((p) => p.id !== id);
   idbDel(docKey(id)).catch(() => {});
   if (id !== P().current) {
@@ -303,7 +304,7 @@ async function hydrate() {
       const id = uid();
       const now = Date.now();
       await idbSet(docKey(id), legacy).catch(() => {});
-      index = { current: id, list: [{ id, name: "Mein Projekt", created: now, updated: now, bodies: legacy.bodies.length }] };
+      index = { current: id, list: [{ id, name: t("My project"), created: now, updated: now, bodies: legacy.bodies.length }] };
       await idbSet(INDEX_KEY, index).catch(() => {});
     }
   }

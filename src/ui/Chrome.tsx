@@ -12,6 +12,7 @@ import {
   FolderOpen,
   Globe,
   Hexagon,
+  Languages,
   MousePointer2,
   Redo2,
   Save,
@@ -48,6 +49,7 @@ import { APP_NAME, AUTHOR } from "./brand";
 import { Logo } from "./Logo";
 import { MODE_COLOR, MODE_NAME } from "./Overlays";
 import { AXIS_COLOR, viewAxis } from "../lib/planes";
+import { setLang, t, useLang } from "../i18n";
 
 export function TopBar() {
   const canUndo = useStore((s) => s.past.length > 0);
@@ -55,44 +57,56 @@ export function TopBar() {
   const unit = useStore((s) => s.doc.settings.unit);
   const snap = useStore((s) => s.doc.settings.snap);
   const opts = SNAP_OPTIONS[unit];
+  const lang = useLang((s) => s.lang);
   return (
     <header className="h-12 shrink-0 flex items-center gap-2 px-3 bg-ink-900 border-b border-ink-750">
       <button
         className="brand flex items-center gap-2 pr-3 mr-1 border-r border-ink-750"
-        title="Über 3DPrintModeller"
+        title={t("About {app}", { app: APP_NAME })}
         onClick={() => useStore.setState({ aboutOpen: true })}
       >
         <Logo size={22} />
         <span className="font-semibold tracking-tight text-[14px]">{APP_NAME}</span>
         <span className="text-[11px] text-ink-500 font-normal">by {AUTHOR}</span>
       </button>
-      <button className="btn ghost" title="Projektdatei (.json) als neues Projekt öffnen (Strg+O)" onClick={openProject}>
-        <FolderOpen size={16} /> Öffnen
+      <button className="btn ghost" title={t("Open a project file (.json) as a new project (Ctrl+O)")} onClick={openProject}>
+        <FolderOpen size={16} /> {t("Open")}
       </button>
-      <button className="btn ghost" title="Projekt als Datei herunterladen (Strg+S). Im Browser wird ohnehin automatisch gespeichert" onClick={saveProject}>
-        <Save size={16} /> Speichern
+      <button className="btn ghost" title={t("Download the project as a file (Ctrl+S). The browser saves automatically anyway")} onClick={saveProject}>
+        <Save size={16} /> {t("Save")}
       </button>
-      <button className="btn ghost" title="STEP, STL, 3MF oder OBJ importieren (oder Datei ins Fenster ziehen)" onClick={pickImportFiles}>
-        <FileUp size={16} /> Importieren
+      <button className="btn ghost" title={t("Import STEP, STL, 3MF or OBJ (or drag a file into the window)")} onClick={pickImportFiles}>
+        <FileUp size={16} /> {t("Import")}
       </button>
       <div className="w-px h-6 bg-ink-750 mx-1" />
-      <button className="btn ghost" disabled={!canUndo} title="Rückgängig (Strg+Z)" onClick={undo}>
+      <button className="btn ghost" disabled={!canUndo} title={t("Undo (Ctrl+Z)")} onClick={undo}>
         <Undo2 size={16} />
       </button>
-      <button className="btn ghost" disabled={!canRedo} title="Wiederholen (Strg+Shift+Z)" onClick={redo}>
+      <button className="btn ghost" disabled={!canRedo} title={t("Redo (Ctrl+Shift+Z)")} onClick={redo}>
         <Redo2 size={16} />
       </button>
       <div className="flex-1" />
       <div className="flex items-center gap-2 text-ink-400">
-        <span className="text-[11px] uppercase tracking-wider">Einheit</span>
+        <div className="flex items-center gap-1.5" title={t("Language")}>
+          <Languages size={15} />
+          <div className="seg">
+            {(["en", "de"] as const).map((l) => (
+              <button key={l} className={l === lang ? "on" : ""} onClick={() => setLang(l)}>
+                {l.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="w-px h-6 bg-ink-750 mx-1" />
+        <span className="text-[11px] uppercase tracking-wider">{t("Unit")}</span>
         <div className="seg">
           {(["mm", "cm", "in"] as Unit[]).map((u) => (
             <button key={u} className={u === unit ? "on" : ""} onClick={() => setUnit(u)}>
-              {u === "in" ? "Zoll" : u}
+              {u === "in" ? t("in") : u}
             </button>
           ))}
         </div>
-        <span className="text-[11px] uppercase tracking-wider ml-2">Raster</span>
+        <span className="text-[11px] uppercase tracking-wider ml-2">{t("Grid")}</span>
         <select
           className="h-7 rounded-md bg-ink-900 border border-ink-700 px-2 outline-none focus:border-accent"
           value={opts.find((o) => Math.abs(o.mm - snap) < 1e-9)?.mm ?? snap}
@@ -107,11 +121,11 @@ export function TopBar() {
         </select>
       </div>
       <div className="w-px h-6 bg-ink-750 mx-1" />
-      <button className="btn ghost" title="Hilfe & Tastenkürzel (?)" onClick={() => useStore.setState({ helpOpen: true })}>
+      <button className="btn ghost" title={t("Help & shortcuts (?)")} onClick={() => useStore.setState({ helpOpen: true })}>
         <CircleHelp size={16} />
       </button>
       <button className="btn primary" onClick={() => useStore.setState({ exportOpen: true })}>
-        <Download size={16} /> Exportieren
+        <Download size={16} /> {t("Export")}
       </button>
     </header>
   );
@@ -161,39 +175,39 @@ export function ToolRail() {
   const tool = useStore((s) => s.tool);
   const selCount = useStore((s) => s.selection.filter((id) => s.doc.bodies.some((b) => b.id === id)).length);
   const hasGroup = useStore((s) => s.doc.bodies.some((b) => s.selection.includes(b.id) && b.shape.kind === "group"));
-  const t = (id: Tool) => () => setTool(tool === id && id !== "select" ? "select" : id);
+  const pick = (id: Tool) => () => setTool(tool === id && id !== "select" ? "select" : id);
   const prim = (kind: Parameters<typeof addPrimitive>[0]) => (e: React.MouseEvent) => addPrimitive(kind, e.shiftKey);
   return (
     <nav className="tool-rail w-[86px] shrink-0 bg-ink-900 border-r border-ink-750 py-2 px-[5px] overflow-y-auto overflow-x-visible scroll-thin">
-      <ToolButton icon={<MousePointer2 size={19} />} label="Auswählen & Verschieben" kbd="V" color={TOOL_COLOR.select} on={tool === "select"} onClick={t("select")} />
-      <RailLabel color={TOOL_COLOR.sketch}>Skizze</RailLabel>
-      <ToolButton icon={<Square size={19} />} label="Rechteck" kbd="R" color={TOOL_COLOR.sketch} on={tool === "rect"} onClick={t("rect")} />
-      <ToolButton icon={<Circle size={19} />} label="Kreis" kbd="C" color={TOOL_COLOR.sketch} on={tool === "circle"} onClick={t("circle")} />
-      <ToolButton icon={<Hexagon size={19} />} label="Polygon / Linienzug" kbd="P" color={TOOL_COLOR.sketch} on={tool === "poly"} onClick={t("poly")} />
-      <RailLabel color={TOOL_COLOR.body}>Körper</RailLabel>
-      <ToolButton icon={<Box size={19} />} label="Quader  (Shift: als Loch)" color={TOOL_COLOR.body} onClick={prim("box")} />
-      <ToolButton icon={<Cylinder size={19} />} label="Zylinder  (Shift: als Loch)" color={TOOL_COLOR.body} onClick={prim("cylinder")} />
-      <ToolButton icon={<TriangleRight size={19} />} label="Keil  (Shift: als Loch)" color={TOOL_COLOR.body} onClick={prim("wedge")} />
-      <ToolButton icon={<Cone size={19} />} label="Kegel  (Shift: als Loch)" color={TOOL_COLOR.body} onClick={prim("cone")} />
-      <ToolButton icon={<Globe size={19} />} label="Kugel  (Shift: als Loch)" color={TOOL_COLOR.body} onClick={prim("sphere")} />
-      <ToolButton icon={<CircleDot size={19} />} label="Rohr  (Shift: als Loch)" color={TOOL_COLOR.body} onClick={prim("tube")} />
-      <RailLabel color={TOOL_COLOR.edit}>Ändern</RailLabel>
+      <ToolButton icon={<MousePointer2 size={19} />} label={t("Select & Move")} kbd="V" color={TOOL_COLOR.select} on={tool === "select"} onClick={pick("select")} />
+      <RailLabel color={TOOL_COLOR.sketch}>{t("Sketch")}</RailLabel>
+      <ToolButton icon={<Square size={19} />} label={t("Rectangle")} kbd="R" color={TOOL_COLOR.sketch} on={tool === "rect"} onClick={pick("rect")} />
+      <ToolButton icon={<Circle size={19} />} label={t("Circle")} kbd="C" color={TOOL_COLOR.sketch} on={tool === "circle"} onClick={pick("circle")} />
+      <ToolButton icon={<Hexagon size={19} />} label={t("Polygon / polyline")} kbd="P" color={TOOL_COLOR.sketch} on={tool === "poly"} onClick={pick("poly")} />
+      <RailLabel color={TOOL_COLOR.body}>{t("Bodies")}</RailLabel>
+      <ToolButton icon={<Box size={19} />} label={t("Box (Shift: as hole)")} color={TOOL_COLOR.body} onClick={prim("box")} />
+      <ToolButton icon={<Cylinder size={19} />} label={t("Cylinder (Shift: as hole)")} color={TOOL_COLOR.body} onClick={prim("cylinder")} />
+      <ToolButton icon={<TriangleRight size={19} />} label={t("Wedge (Shift: as hole)")} color={TOOL_COLOR.body} onClick={prim("wedge")} />
+      <ToolButton icon={<Cone size={19} />} label={t("Cone (Shift: as hole)")} color={TOOL_COLOR.body} onClick={prim("cone")} />
+      <ToolButton icon={<Globe size={19} />} label={t("Sphere (Shift: as hole)")} color={TOOL_COLOR.body} onClick={prim("sphere")} />
+      <ToolButton icon={<CircleDot size={19} />} label={t("Tube (Shift: as hole)")} color={TOOL_COLOR.body} onClick={prim("tube")} />
+      <RailLabel color={TOOL_COLOR.edit}>{t("Edit")}</RailLabel>
       <ToolButton
         icon={<SquareRoundCorner size={19} />}
-        label="Kanten & Flächen: Kanten runden/fasen, Flächen verschieben oder neigen (auch Doppelklick auf einen Körper)"
+        label={t("Edges & Faces: fillet or chamfer edges, push or tilt faces (or double-click a body)")}
         kbd="F"
         color={TOOL_COLOR.edit}
         on={tool === "edit"}
-        onClick={t("edit")}
+        onClick={pick("edit")}
       />
-      <ToolButton icon={<ArrowDownToLine size={19} />} label="Fläche aufs Druckbett legen" kbd="L" color={TOOL_COLOR.layflat} on={tool === "layflat"} onClick={t("layflat")} />
-      <RailLabel color={TOOL_COLOR.union}>Kombinieren</RailLabel>
+      <ToolButton icon={<ArrowDownToLine size={19} />} label={t("Lay a face flat on the print bed")} kbd="L" color={TOOL_COLOR.layflat} on={tool === "layflat"} onClick={pick("layflat")} />
+      <RailLabel color={TOOL_COLOR.union}>{t("Combine")}</RailLabel>
       {OPS.filter((o) => o.op !== "group").map((o) => (
         <ToolButton
           key={o.op}
           icon={o.icon(19)}
-          label={`${o.label}: ${o.tip}${selCount >= 2 ? "" : ". Erst mehrere Körper wählen (Shift+Klick)"}`}
-          kbd={o.kbd}
+          label={`${t(o.label)}: ${t(o.tip)}${selCount >= 2 ? "" : `. ${t("Select several bodies first (Shift+click)")}`}`}
+          kbd={o.kbd && t(o.kbd)}
           color={TOOL_COLOR[o.op]}
           dim={selCount < 2}
           onClick={() => combineSelection(o.op)}
@@ -201,8 +215,8 @@ export function ToolRail() {
       ))}
       <ToolButton
         icon={<Ungroup size={19} />}
-        label="Trennen: kombinierten Körper wieder in seine Teile zerlegen"
-        kbd="Strg ⇧ G"
+        label={t("Split: break a combined body back into its parts")}
+        kbd={t("Ctrl ⇧ G")}
         color={TOOL_COLOR.ungroup}
         dim={!hasGroup}
         onClick={ungroupSelection}
@@ -213,12 +227,12 @@ export function ToolRail() {
 
 export const VIEWS: { id: View; label: string; kbd: string }[] = [
   { id: "iso", label: "3D", kbd: "1" },
-  { id: "top", label: "Oben", kbd: "2" },
-  { id: "bottom", label: "Unten", kbd: "7" },
-  { id: "front", label: "Vorne", kbd: "3" },
-  { id: "back", label: "Hinten", kbd: "4" },
-  { id: "left", label: "Links", kbd: "5" },
-  { id: "right", label: "Rechts", kbd: "6" },
+  { id: "top", label: "Top", kbd: "2" },
+  { id: "bottom", label: "Bottom", kbd: "7" },
+  { id: "front", label: "Front", kbd: "3" },
+  { id: "back", label: "Back", kbd: "4" },
+  { id: "left", label: "Left", kbd: "5" },
+  { id: "right", label: "Right", kbd: "6" },
 ];
 
 /** each 2D view in the colour of the axis it looks along; 3D stays neutral */
@@ -247,15 +261,15 @@ export function ViewSwitcher() {
             key={`${v.id}-${v.id === view && flash ? flashNonce : 0}`}
             className={`${view === v.id ? "on" : ""} ${v.id === view && flash ? "view-flash" : ""}`}
             style={viewStyle(v.id)}
-            title={`${v.label}-Ansicht (${v.kbd})`}
+            title={t("{view} view ({key})", { view: t(v.label), key: v.kbd })}
             onMouseEnter={() => useStore.setState({ viewHover: v.id })}
             onClick={() => setView(v.id)}
           >
-            {v.label}
+            {t(v.label)}
           </button>
         ))}
       </div>
-      <button className="btn overlay-card !h-[32px]" title="Alles einpassen (0)" onClick={fitView}>
+      <button className="btn overlay-card !h-[32px]" title={t("Fit all (0)")} onClick={fitView}>
         <Scan size={15} />
       </button>
     </div>
@@ -271,17 +285,17 @@ export function StatusBar() {
   const faceSel = useStore((s) => s.faceSel);
   const hints: Record<Tool, string> = {
     select: selection
-      ? "Ziehen: verschieben (rastet an Flächen ein) · Doppelklick oder F: Kanten & Flächen · Alt: frei · Pfeiltasten: nudgen · Entf: löschen"
-      : "Klicke einen Körper zum Auswählen · Shift+Klick: Mehrfachauswahl · Rechte Maus halten: drehen · Mittlere Maus: verschieben · Rad: zoomen",
-    rect: "Klicken & ziehen (oder zwei Klicks) für ein Rechteck · Alt: ohne Raster · Esc: abbrechen",
-    circle: "Klicken & ziehen für einen Kreis · Alt: ohne Raster · Esc: abbrechen",
-    poly: "Klicken setzt Punkte · Shift: 15°-Schritte · Klick auf Startpunkt / Enter: schließen · Backspace: letzter Punkt zurück",
+      ? "Drag: move (snaps to faces) · Double-click or F: Edges & Faces · Alt: free · Arrow keys: nudge · Del: delete"
+      : "Click a body to select it · Shift+click: multi-select · Hold right mouse: orbit · Middle mouse: pan · Wheel: zoom",
+    rect: "Click & drag (or click twice) for a rectangle · Alt: no grid · Esc: cancel",
+    circle: "Click & drag for a circle · Alt: no grid · Esc: cancel",
+    poly: "Click to place points · Shift: 15° steps · Click the start point / Enter: close · Backspace: remove last point",
     edit: edgeSel
-      ? "Pfeil raus ziehen: Rundung · rein ziehen: Fase · Shift+Klick: weitere Kanten · Enter: anwenden · Esc: Auswahl aufheben"
+      ? "Drag the arrow out: fillet · drag it in: chamfer · Shift+click: more edges · Enter: apply · Esc: clear selection"
       : faceSel
-        ? "Grünen Pfeil ziehen: Fläche versetzen · „Neigen“: Kante wählen und Keil dazu/weg · Enter: anwenden · Esc: Auswahl aufheben"
-        : "Fahre über Kanten (gelb) oder Flächen (blau) und klicke · Tipp: berührende Teile erst vereinen (Strg+G), dann lassen sich die Übergänge runden",
-    layflat: "Klicke eine ebene Fläche: das Teil wird so gedreht, dass sie flach auf dem Druckbett liegt",
+        ? "Drag the green arrow: offset the face · Tilt: pick an edge, then add or remove a wedge · Enter: apply · Esc: clear selection"
+        : "Hover over edges (yellow) or faces (blue) and click · Tip: union touching parts first (Ctrl+G), then the joints can be filleted",
+    layflat: "Click a flat face: the part is rotated so that it lies flat on the print bed",
   };
   // tick while busy so the elapsed time and the cancel button show up
   const [, setTick] = useState(0);
@@ -295,22 +309,22 @@ export function StatusBar() {
     <footer className="h-7 shrink-0 flex items-center gap-3 px-3 text-[11.5px] text-ink-400 bg-ink-900 border-t border-ink-750">
       <span className="flex items-center gap-1.5 shrink-0 font-medium" style={{ color: MODE_COLOR[tool] ?? TOOL_COLOR.select }}>
         <span className="w-2 h-2 rounded-full" style={{ background: MODE_COLOR[tool] ?? TOOL_COLOR.select }} />
-        {MODE_NAME[tool]}
+        {t(MODE_NAME[tool] ?? "")}
       </span>
-      <span className="truncate flex-1">{hints[tool]}</span>
+      <span className="truncate flex-1">{t(hints[tool])}</span>
       <span className="flex items-center gap-1.5 shrink-0">
         <span className={`w-2 h-2 rounded-full ${!ready ? "bg-amber-400 animate-pulse" : busy ? "bg-sky-400 animate-pulse" : "bg-emerald-500"}`} />
-        {!ready ? "CAD-Kern lädt…" : busy ? `Berechne…${stalled > 3000 ? ` ${Math.round(stalled / 1000)} s` : ""}` : "Bereit"}
+        {!ready ? t("Loading CAD kernel…") : busy ? `${t("Calculating…")}${stalled > 3000 ? ` ${Math.round(stalled / 1000)} s` : ""}` : t("Ready")}
         {busy > 0 && stalled > 4000 && (
           <button
             className="ml-1 px-2 h-5 rounded bg-red-600/80 hover:bg-red-600 text-white text-[11px]"
-            title="Berechnung abbrechen (der CAD-Kern wird neu gestartet)"
+            title={t("Cancel the calculation (the CAD kernel restarts)")}
             onClick={() => {
               cancelWork();
-              toast("Berechnung abgebrochen");
+              toast(t("Calculation canceled"));
             }}
           >
-            Abbrechen
+            {t("Cancel")}
           </button>
         )}
       </span>

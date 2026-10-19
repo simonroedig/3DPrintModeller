@@ -11,6 +11,7 @@ import { snapMove } from "../lib/snapping";
 import { viewAxis } from "../lib/planes";
 import { fmtNum } from "../lib/units";
 import { bodyMeshes, intersectPlane, pointerState, rayFromEvent, runDrag, worldPerPixel } from "./interaction";
+import { t } from "../i18n";
 
 export function useBodyMesh(slot: string, body: { shape: Body["shape"]; features: Feature[] }) {
   const key = useMemo(() => geometryKey(body), [body.shape, body.features]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -125,7 +126,7 @@ export function BodyView({ body }: { body: Body }) {
       if (!mesh || e.faceIndex == null) return;
       const n = mesh.faces[faceAt(mesh, e.faceIndex)]?.normal;
       if (!n) {
-        toast("Bitte eine ebene Fläche anklicken", "error");
+        toast(t("Please click a flat face"), "error");
         return;
       }
       const wn = new THREE.Vector3(...n).applyQuaternion(new THREE.Quaternion(...body.quaternion));

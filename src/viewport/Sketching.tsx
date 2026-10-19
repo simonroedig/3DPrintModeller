@@ -9,6 +9,7 @@ import { segmentsIntersect } from "../lib/geom";
 import { fmtNum, snapTo } from "../lib/units";
 import { DimLabel, PlaneGroup, ScreenScale, sketchToThreeShape, vLabel } from "./Gizmos";
 import { intersectPlane, pointerState, rayFromEvent, runDrag, toScreen } from "./interaction";
+import { t } from "../i18n";
 
 const SKETCH_COLOR = "#38bdf8";
 
@@ -177,11 +178,11 @@ function SketchDrawer({ tool }: { tool: "rect" | "circle" | "poly" }) {
     const clean = points.filter((p, i) => i === 0 || p[0] !== points[i - 1][0] || p[1] !== points[i - 1][1]);
     if (clean.length > 3 && clean[0][0] === clean[clean.length - 1][0] && clean[0][1] === clean[clean.length - 1][1]) clean.pop();
     if (clean.length < 3) {
-      toast("Ein Polygon braucht mindestens 3 Punkte", "error");
+      toast(t("A polygon needs at least 3 points"), "error");
       return;
     }
     if (segmentsIntersect(clean)) {
-      toast("Das Polygon darf sich nicht selbst schneiden", "error");
+      toast(t("The polygon must not intersect itself"), "error");
       return;
     }
     addSketch({ kind: "poly", points: clean });
@@ -261,8 +262,8 @@ function SketchDrawer({ tool }: { tool: "rect" | "circle" | "poly" }) {
     if (tool === "rect") {
       const r = rectFrom(pts[0], cursor, rectMode) as Extract<SketchShape, { kind: "rect" }>;
       preview = r;
-      labels.push({ pos: [r.x + r.w / 2, r.y - 5, z], mm: r.w, prefix: "B" });
-      labels.push({ pos: [r.x + r.w + 8, r.y + r.d / 2, z], mm: r.d, prefix: vLabel(plane) });
+      labels.push({ pos: [r.x + r.w / 2, r.y - 5, z], mm: r.w, prefix: t("W") });
+      labels.push({ pos: [r.x + r.w + 8, r.y + r.d / 2, z], mm: r.d, prefix: t(vLabel(plane)) });
     } else if (tool === "circle") {
       const c = circleFrom(pts[0], cursor, circleMode, snap) as Extract<SketchShape, { kind: "circle" }>;
       preview = c;

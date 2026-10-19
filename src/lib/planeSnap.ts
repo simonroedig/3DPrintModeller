@@ -1,13 +1,14 @@
 import * as THREE from "three";
 import { useStore } from "../store/store";
 import { bodyMatrix, meshFor, worldBox } from "./geom";
+import { t } from "../i18n";
 
 export interface PlaneSnapTarget {
   value: number;
   label: string;
 }
 
-const SIDE: Record<string, string> = { "2+": "oben", "2-": "unten", "1-": "vorne", "1+": "hinten", "0+": "rechts", "0-": "links" };
+const SIDE: Record<string, string> = { "2+": "top", "2-": "bottom", "1-": "front", "1+": "back", "0+": "right", "0-": "left" };
 
 /**
  * Positions along a world axis where a sketch plane lines up exactly with something:
@@ -15,7 +16,7 @@ const SIDE: Record<string, string> = { "2+": "oben", "2-": "unten", "1-": "vorne
  */
 export function planeSnapTargets(axis: 0 | 1 | 2): PlaneSnapTarget[] {
   const { doc } = useStore.getState();
-  const out: PlaneSnapTarget[] = [{ value: 0, label: axis === 2 ? "Druckbett" : "Ursprung" }];
+  const out: PlaneSnapTarget[] = [{ value: 0, label: axis === 2 ? t("Print bed") : t("Origin") }];
   const n = new THREE.Vector3();
   const c = new THREE.Vector3();
   for (const b of doc.bodies) {
@@ -29,13 +30,13 @@ export function planeSnapTargets(axis: 0 | 1 | 2): PlaneSnapTarget[] {
         n.set(...f.normal!).applyQuaternion(q);
         if (Math.abs(n.getComponent(axis)) < 0.999) continue;
         c.set(...f.center!).applyMatrix4(m);
-        out.push({ value: c.getComponent(axis), label: `${b.name} · ${SIDE[`${axis}${n.getComponent(axis) > 0 ? "+" : "-"}`]}` });
+        out.push({ value: c.getComponent(axis), label: `${b.name} · ${t(SIDE[`${axis}${n.getComponent(axis) > 0 ? "+" : "-"}`])}` });
       }
     } else {
       const box = worldBox(b);
       if (box.isEmpty()) continue;
-      out.push({ value: box.min.getComponent(axis), label: `${b.name} · ${SIDE[`${axis}-`]}` });
-      out.push({ value: box.max.getComponent(axis), label: `${b.name} · ${SIDE[`${axis}+`]}` });
+      out.push({ value: box.min.getComponent(axis), label: `${b.name} · ${t(SIDE[`${axis}-`])}` });
+      out.push({ value: box.max.getComponent(axis), label: `${b.name} · ${t(SIDE[`${axis}+`])}` });
     }
   }
   // one entry per position

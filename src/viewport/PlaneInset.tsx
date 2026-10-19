@@ -7,6 +7,7 @@ import { planeTarget, useStore } from "../store/store";
 import { useMeshes } from "../cad/client";
 import { AXIS_COLOR, fromPlane2D, planeBasis, PLANE_AXIS, VIEW_DIR, viewAxis } from "../lib/planes";
 import { sceneBox } from "./CameraRig";
+import { t, useLang } from "../i18n";
 
 /** DOM element the plane preview is drawn into (see ui/PlanePanel) */
 export const INSET_ID = "plane-inset-view";
@@ -176,7 +177,7 @@ export function InsetScene() {
   );
 }
 
-const EYE_LABEL: Record<PlaneOrient, string> = { top: "Oben", bottom: "Unten", front: "Vorne", back: "Hinten", left: "Links", right: "Rechts" };
+const EYE_LABEL: Record<PlaneOrient, string> = { top: "Top", bottom: "Bottom", front: "Front", back: "Back", left: "Left", right: "Right" };
 
 /** round badge with an eye and the name of the side you look from */
 function eyeTexture(color: string, label: string) {
@@ -238,7 +239,8 @@ function ViewEye({
 }) {
   const axis = PLANE_AXIS[orient];
   const color = AXIS_COLOR[axis];
-  const tex = useMemo(() => eyeTexture(color, EYE_LABEL[orient]), [color, orient]);
+  const lang = useLang((s) => s.lang);
+  const tex = useMemo(() => eyeTexture(color, t(EYE_LABEL[orient])), [color, orient, lang]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => tex.dispose(), [tex]);
   const lines = useMemo(() => {
     const g = new THREE.BufferGeometry();

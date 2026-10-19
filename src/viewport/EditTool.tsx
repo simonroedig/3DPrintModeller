@@ -12,6 +12,10 @@ import { bodyMatrix } from "../lib/geom";
 import { fmtLen, snapTo } from "../lib/units";
 import { DimLabel, Handle } from "./Gizmos";
 import { pointerState, raycasterFromEvent, startAxisDrag, toScreen, worldPerPixel } from "./interaction";
+import { getLang, t } from "../i18n";
+
+/** number with the decimal separator of the current language */
+const dec = (v: number) => (getLang() === "de" ? String(v).replace(".", ",") : String(v));
 
 export function edgeRefsFor(mesh: MeshData, idx: number[]) {
   return idx.map((i) => ({ mid: mesh.edges[i].mid, dir: mesh.edges[i].dir }));
@@ -281,7 +285,7 @@ function EditPicker() {
             arrow
             both
             color={fillet.type === "fillet" ? "#f97316" : "#e879f9"}
-            title="Raus ziehen: Rundung · rein ziehen: Fase"
+            title={t("Drag out: fillet · drag in: chamfer")}
             onDown={(ev) => {
               const v0 = signed;
               startAxisDrag(get(), ev.nativeEvent, pos, dir, (t, pe) => {
@@ -296,7 +300,7 @@ function EditPicker() {
             <DimLabel
               position={pos.clone().addScaledVector(dir, Math.sign(signed) * 4).toArray() as Vec3}
               mm={fillet.radius}
-              prefix={fillet.type === "fillet" ? "R" : "Fase"}
+              prefix={fillet.type === "fillet" ? "R" : t("Chamfer")}
               onCommit={(v) => useStore.setState({ fillet: { ...useStore.getState().fillet, radius: v } })}
             />
           )}
@@ -320,7 +324,7 @@ function EditPicker() {
               arrow
               both
               color={axisColorOf(n)}
-              title="Ziehen: Fläche verschieben"
+              title={t("Drag: push face")}
               onDown={(ev) => {
                 const d0 = faceOp.distance;
                 startAxisDrag(get(), ev.nativeEvent, pos, n, (t, pe) => {
@@ -344,7 +348,7 @@ function EditPicker() {
           const hgt = ext.w * Math.tan((faceOp.angle * Math.PI) / 180);
           const farLocal = ext.p0.clone().addScaledVector(ext.u, ext.w).addScaledVector(ext.n, hgt);
           const pos = farLocal.applyMatrix4(m);
-          const angleLabel = `${Math.abs(Math.round(faceOp.angle * 10) / 10).toString().replace(".", ",")}°`;
+          const angleLabel = `${dec(Math.abs(Math.round(faceOp.angle * 10) / 10))}°`;
           handles = (
             <>
               <Handle
@@ -353,14 +357,14 @@ function EditPicker() {
                 arrow
                 both
                 color="#e879f9"
-                title="Hoch: Keil hinzufügen · runter: Keil wegnehmen"
+                title={t("Up: add wedge · down: remove wedge")}
                 onDown={(ev) => {
                   const h0 = hgt;
-                  startAxisDrag(get(), ev.nativeEvent, pos, n, (t, pe) => {
-                    const h = pe.altKey ? h0 + t : snapTo(h0 + t, snap);
+                  startAxisDrag(get(), ev.nativeEvent, pos, n, (dist, pe) => {
+                    const h = pe.altKey ? h0 + dist : snapTo(h0 + dist, snap);
                     const angle = Math.round(((Math.atan2(h, ext.w) * 180) / Math.PI) * 10) / 10;
                     useStore.setState({ faceOp: { ...useStore.getState().faceOp, angle: Math.max(-85, Math.min(85, angle)) } });
-                    useStore.setState({ dragInfo: `Winkel ${angle.toString().replace(".", ",")}° · Höhe ${fmtLen(Math.abs(h), unit)}` });
+                    useStore.setState({ dragInfo: t("Angle {angle}° · Height {height}", { angle: dec(angle), height: fmtLen(Math.abs(h), unit) }) });
                   }, () => useStore.setState({ dragInfo: null }));
                 }}
               />

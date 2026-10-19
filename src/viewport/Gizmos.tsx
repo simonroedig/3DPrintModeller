@@ -11,6 +11,7 @@ import { fmtLen, fmtNum, parseLen, snapTo } from "../lib/units";
 import { pointerState, startAxisDrag, worldPerPixel } from "./interaction";
 import { startScrub } from "../ui/fields";
 import { AXIS_COLOR, axisColorOf, fromPlane2D, planeBasis, planeOrigin, planeQuat, PLANE_AXIS, viewAxis } from "../lib/planes";
+import { t } from "../i18n";
 
 /* ------------------------------------------------------------------ */
 
@@ -225,7 +226,7 @@ export function DimLabel({
       ) : (
         <div
           className={`dim-label ${onCommit ? "editable scrubbable" : ""}`}
-          title={onCommit ? "Klicken zum Eintippen · links/rechts ziehen zum Ändern" : undefined}
+          title={onCommit ? t("Click to type · drag left/right to change") : undefined}
           onPointerDown={(e) => {
             e.stopPropagation();
             if (onCommit) startScrub(e, mm, snap || 1, (v) => v > 0 && onCommit(v), () => setEditing(true), 0.01);
@@ -267,7 +268,7 @@ export function SelectionGizmos() {
     if (!single) return;
     const patch = resizeWorld(single, axis, v);
     if (!patch) {
-      toast("Nur bei 90°-Drehungen direkt editierbar", "error");
+      toast(t("Only directly editable with 90° rotations"), "error");
       return;
     }
     updateBodies({ [single.id]: patch });
@@ -301,6 +302,7 @@ function ResizeHandles({ body, snap, get, unit }: { body: Body; snap: number; un
         const wd = new THREE.Vector3(...spec.dir).applyQuaternion(q);
         // a handle pointing at the viewer cannot be dragged: hide it in the 2D views
         if (axis && Math.abs(wd.dot(axis)) > 0.9) return null;
+        const label = t(spec.label);
         return (
           <Handle
             key={spec.id}
@@ -308,7 +310,7 @@ function ResizeHandles({ body, snap, get, unit }: { body: Body; snap: number; un
             dir={wd}
             grip
             color={axisColorOf(wd)}
-            title={body.shape.kind === "group" ? `${spec.label} (Shift: proportional)` : spec.label}
+            title={body.shape.kind === "group" ? t("{label} (Shift: proportional)", { label }) : label}
             onDown={(e) => {
               const p0 = body.position;
               beginTx();
@@ -321,7 +323,7 @@ function ResizeHandles({ body, snap, get, unit }: { body: Body; snap: number; un
                   const r = spec.apply(t, ev.altKey ? 0 : snap, ev.shiftKey);
                   const sh = new THREE.Vector3(...r.shift).applyQuaternion(q);
                   setBodyShape(body.id, r.shape, [p0[0] + sh.x, p0[1] + sh.y, p0[2] + sh.z], r.mapFeatures?.(body.features));
-                  useStore.setState({ dragInfo: `${spec.label} ${fmtLen(r.value, unit)}` });
+                  useStore.setState({ dragInfo: `${label} ${fmtLen(r.value, unit)}` });
                 },
                 () => {
                   endTx();
@@ -350,8 +352,8 @@ export function PlaneGroup({ plane, children }: { plane: SketchPlane; children: 
   );
 }
 
-/** label of the plane's second (vertical on screen) axis */
-export const vLabel = (plane: SketchPlane) => (plane.orient === "top" || plane.orient === "bottom" ? "T" : "H");
+/** label of the plane's second (vertical on screen) axis: English initial (Depth / Height), translate with `t` */
+export const vLabel = (plane: SketchPlane) => (plane.orient === "top" || plane.orient === "bottom" ? "D" : "H");
 
 export function sketchToThreeShape(s: SketchShape): THREE.Shape {
   const shape = new THREE.Shape();
@@ -407,8 +409,8 @@ function SketchGizmo({ sketch }: { sketch: Sketch }) {
   const off = 6;
   if (s.kind === "rect") {
     dims.push(
-      <DimLabel key="w" position={W(s.x + s.w / 2, s.y - off)} mm={s.w} prefix="B" onCommit={(v) => updateSketch(sketch.id, { ...s, w: v })} />,
-      <DimLabel key="d" position={W(s.x + s.w + off * 1.6, s.y + s.d / 2)} mm={s.d} prefix={vLabel(plane)} onCommit={(v) => updateSketch(sketch.id, { ...s, d: v })} />,
+      <DimLabel key="w" position={W(s.x + s.w / 2, s.y - off)} mm={s.w} prefix={t("W")} onCommit={(v) => updateSketch(sketch.id, { ...s, w: v })} />,
+      <DimLabel key="d" position={W(s.x + s.w + off * 1.6, s.y + s.d / 2)} mm={s.d} prefix={t(vLabel(plane))} onCommit={(v) => updateSketch(sketch.id, { ...s, d: v })} />,
     );
   } else if (s.kind === "circle") {
     dims.push(
@@ -436,18 +438,18 @@ function SketchGizmo({ sketch }: { sketch: Sketch }) {
           dir={n}
           arrow
           color={AXIS_COLOR[PLANE_AXIS[plane.orient]]}
-          title="Ziehen zum Extrudieren"
+          title={t("Drag to extrude")}
           onDown={(e) => {
             const ok = startAxisDrag(
               get(),
               e.nativeEvent,
               origin,
               n,
-              (t, ev) => {
-                const v = ev.altKey ? t : snapTo(t, snap);
+              (dist, ev) => {
+                const v = ev.altKey ? dist : snapTo(dist, snap);
                 hRef.current = v;
                 setH(v);
-                useStore.setState({ dragInfo: `Höhe ${fmtLen(v, unit)}` });
+                useStore.setState({ dragInfo: `${t("Height")} ${fmtLen(v, unit)}` });
               },
               () => {
                 useStore.setState({ dragInfo: null });
@@ -457,7 +459,7 @@ function SketchGizmo({ sketch }: { sketch: Sketch }) {
                 if (cur !== null && Math.abs(cur) > 1e-6) extrudeSketch(sketch.id, cur);
               },
             );
-            if (!ok) toast("In dieser Ansicht nicht ziehbar. Nutze die 3D-Ansicht oder das Panel");
+            if (!ok) toast(t("Can't drag in this view. Use the 3D view or the panel"));
           }}
         />
       )}
@@ -468,7 +470,7 @@ function SketchGizmo({ sketch }: { sketch: Sketch }) {
               <meshStandardMaterial color={AXIS_COLOR[PLANE_AXIS[plane.orient]]} transparent opacity={0.45} depthWrite={false} />
             </mesh>
           </PlaneGroup>
-          <DimLabel position={W(cx, cy, h + Math.sign(h) * 6)} mm={Math.abs(h)} prefix="H" />
+          <DimLabel position={W(cx, cy, h + Math.sign(h) * 6)} mm={Math.abs(h)} prefix={t("H")} />
         </>
       )}
     </group>
