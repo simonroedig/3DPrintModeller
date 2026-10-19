@@ -16,6 +16,7 @@
   <img alt="OpenCascade WASM" src="https://img.shields.io/badge/OpenCascade-WebAssembly-4f8ff7" />
   <img alt="Vite 8" src="https://img.shields.io/badge/Vite_8-646cff?logo=vite&logoColor=white" />
   <img alt="Tailwind CSS 4" src="https://img.shields.io/badge/Tailwind_CSS_4-0f172a?logo=tailwindcss&logoColor=38bdf8" />
+  <a href="https://github.com/simonroedig/3DPrintModeller/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/simonroedig/3DPrintModeller/actions/workflows/ci.yml/badge.svg" /></a>
 </p>
 
 <p align="center">
@@ -183,11 +184,11 @@ src/
 
 ## Deployment
 
-Eine rein statische Seite mit relativen Pfaden, läuft auf jedem statischen Hoster:
+Eine rein statische Seite mit relativen Pfaden, läuft auf jedem statischen Hoster.
+Gehostet wird sie auf **Vercel**: Framework-Preset **Vite**, Build-Befehl `npm run build`, Ausgabeordner `dist`.
+Netlify oder GitHub Pages funktionieren genauso.
 
-- **Vercel oder Netlify**: Framework-Preset **Vite**, Build-Befehl `npm run build`, Ausgabeordner `dist`.
-- **GitHub Pages**: `.github/workflows/deploy.yml` baut bei jedem Push auf `main` und veröffentlicht automatisch
-  (in den Repo-Einstellungen unter *Pages* als Quelle „GitHub Actions“ wählen).
+Bei jedem Push auf `main` und bei Pull Requests prüft GitHub Actions Typecheck und Build (`.github/workflows/ci.yml`).
 
 ## Autor
 
