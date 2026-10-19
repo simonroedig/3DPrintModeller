@@ -5,17 +5,19 @@ import { Viewport } from "./viewport/Viewport";
 import { StatusBar, ToolRail, TopBar, ViewSwitcher } from "./ui/Chrome";
 import { Sidebar } from "./ui/Sidebar";
 import { DragHud, EmptyHint, KernelLoading, ModeFrame, Toasts, ToolOptions } from "./ui/Overlays";
-import { ExportDialog, HelpDialog, StartDialog } from "./ui/Dialogs";
+import { AboutDialog, ExportDialog, HelpDialog, StartDialog } from "./ui/Dialogs";
 import { useShortcuts } from "./ui/shortcuts";
 import { TooltipLayer } from "./ui/Tooltip";
 import { PlanePanel } from "./ui/PlanePanel";
 import { ProjectBar } from "./ui/ProjectBar";
+import { ContextBar } from "./ui/ContextBar";
 
 export function App() {
   useShortcuts();
   const startDialog = useStore((s) => s.startDialog);
   const exportOpen = useStore((s) => s.exportOpen);
   const helpOpen = useStore((s) => s.helpOpen);
+  const aboutOpen = useStore((s) => s.aboutOpen);
   const [dragOver, setDragOver] = useState(false);
   const hasFiles = (e: React.DragEvent) => Array.from(e.dataTransfer.types).includes("Files");
   return (
@@ -47,6 +49,7 @@ export function App() {
           <ViewSwitcher />
           <PlanePanel />
           <DragHud />
+          <ContextBar />
           <KernelLoading />
           <Toasts />
         </main>
@@ -57,6 +60,7 @@ export function App() {
       {startDialog && <StartDialog />}
       {exportOpen && <ExportDialog />}
       {helpOpen && <HelpDialog />}
+      {aboutOpen && <AboutDialog />}
       <TooltipLayer />
       {dragOver && (
         <div className="fixed inset-0 z-[60] grid place-items-center bg-black/50 pointer-events-none">

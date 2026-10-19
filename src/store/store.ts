@@ -74,6 +74,7 @@ export interface State {
   startDialog: boolean;
   exportOpen: boolean;
   helpOpen: boolean;
+  aboutOpen: boolean;
   toasts: Toast[];
   /** plane position (along its axis) per sketch orientation */
   sketchPlanes: Record<PlaneOrient, number>;
@@ -83,6 +84,10 @@ export interface State {
   planeDrag: boolean;
   /** part of a combined body opened in the panel (shown in the viewport) */
   groupFocus: { groupId: string; childId: string } | null;
+  /** print bed drawn on the ground */
+  showBed: boolean;
+  /** height used by the extrude buttons */
+  extrudeHeight: number;
 }
 
 /** quick snapshot of the open document (small documents only) for an instant first paint */
@@ -110,6 +115,26 @@ function loadDoc(): Doc | null {
 
 const initialDoc = loadDoc();
 
+const BED_KEY = "printmodeller.showBed";
+
+function readFlag(key: string, fallback: boolean) {
+  try {
+    const v = localStorage.getItem(key);
+    return v === null ? fallback : v === "1";
+  } catch {
+    return fallback;
+  }
+}
+
+export function setShowBed(show: boolean) {
+  useStore.setState({ showBed: show });
+  try {
+    localStorage.setItem(BED_KEY, show ? "1" : "0");
+  } catch {
+    /* ignore */
+  }
+}
+
 export const useStore = create<State>(() => ({
   doc: initialDoc ?? emptyDoc(),
   past: [],
@@ -132,11 +157,14 @@ export const useStore = create<State>(() => ({
   startDialog: false,
   exportOpen: false,
   helpOpen: false,
+  aboutOpen: false,
   toasts: [],
   sketchPlanes: { top: 0, front: 0, back: 0, right: 0, left: 0 },
   planePick: false,
   planeDrag: false,
   groupFocus: null,
+  showBed: readFlag(BED_KEY, true),
+  extrudeHeight: 10,
 }));
 
 const get = useStore.getState;

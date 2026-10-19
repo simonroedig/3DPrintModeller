@@ -223,26 +223,61 @@ input {
   background: var(--color-accent-strong);
 }
 
+.tool-rail {
+  display: grid;
+  grid-template-columns: 36px 36px;
+  gap: 4px;
+  justify-content: center;
+  align-content: start;
+}
+.tool-rail .rail-label {
+  grid-column: 1 / -1;
+}
 .tool-btn {
   position: relative;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 9px;
   display: grid;
   place-items: center;
-  color: var(--color-ink-300);
+  color: color-mix(in srgb, var(--tc, var(--color-ink-300)) 72%, var(--color-ink-300));
   cursor: pointer;
   border: 1px solid transparent;
   background: transparent;
+  transition: background 0.12s, color 0.12s, box-shadow 0.12s;
 }
 .tool-btn:hover {
-  background: var(--color-ink-750);
-  color: white;
+  background: color-mix(in srgb, var(--tc, #ffffff) 14%, transparent);
+  color: var(--tc, white);
 }
 .tool-btn.on {
-  background: rgba(37, 99, 235, 0.22);
-  border-color: rgba(59, 130, 246, 0.6);
-  color: #bfdbfe;
+  background: color-mix(in srgb, var(--tc, #3b82f6) 22%, transparent);
+  border-color: color-mix(in srgb, var(--tc, #3b82f6) 70%, transparent);
+  color: var(--tc, #bfdbfe);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--tc, #3b82f6) 30%, transparent);
+}
+.tool-btn.dim {
+  opacity: 0.42;
+}
+.tool-btn.dim:hover {
+  opacity: 0.8;
+}
+.rail-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin: 8px 0 0;
+  text-align: center;
+  opacity: 0.75;
+}
+.brand {
+  cursor: pointer;
+}
+.brand:hover span:first-of-type {
+  background: linear-gradient(90deg, #60a5fa, #22c55e 55%, #ef4444);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 .tool-btn .tip {
   position: absolute;
@@ -472,4 +507,96 @@ label:has(> input[type="checkbox"]) {
   font-size: 12px;
   color: #fff;
   outline: none;
+}
+
+/* on/off switch */
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 11px;
+  color: var(--color-ink-400);
+}
+.switch-track {
+  position: relative;
+  width: 28px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--color-ink-700);
+  transition: background 0.15s;
+}
+.switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--color-ink-200);
+  transition: transform 0.15s;
+}
+.switch.on .switch-track {
+  background: var(--color-accent);
+}
+.switch.on .switch-knob {
+  transform: translateX(12px);
+  background: #fff;
+}
+.switch.on {
+  color: var(--color-ink-200);
+}
+
+/* floating actions for the selection */
+.context-bar {
+  border-radius: 12px;
+  animation: callout-in 0.14s ease-out;
+}
+.ctx-btn {
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  color: var(--color-ink-200);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s, color 0.12s;
+}
+.ctx-btn svg {
+  color: var(--tc, var(--color-ink-300));
+}
+.ctx-btn.icon-only {
+  padding: 0 8px;
+}
+.ctx-btn:hover {
+  background: color-mix(in srgb, var(--tc, #ffffff) 16%, transparent);
+  color: #fff;
+}
+
+/* buttons tinted by the kind of action */
+.op-btn svg {
+  color: var(--tc);
+}
+.op-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--tc) 18%, var(--color-ink-800));
+  border-color: color-mix(in srgb, var(--tc) 60%, transparent);
+}
+
+/* welcome / about */
+.welcome-pitch {
+  background:
+    radial-gradient(120% 80% at 0% 0%, rgba(96, 165, 250, 0.14), transparent 60%),
+    radial-gradient(90% 70% at 100% 100%, rgba(239, 68, 68, 0.08), transparent 60%),
+    radial-gradient(80% 60% at 100% 0%, rgba(34, 197, 94, 0.08), transparent 60%);
+}
+.brand-gradient {
+  background: linear-gradient(90deg, #93c5fd, #4ade80 55%, #f87171);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }

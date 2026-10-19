@@ -26,13 +26,16 @@ export function TooltipLayer() {
       if (!raw || !el.isConnected) return;
       const m = /^(.*\S)\s+\(([^()]{1,18})\)$/.exec(raw);
       const r = el.getBoundingClientRect();
-      const inRail = r.right < 80;
+      const rail = el.closest(".tool-rail");
+      const inRail = !!rail;
+      const railRight = rail?.getBoundingClientRect().right ?? r.right;
       const nearBottom = r.bottom > window.innerHeight - 70;
       setTip({
         text: m ? m[1] : raw,
         kbd: m ? m[2] : undefined,
         place: inRail ? "right" : nearBottom ? "above" : "below",
-        x: inRail ? r.right + 10 : r.left + r.width / 2,
+        // centred tips stay inside the window (they are at most 300 px wide)
+        x: inRail ? railRight + 8 : Math.min(Math.max(r.left + r.width / 2, 158), window.innerWidth - 158),
         y: inRail ? r.top + r.height / 2 : nearBottom ? r.top - 8 : r.bottom + 8,
       });
     };

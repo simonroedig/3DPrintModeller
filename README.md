@@ -1,6 +1,11 @@
-# PrintModeller
+# PrintModeller · by Simon R.
 
 Ein schlanker 3D-Modeller im Browser – gebaut für **einfache, präzise Teile für den 3D-Druck**.
+
+**Warum?** Für meine 3D-Druck-Projekte gab es keine Software, die genau auf meine Bedürfnisse zugeschnitten war:
+Tinkercad ist intuitiv, stößt aber schnell an Grenzen – Shapr3D ist mächtig, für ein schnelles Druckteil aber oft zu viel.
+PrintModeller verbindet beides: intuitives Bauen mit einfachen Grundkörpern und echte CAD-Werkzeuge für die komplexen Teile.
+
 Skizze zeichnen → extrudieren → Teile aneinander schieben (sie rasten ein) → vereinen →
 Kanten runden → als 3MF/STL exportieren. Mehr nicht, aber das richtig.
 
@@ -17,7 +22,9 @@ zwischen vereinten Teilen.
 - **Skizzen in jeder Ebene**: gezeichnet wird in der Ebene der aktuellen Ansicht (Vorne/Hinten/Links/Rechts, in 3D auf dem Boden).
   Rechteck (Ecke→Ecke oder aus der Mitte), Kreis (Mittelpunkt oder Ecke→Ecke), Polygon/Linienzug (Shift = 15°-Schritte).
   Maße live beim Zeichnen, danach exakt im Panel oder per Klick aufs Maß-Label. Nach dem Zeichnen ist wieder der Auswahl-Pfeil aktiv.
-- **Skizzenebene oben rechts**: kleine 3D-Vorschau, die zeigt, wo die Ebene im Raum liegt. Links/rechts ziehen verschiebt sie live
+- **Mini-3D-Vorschau oben rechts** in jeder 2D-Ansicht: ein Auge in der Achsfarbe mit Sichtkegel zeigt, von wo du gerade
+  schaust (Vorne und Hinten sind so klar unterscheidbar); der Kegel folgt dem sichtbaren Ausschnitt. Klick = zurück zu 3D.
+- **Skizzenebene oben rechts**: dieselbe Vorschau zeigt beim Skizzieren, wo die Ebene im Raum liegt. Links/rechts ziehen verschiebt sie live
   (rastet bündig an Flächen anderer Körper ein), Mausrad = ein Rasterschritt, exakte Eingabe, Liste „Bündig mit Fläche …“ oder
   Fadenkreuz-Button und dann eine Fläche im Modell anklicken – die Skizze liegt genau darauf (die Ansicht dreht sich passend mit).
 - **Extrudieren** per Höheneingabe oder am Pfeil ziehen – auch direkt als Loch.
@@ -46,6 +53,11 @@ zwischen vereinten Teilen.
   - Alles bleibt nachträglich im Panel änderbar.
 - **Zahlen ziehen** wie in Adobe-Programmen: auf einem Zahlenfeld (oder Maß-Label im 3D) links/rechts ziehen, Klick zum Tippen.
 - **Tooltips** an allen Buttons (mit Tastenkürzel).
+- **Kontextleiste** unten im Modell für die Auswahl: Kanten & Flächen, aufs Bett legen, drehen, Loch, kombinieren …
+  – die nächsten sinnvollen Schritte, ohne Tastenkürzel kennen zu müssen.
+- **Farben mit Bedeutung**: Skizze hellblau, Körper indigo, Kanten & Flächen orange, aufs Bett legen gelb,
+  Vereinen grün, Abziehen rot, Schnittmenge lila – in Werkzeugleiste, Modusrahmen, Statusleiste und Panels gleich.
+- **Druckbett** ein- und ausblendbar (Panel rechts, ohne Auswahl).
 - **Ausrichten** mehrerer Körper (Anfang/Mitte/Ende pro Achse).
 - **Export**: 3MF (empfohlen), STL (binär) oder STEP – mit wählbarer Tessellierungs-Qualität, wasserdichtes Netz,
   Volumen/Gewichts-Schätzung.
@@ -92,7 +104,9 @@ npm run preview   # Build lokal ansehen
 ```
 
 Stack: Vite 8, React 19, TypeScript, Three.js / React Three Fiber / drei, Zustand, Tailwind CSS 4,
-replicad + OpenCascade (WASM), fflate (3MF).
+replicad + OpenCascade (WASM) im Web Worker, fflate (3MF).
+
+Name, Autor und Repo-Link stehen zentral in `src/ui/brand.ts`.
 
 ```
 src/

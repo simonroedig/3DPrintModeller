@@ -1,14 +1,85 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronUp, Crosshair, MoveHorizontal } from "lucide-react";
-import { beginTx, endTx, planeTarget, setPlaneTargetValue, useStore } from "../store/store";
+import { Box, ChevronDown, ChevronUp, Crosshair, Eye, MoveHorizontal } from "lucide-react";
+import { beginTx, endTx, planeTarget, setPlaneTargetValue, setView, useStore, type View } from "../store/store";
 import { useMeshes } from "../cad/client";
-import { AXIS_COLOR, ORIENT_LABEL, PLANE_AXIS, PLANE_AXIS_NAME } from "../lib/planes";
+import { AXIS_COLOR, ORIENT_LABEL, PLANE_AXIS, PLANE_AXIS_NAME, viewAxis } from "../lib/planes";
 import { planeSnapTargets } from "../lib/planeSnap";
 import { fmtLen, snapTo } from "../lib/units";
 import { INSET_ID, insetMmPerPx, invalidateInset, usePlaneTarget } from "../viewport/PlaneInset";
 import { LenField } from "./fields";
 
 const COLLAPSE_KEY = "printmodeller.planePanel.collapsed";
+
+function useCollapsed() {
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem(COLLAPSE_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const toggle = () => {
+    const next = !collapsed;
+    setCollapsed(next);
+    try {
+      localStorage.setItem(COLLAPSE_KEY, next ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  };
+  return [collapsed, toggle] as const;
+}
+
+const VIEW_FROM: Partial<Record<View, string>> = {
+  top: "von oben nach unten",
+  front: "von vorne nach hinten",
+  back: "von hinten nach vorne",
+  left: "von links nach rechts",
+  right: "von rechts nach links",
+};
+
+/** in a 2D view: the same small 3D preview, showing the eye you look through */
+function ViewPanel({ view }: { view: View }) {
+  const [collapsed, toggle] = useCollapsed();
+  const ref = useRef<HTMLDivElement>(null);
+  const axis = viewAxis(view) ?? 2;
+  const color = AXIS_COLOR[axis];
+  useLayoutEffect(() => {
+    invalidateInset();
+  });
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => invalidateInset());
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [collapsed]);
+  return (
+    <div className="absolute top-[54px] right-3 z-10 w-[248px] plane-panel" style={{ borderColor: `${color}88` }}>
+      <div className="pp-bar flex items-center gap-2 px-2.5 pt-2 pb-1.5">
+        <Eye size={14} style={{ color }} className="shrink-0" />
+        <span className="text-[12px] font-semibold text-ink-100">Blickrichtung</span>
+        <span className="text-[11px] text-ink-400 truncate">{VIEW_FROM[view]}</span>
+        <button className="btn ghost !h-6 !px-1 ml-auto" title={collapsed ? "Vorschau zeigen" : "Vorschau einklappen"} onClick={toggle}>
+          {collapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+        </button>
+      </div>
+      {!collapsed && (
+        <div
+          id={INSET_ID}
+          ref={ref}
+          className="plane-inset relative h-[150px] !cursor-pointer"
+          title="Klick: zur 3D-Ansicht · Rechte Maustaste im Modell halten: direkt in 3D drehen"
+          onClick={() => setView("iso")}
+        >
+          <span className="absolute right-1.5 bottom-1.5 text-[11px] text-ink-500 flex items-center gap-1 pointer-events-none">
+            <Box size={13} /> Klick: 3D
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
 
 /**
  * Small 3D preview (top right) that shows where the sketch plane lives.
@@ -19,15 +90,10 @@ export function PlanePanel() {
   const unit = useStore((s) => s.doc.settings.unit);
   const snap = useStore((s) => s.doc.settings.snap);
   const planePick = useStore((s) => s.planePick);
+  const view = useStore((s) => s.view);
   const bodies = useStore((s) => s.doc.bodies);
   const meshes = useMeshes((s) => s.meshes);
-  const [collapsed, setCollapsed] = useState(() => {
-    try {
-      return localStorage.getItem(COLLAPSE_KEY) === "1";
-    } catch {
-      return false;
-    }
-  });
+  const [collapsed, toggleCollapsed] = useCollapsed();
   const [snapLabel, setSnapLabel] = useState<string | null>(null);
   const viewRef = useRef<HTMLDivElement>(null);
   const plane = target?.plane;
@@ -61,7 +127,7 @@ export function PlanePanel() {
     return () => el.removeEventListener("wheel", onWheel);
   }, [collapsed, !!plane, snap]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!plane) return null;
+  if (!plane) return view === "iso" ? null : <ViewPanel view={view} />;
   const color = AXIS_COLOR[axis];
   const axisName = PLANE_AXIS_NAME[axis];
 
@@ -115,16 +181,6 @@ export function PlanePanel() {
     el.addEventListener("pointermove", move);
     el.addEventListener("pointerup", up);
     el.addEventListener("pointercancel", up);
-  };
-
-  const toggleCollapsed = () => {
-    const next = !collapsed;
-    setCollapsed(next);
-    try {
-      localStorage.setItem(COLLAPSE_KEY, next ? "1" : "0");
-    } catch {
-      /* ignore */
-    }
   };
 
   return (

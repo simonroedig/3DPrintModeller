@@ -53,6 +53,7 @@ import {
   setBodyShape,
   setSelectionMin,
   setSettings,
+  setShowBed,
   setTool,
   ungroupSelection,
   convertMeshAsset,
@@ -65,11 +66,12 @@ import {
 import { bodyMatrix, eulerDeg, localBox, polyBounds, polygonArea, unionBox } from "../lib/geom";
 import { scaleGroup, scaleGroupShape } from "../lib/shapeEdit";
 import { OPS } from "./ops";
+import { TOOL_COLOR } from "./theme";
 import { geometryKey } from "../cad/key";
 import { assetPayload, useMeshes } from "../cad/client";
 import { fmtLen, SNAP_OPTIONS } from "../lib/units";
 import { ORIENT_LABEL, PLANE_AXIS, PLANE_AXIS_NAME, viewAxis } from "../lib/planes";
-import { LenField, NumField, Seg } from "./fields";
+import { LenField, NumField, Seg, Switch } from "./fields";
 
 const ICON: Record<ShapeKind, ReactNode> = {
   box: <Box size={14} />,
@@ -320,7 +322,7 @@ function BodyProps({ body }: { body: Body }) {
       {!isMeshBody(body) && <Section
         title="Bearbeitungen"
         right={
-          <button className="btn ghost !h-6 !px-1.5 normal-case tracking-normal text-[11px]" onClick={() => setTool("edit")}>
+          <button className="btn ghost !h-6 !px-1.5 normal-case tracking-normal text-[11px]" style={{ color: TOOL_COLOR.edit }} onClick={() => setTool("edit")}>
             <SquareRoundCorner size={13} /> Kanten & Flächen
           </button>
         }
@@ -611,7 +613,13 @@ function GroupParts({ body }: { body: GroupBody }) {
     <Section title="Teile & Verknüpfung">
       <div className="seg w-full mb-2 !flex">
         {OPS.map((o) => (
-          <button key={o.op} className={`flex-1 ${op === o.op ? "on" : ""}`} title={o.tip} onClick={() => setGroupOp(body.id, o.op as BoolOp)}>
+          <button
+            key={o.op}
+            className={`flex-1 ${op === o.op ? "on" : ""}`}
+            style={op === o.op ? { background: `${TOOL_COLOR[o.op]}33`, color: TOOL_COLOR[o.op], boxShadow: `inset 0 0 0 1px ${TOOL_COLOR[o.op]}99` } : undefined}
+            title={o.tip}
+            onClick={() => setGroupOp(body.id, o.op as BoolOp)}
+          >
             {o.short}
           </button>
         ))}
@@ -707,8 +715,14 @@ function MultiProps({ bodies }: { bodies: Body[] }) {
           {fmtLen(box.max.x - box.min.x, unit)} × {fmtLen(box.max.y - box.min.y, unit)} × {fmtLen(box.max.z - box.min.z, unit)}
         </div>
         <div className="grid grid-cols-2 gap-1.5 mt-3">
-          {OPS.map((o, i) => (
-            <button key={o.op} className={`btn !h-9 ${i === 0 ? "primary" : ""}`} title={o.tip + (o.kbd ? ` (${o.kbd})` : "")} onClick={() => combineSelection(o.op)}>
+          {OPS.map((o) => (
+            <button
+              key={o.op}
+              className="btn op-btn !h-9"
+              style={{ "--tc": TOOL_COLOR[o.op] } as React.CSSProperties}
+              title={o.tip + (o.kbd ? ` (${o.kbd})` : "")}
+              onClick={() => combineSelection(o.op)}
+            >
               {o.icon(16)} {o.label}
             </button>
           ))}
@@ -754,7 +768,8 @@ function MultiProps({ bodies }: { bodies: Body[] }) {
 }
 
 function SketchProps({ sketch }: { sketch: Sketch }) {
-  const [height, setHeight] = useState(10);
+  const height = useStore((st) => st.extrudeHeight);
+  const setHeight = (v: number) => useStore.setState({ extrudeHeight: v });
   const s = sketch.shape;
   const upd = (shape: SketchShape) => updateSketch(sketch.id, shape);
   const unit = useStore((st) => st.doc.settings.unit);
@@ -841,6 +856,7 @@ const BEDS = [
 
 function DocProps() {
   const settings = useStore((s) => s.doc.settings);
+  const showBed = useStore((s) => s.showBed);
   const count = useStore((s) => s.doc.bodies.length);
   return (
     <>
@@ -858,7 +874,10 @@ function DocProps() {
         </div>
         <div className="text-[11px] text-ink-500 mt-2">Alles rastet auf dieses Raster. Beim Ziehen <kbd>Alt</kbd> halten für freie Werte.</div>
       </Section>
-      <Section title="Druckbett">
+      <Section
+        title="Druckbett"
+        right={<Switch on={showBed} onChange={setShowBed} label={showBed ? "sichtbar" : "aus"} title="Druckbett im Modell ein- oder ausblenden" />}
+      >
         <Grid2>
           <LenField label="X" mm={settings.bed.x} min={10} onChange={(x) => setSettings({ bed: { ...settings.bed, x } })} />
           <LenField label="Y" mm={settings.bed.y} min={10} onChange={(y) => setSettings({ bed: { ...settings.bed, y } })} />

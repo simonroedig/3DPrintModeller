@@ -43,6 +43,10 @@ import { SNAP_OPTIONS } from "../lib/units";
 import type { Unit } from "../types";
 import { openProject, pickImportFiles, saveProject } from "./files";
 import { OPS } from "./ops";
+import { TOOL_COLOR } from "./theme";
+import { APP_NAME, AUTHOR } from "./brand";
+import { Logo } from "./Logo";
+import { MODE_COLOR, MODE_NAME } from "./Overlays";
 
 export function TopBar() {
   const canUndo = useStore((s) => s.past.length > 0);
@@ -52,14 +56,15 @@ export function TopBar() {
   const opts = SNAP_OPTIONS[unit];
   return (
     <header className="h-12 shrink-0 flex items-center gap-2 px-3 bg-ink-900 border-b border-ink-750">
-      <div className="flex items-center gap-2 pr-3 mr-1 border-r border-ink-750">
-        <svg width="22" height="22" viewBox="0 0 32 32" aria-hidden>
-          <path d="M16 3 28 9.5v13L16 29 4 22.5v-13z" fill="#3b82f6" />
-          <path d="M16 3 28 9.5 16 16 4 9.5z" fill="#93c5fd" />
-          <path d="M16 16v13L4 22.5v-13z" fill="#1d4ed8" />
-        </svg>
-        <span className="font-semibold tracking-tight text-[14px]">PrintModeller</span>
-      </div>
+      <button
+        className="brand flex items-center gap-2 pr-3 mr-1 border-r border-ink-750"
+        title="Über PrintModeller"
+        onClick={() => useStore.setState({ aboutOpen: true })}
+      >
+        <Logo size={22} />
+        <span className="font-semibold tracking-tight text-[14px]">{APP_NAME}</span>
+        <span className="text-[11px] text-ink-500 font-normal">by {AUTHOR}</span>
+      </button>
       <button className="btn ghost" title="Projektdatei (.json) als neues Projekt öffnen (Strg+O)" onClick={openProject}>
         <FolderOpen size={16} /> Öffnen
       </button>
@@ -111,16 +116,44 @@ export function TopBar() {
   );
 }
 
-function ToolButton({ icon, label, kbd, on, onClick }: { icon: ReactNode; label: string; kbd?: string; on?: boolean; onClick: (e: React.MouseEvent) => void }) {
+function ToolButton({
+  icon,
+  label,
+  kbd,
+  on,
+  color,
+  dim,
+  onClick,
+}: {
+  icon: ReactNode;
+  label: string;
+  kbd?: string;
+  on?: boolean;
+  /** colour of the tool's kind (see theme.ts) */
+  color?: string;
+  /** not applicable right now */
+  dim?: boolean;
+  onClick: (e: React.MouseEvent) => void;
+}) {
   return (
-    <button className={`tool-btn ${on ? "on" : ""}`} onClick={onClick} aria-label={label} data-tip={kbd ? `${label} (${kbd})` : label}>
+    <button
+      className={`tool-btn ${on ? "on" : ""} ${dim ? "dim" : ""}`}
+      style={color ? ({ "--tc": color } as React.CSSProperties) : undefined}
+      onClick={onClick}
+      aria-label={label}
+      data-tip={kbd ? `${label} (${kbd})` : label}
+    >
       {icon}
     </button>
   );
 }
 
-function RailLabel({ children }: { children: ReactNode }) {
-  return <div className="text-[9px] uppercase tracking-[0.12em] text-ink-500 mt-3 mb-1 text-center">{children}</div>;
+function RailLabel({ children, color }: { children: ReactNode; color: string }) {
+  return (
+    <div className="rail-label" style={{ color }}>
+      {children}
+    </div>
+  );
 }
 
 export function ToolRail() {
@@ -130,35 +163,47 @@ export function ToolRail() {
   const t = (id: Tool) => () => setTool(tool === id && id !== "select" ? "select" : id);
   const prim = (kind: Parameters<typeof addPrimitive>[0]) => (e: React.MouseEvent) => addPrimitive(kind, e.shiftKey);
   return (
-    <nav className="w-[58px] shrink-0 bg-ink-900 border-r border-ink-750 flex flex-col items-center py-2 gap-1 overflow-y-auto overflow-x-visible scroll-thin">
-      <ToolButton icon={<MousePointer2 size={19} />} label="Auswählen & Verschieben" kbd="V" on={tool === "select"} onClick={t("select")} />
-      <RailLabel>Skizze</RailLabel>
-      <ToolButton icon={<Square size={19} />} label="Rechteck" kbd="R" on={tool === "rect"} onClick={t("rect")} />
-      <ToolButton icon={<Circle size={19} />} label="Kreis" kbd="C" on={tool === "circle"} onClick={t("circle")} />
-      <ToolButton icon={<Hexagon size={19} />} label="Polygon / Linienzug" kbd="P" on={tool === "poly"} onClick={t("poly")} />
-      <RailLabel>Körper</RailLabel>
-      <ToolButton icon={<Box size={19} />} label="Quader  (Shift: als Loch)" onClick={prim("box")} />
-      <ToolButton icon={<Cylinder size={19} />} label="Zylinder  (Shift: als Loch)" onClick={prim("cylinder")} />
-      <ToolButton icon={<TriangleRight size={19} />} label="Keil  (Shift: als Loch)" onClick={prim("wedge")} />
-      <ToolButton icon={<Cone size={19} />} label="Kegel  (Shift: als Loch)" onClick={prim("cone")} />
-      <ToolButton icon={<Globe size={19} />} label="Kugel  (Shift: als Loch)" onClick={prim("sphere")} />
-      <ToolButton icon={<CircleDot size={19} />} label="Rohr  (Shift: als Loch)" onClick={prim("tube")} />
-      <RailLabel>Ändern</RailLabel>
-      <ToolButton icon={<SquareRoundCorner size={19} />} label="Kanten & Flächen bearbeiten (auch Doppelklick)" kbd="F" on={tool === "edit"} onClick={t("edit")} />
-      <ToolButton icon={<ArrowDownToLine size={19} />} label="Fläche aufs Druckbett legen" kbd="L" on={tool === "layflat"} onClick={t("layflat")} />
+    <nav className="tool-rail w-[86px] shrink-0 bg-ink-900 border-r border-ink-750 py-2 px-[5px] overflow-y-auto overflow-x-visible scroll-thin">
+      <ToolButton icon={<MousePointer2 size={19} />} label="Auswählen & Verschieben" kbd="V" color={TOOL_COLOR.select} on={tool === "select"} onClick={t("select")} />
+      <RailLabel color={TOOL_COLOR.sketch}>Skizze</RailLabel>
+      <ToolButton icon={<Square size={19} />} label="Rechteck" kbd="R" color={TOOL_COLOR.sketch} on={tool === "rect"} onClick={t("rect")} />
+      <ToolButton icon={<Circle size={19} />} label="Kreis" kbd="C" color={TOOL_COLOR.sketch} on={tool === "circle"} onClick={t("circle")} />
+      <ToolButton icon={<Hexagon size={19} />} label="Polygon / Linienzug" kbd="P" color={TOOL_COLOR.sketch} on={tool === "poly"} onClick={t("poly")} />
+      <RailLabel color={TOOL_COLOR.body}>Körper</RailLabel>
+      <ToolButton icon={<Box size={19} />} label="Quader  (Shift: als Loch)" color={TOOL_COLOR.body} onClick={prim("box")} />
+      <ToolButton icon={<Cylinder size={19} />} label="Zylinder  (Shift: als Loch)" color={TOOL_COLOR.body} onClick={prim("cylinder")} />
+      <ToolButton icon={<TriangleRight size={19} />} label="Keil  (Shift: als Loch)" color={TOOL_COLOR.body} onClick={prim("wedge")} />
+      <ToolButton icon={<Cone size={19} />} label="Kegel  (Shift: als Loch)" color={TOOL_COLOR.body} onClick={prim("cone")} />
+      <ToolButton icon={<Globe size={19} />} label="Kugel  (Shift: als Loch)" color={TOOL_COLOR.body} onClick={prim("sphere")} />
+      <ToolButton icon={<CircleDot size={19} />} label="Rohr  (Shift: als Loch)" color={TOOL_COLOR.body} onClick={prim("tube")} />
+      <RailLabel color={TOOL_COLOR.edit}>Ändern</RailLabel>
+      <ToolButton
+        icon={<SquareRoundCorner size={19} />}
+        label="Kanten & Flächen: Kanten runden/fasen, Flächen verschieben oder neigen (auch Doppelklick auf einen Körper)"
+        kbd="F"
+        color={TOOL_COLOR.edit}
+        on={tool === "edit"}
+        onClick={t("edit")}
+      />
+      <ToolButton icon={<ArrowDownToLine size={19} />} label="Fläche aufs Druckbett legen" kbd="L" color={TOOL_COLOR.layflat} on={tool === "layflat"} onClick={t("layflat")} />
+      <RailLabel color={TOOL_COLOR.union}>Kombinieren</RailLabel>
       {OPS.filter((o) => o.op !== "group").map((o) => (
         <ToolButton
           key={o.op}
-          icon={<span className={selCount >= 2 ? "" : "opacity-40"}>{o.icon(19)}</span>}
-          label={`${o.label}: ${o.tip}`}
+          icon={o.icon(19)}
+          label={`${o.label}: ${o.tip}${selCount >= 2 ? "" : " – erst mehrere Körper wählen (Shift+Klick)"}`}
           kbd={o.kbd}
+          color={TOOL_COLOR[o.op]}
+          dim={selCount < 2}
           onClick={() => combineSelection(o.op)}
         />
       ))}
       <ToolButton
-        icon={<Ungroup size={19} className={hasGroup ? "" : "opacity-40"} />}
+        icon={<Ungroup size={19} />}
         label="Trennen: kombinierten Körper wieder in seine Teile zerlegen"
         kbd="Strg ⇧ G"
+        color={TOOL_COLOR.ungroup}
+        dim={!hasGroup}
         onClick={ungroupSelection}
       />
     </nav>
@@ -216,7 +261,7 @@ export function StatusBar() {
   const faceSel = useStore((s) => s.faceSel);
   const hints: Record<Tool, string> = {
     select: selection
-      ? "Ziehen: verschieben (rastet an Flächen ein) · Alt: frei · Pfeiltasten: nudgen · Strg+D: duplizieren · Entf: löschen"
+      ? "Ziehen: verschieben (rastet an Flächen ein) · Doppelklick oder F: Kanten & Flächen · Alt: frei · Pfeiltasten: nudgen · Entf: löschen"
       : "Klicke einen Körper zum Auswählen · Shift+Klick: Mehrfachauswahl · Rechte Maus halten: drehen · Mittlere Maus: verschieben · Rad: zoomen",
     rect: "Klicken & ziehen (oder zwei Klicks) für ein Rechteck · Alt: ohne Raster · Esc: abbrechen",
     circle: "Klicken & ziehen für einen Kreis · Alt: ohne Raster · Esc: abbrechen",
@@ -238,6 +283,10 @@ export function StatusBar() {
   const stalled = busy ? stalledFor() : 0;
   return (
     <footer className="h-7 shrink-0 flex items-center gap-3 px-3 text-[11.5px] text-ink-400 bg-ink-900 border-t border-ink-750">
+      <span className="flex items-center gap-1.5 shrink-0 font-medium" style={{ color: MODE_COLOR[tool] ?? TOOL_COLOR.select }}>
+        <span className="w-2 h-2 rounded-full" style={{ background: MODE_COLOR[tool] ?? TOOL_COLOR.select }} />
+        {MODE_NAME[tool]}
+      </span>
       <span className="truncate flex-1">{hints[tool]}</span>
       <span className="flex items-center gap-1.5 shrink-0">
         <span className={`w-2 h-2 rounded-full ${!ready ? "bg-amber-400 animate-pulse" : busy ? "bg-sky-400 animate-pulse" : "bg-emerald-500"}`} />

@@ -2,12 +2,14 @@ import { useState, type ReactNode } from "react";
 import { Download, LoaderCircle, X } from "lucide-react";
 import type { ExportFormat, ExportQuality, Unit } from "../types";
 import { useStore } from "../store/store";
-import { createEmptyProject, createExampleProject } from "../store/projects";
+import { createEmptyProject, createExampleProject, useProjects } from "../store/projects";
+import { Logo } from "./Logo";
+import { Pitch } from "./About";
 import { exportModel } from "../cad/client";
 import { DEFAULT_SNAP, SNAP_OPTIONS } from "../lib/units";
 import { download } from "./files";
 
-function Modal({ children, onClose, width = 520 }: { children: ReactNode; onClose?: () => void; width?: number }) {
+function Modal({ children, onClose, width = 520, bare = false }: { children: ReactNode; onClose?: () => void; width?: number; bare?: boolean }) {
   return (
     <div
       className="fixed inset-0 z-50 grid place-items-center bg-black/55 backdrop-blur-[2px]"
@@ -15,9 +17,12 @@ function Modal({ children, onClose, width = 520 }: { children: ReactNode; onClos
         if (e.target === e.currentTarget) onClose?.();
       }}
     >
-      <div className="overlay-card !bg-ink-850 relative p-6" style={{ width: `min(${width}px, calc(100vw - 32px))` }}>
+      <div
+        className={`overlay-card !bg-ink-850 relative ${bare ? "overflow-hidden" : "p-6"} max-h-[calc(100vh-32px)] overflow-y-auto`}
+        style={{ width: `min(${width}px, calc(100vw - 32px))` }}
+      >
         {onClose && (
-          <button className="btn ghost absolute right-3 top-3 !px-1.5" onClick={onClose}>
+          <button className="btn ghost absolute right-3 top-3 !px-1.5 z-10" title="Schließen (Esc)" onClick={onClose}>
             <X size={16} />
           </button>
         )}
@@ -36,20 +41,18 @@ const UNITS: { unit: Unit; title: string; sub: string }[] = [
 export function StartDialog() {
   const hasDoc = useStore((s) => s.doc.bodies.length > 0 || s.doc.sketches.length > 0);
   const current = useStore((s) => s.doc.settings.unit);
+  // first visit (no project yet): introduce PrintModeller next to the start options
+  const firstVisit = useProjects((s) => s.ready && s.list.length === 0);
   const [unit, setUnit] = useState<Unit>(current);
   const [snap, setSnap] = useState<number>(DEFAULT_SNAP[current]);
   const close = () => useStore.setState({ startDialog: false });
-  return (
-    <Modal onClose={hasDoc ? close : undefined} width={560}>
+  const options = (
+    <>
       <div className="flex items-center gap-3 mb-1">
-        <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden>
-          <path d="M16 3 28 9.5v13L16 29 4 22.5v-13z" fill="#3b82f6" />
-          <path d="M16 3 28 9.5 16 16 4 9.5z" fill="#93c5fd" />
-          <path d="M16 16v13L4 22.5v-13z" fill="#1d4ed8" />
-        </svg>
+        {!firstVisit && <Logo size={30} />}
         <div>
-          <div className="text-[18px] font-semibold">Neues Projekt</div>
-          <div className="text-ink-400 text-[12.5px]">Einfache, präzise Teile für den 3D-Druck.</div>
+          <div className="text-[18px] font-semibold">{firstVisit ? "Los geht's" : "Neues Projekt"}</div>
+          <div className="text-ink-400 text-[12.5px]">{firstVisit ? "Lege dein erstes Projekt an." : "Das aktuelle Projekt bleibt gespeichert."}</div>
         </div>
       </div>
       <div className="text-ink-300 mt-5 mb-2 text-[12.5px]">In welcher Einheit arbeitest du?</div>
@@ -90,6 +93,33 @@ export function StartDialog() {
             Abbrechen
           </button>
         )}
+      </div>
+    </>
+  );
+  if (!firstVisit)
+    return (
+      <Modal onClose={hasDoc ? close : undefined} width={560}>
+        {options}
+      </Modal>
+    );
+  return (
+    <Modal onClose={hasDoc ? close : undefined} width={980} bare>
+      <div className="grid md:grid-cols-[1.1fr_1fr]">
+        <div className="welcome-pitch p-6 md:border-r border-ink-750">
+          <Pitch />
+        </div>
+        <div className="p-6 flex flex-col">{options}</div>
+      </div>
+    </Modal>
+  );
+}
+
+export function AboutDialog() {
+  const close = () => useStore.setState({ aboutOpen: false });
+  return (
+    <Modal onClose={close} width={640} bare>
+      <div className="welcome-pitch p-6">
+        <Pitch />
       </div>
     </Modal>
   );

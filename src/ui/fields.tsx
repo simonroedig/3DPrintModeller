@@ -251,3 +251,15 @@ export function Seg<T extends string>({
     </div>
   );
 }
+
+/** small on/off switch */
+export function Switch({ on, onChange, label, title }: { on: boolean; onChange: (on: boolean) => void; label?: ReactNode; title?: string }) {
+  return (
+    <button type="button" role="switch" aria-checked={on} className={`switch ${on ? "on" : ""}`} title={title} onClick={() => onChange(!on)}>
+      <span className="switch-track">
+        <span className="switch-knob" />
+      </span>
+      {label && <span className="switch-label">{label}</span>}
+    </button>
+  );
+}

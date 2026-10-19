@@ -8,6 +8,7 @@ export function Ground() {
   const bed = useStore((s) => s.doc.settings.bed);
   const snap = useStore((s) => s.doc.settings.snap);
   const unit = useStore((s) => s.doc.settings.unit);
+  const showBed = useStore((s) => s.showBed);
 
   // grid cell follows the unit; section lines every 10 cells
   const cell = unit === "cm" ? 10 : unit === "in" ? 25.4 / 4 : Math.max(1, snap >= 5 ? snap : 1);
@@ -53,7 +54,7 @@ export function Ground() {
         followCamera={false}
         side={THREE.DoubleSide}
       />
-      {!side && (
+      {!side && showBed && (
         <>
           <mesh position={[0, 0, -0.05]} receiveShadow>
             <planeGeometry args={[bed.x, bed.y]} />

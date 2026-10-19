@@ -29,8 +29,8 @@ export function useShortcuts() {
       const t = e.target as HTMLElement | null;
       if (t && (t.tagName === "INPUT" || t.tagName === "SELECT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
       const s = useStore.getState();
-      if (s.startDialog || s.exportOpen || s.helpOpen) {
-        if (e.key === "Escape") useStore.setState({ exportOpen: false, helpOpen: false, startDialog: s.doc.bodies.length || s.doc.sketches.length ? false : s.startDialog });
+      if (s.startDialog || s.exportOpen || s.helpOpen || s.aboutOpen) {
+        if (e.key === "Escape") useStore.setState({ exportOpen: false, helpOpen: false, aboutOpen: false, startDialog: s.doc.bodies.length || s.doc.sketches.length ? false : s.startDialog });
         return;
       }
       const mod = e.ctrlKey || e.metaKey;

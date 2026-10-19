@@ -7,16 +7,18 @@ import { ORIENT_LABEL, PLANE_AXIS, PLANE_AXIS_NAME } from "../lib/planes";
 import { applyEdit, displayGeometry, hasPendingEdit } from "../store/edit";
 import { selectAllEdges } from "../viewport/EditTool";
 import { LenField, NumField, Seg } from "./fields";
+import { TOOL_COLOR } from "./theme";
 
 export const MODE_COLOR: Partial<Record<Tool, string>> = {
-  rect: "#38bdf8",
-  circle: "#38bdf8",
-  poly: "#38bdf8",
-  edit: "#f97316",
-  layflat: "#facc15",
+  rect: TOOL_COLOR.sketch,
+  circle: TOOL_COLOR.sketch,
+  poly: TOOL_COLOR.sketch,
+  edit: TOOL_COLOR.edit,
+  layflat: TOOL_COLOR.layflat,
 };
 
-const MODE_NAME: Partial<Record<Tool, string>> = {
+export const MODE_NAME: Partial<Record<Tool, string>> = {
+  select: "Auswahl",
   rect: "Skizze · Rechteck",
   circle: "Skizze · Kreis",
   poly: "Skizze · Polygon",
@@ -244,7 +246,7 @@ export function KernelLoading() {
 export function Toasts() {
   const toasts = useStore((s) => s.toasts);
   return (
-    <div className="absolute bottom-14 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2 pointer-events-none">
+    <div className="absolute bottom-[64px] left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2 pointer-events-none">
       {toasts.map((t) => (
         <div
           key={t.id}
@@ -260,14 +262,30 @@ export function Toasts() {
 export function EmptyHint() {
   const empty = useStore((s) => s.doc.bodies.length === 0 && s.doc.sketches.length === 0);
   const tool = useStore((s) => s.tool);
-  if (!empty || tool !== "select") return null;
+  const start = useStore((s) => s.startDialog);
+  if (!empty || tool !== "select" || start) return null;
+  const Step = ({ n, color, children }: { n: number; color: string; children: React.ReactNode }) => (
+    <li className="flex gap-2 items-start">
+      <span className="w-4 h-4 shrink-0 rounded-full grid place-items-center text-[10px] font-bold text-ink-950 mt-[1px]" style={{ background: color }}>
+        {n}
+      </span>
+      <span>{children}</span>
+    </li>
+  );
   return (
-    <div className="absolute inset-x-0 top-[38%] flex justify-center pointer-events-none z-0">
-      <div className="text-center text-ink-400 max-w-md">
-        <div className="text-ink-200 text-[15px] font-medium mb-1.5">Leeres Projekt</div>
-        Zeichne eine Skizze mit <kbd>R</kbd> Rechteck oder <kbd>C</kbd> Kreis und extrudiere sie –
-        oder füge links direkt einen Körper ein (Quader, Zylinder, Keil …).
-      </div>
+    <div className="absolute left-3 bottom-3 z-[1] pointer-events-none overlay-card px-3.5 py-3 max-w-[310px] text-[12px] text-ink-300">
+      <div className="text-ink-100 text-[13px] font-semibold mb-2">Leeres Projekt – so geht's los</div>
+      <ol className="flex flex-col gap-1.5">
+        <Step n={1} color={TOOL_COLOR.sketch}>
+          Skizze zeichnen: <kbd className="!ml-0">R</kbd> Rechteck, <kbd className="!ml-0">C</kbd> Kreis – oder links einen Grundkörper einfügen.
+        </Step>
+        <Step n={2} color={TOOL_COLOR.body}>
+          Extrudieren, Maße an den Pfeilen ziehen oder eintippen.
+        </Step>
+        <Step n={3} color={TOOL_COLOR.edit}>
+          Kanten runden mit <kbd className="!ml-0">F</kbd>, Teile kombinieren, als 3MF exportieren.
+        </Step>
+      </ol>
     </div>
   );
 }
