@@ -67,7 +67,9 @@ Everything runs in the browser, no installation, no account: **[3d-print-modelle
 
 ![Sketch on the front face of the lip, the plane preview at the top right](docs/screenshots/sketch.png)
 
-- Rectangle, circle and polygon, drawn on the plane of the current view: top, bottom, front, back, left, right (in 3D on the floor).
+- Rectangle, circle and line shapes, drawn on the plane of the current view: top, bottom, front, back, left, right (in 3D on the floor).
+- **Line tool** (`P`) for any outline: click points and close the shape at the start point. Length and angle show while drawing,
+  type a number and press Enter for an exact segment (`30<45` = 30 at 45°).
 - **Plane preview at the top right**: a small 3D picture shows where the sketch lives in space, and an eye in the axis color shows
   where you are looking from. Dragging moves the plane live and snaps flush to faces. Or click a face and the sketch lies exactly on it.
 - **Extrude** by typing a height or dragging the arrow, also directly as a hole.
@@ -86,6 +88,15 @@ Everything runs in the browser, no installation, no account: **[3d-print-modelle
 - **Non-destructive**: subtracted tools are kept invisibly, and can be expanded in the panel, edited, swapped or pulled out again.
 - Combined bodies are **scalable** (handles, dimensions or percent), parametrically: round parts stay round, everything stays exact.
 
+### Patterns
+- **Linear**: repeat a body in a row, as many times as you like, with the spacing center to center or as the gap between parts.
+  A second direction turns the row into a grid.
+- **Circular**: around a center with a radius (or the spacing between neighbours), as a full circle or an arc,
+  the copies turn along like spokes or keep their direction.
+- **Stays editable**: the pattern remembers its values. Change the original (for example its diameter) and every copy follows,
+  even after the pattern was subtracted from a plate as a hole pattern.
+- **Center** with one click: a circle pattern puts its middle exactly on the middle of the bed.
+
 ### Made for printing
 - **Export** as 3MF (recommended), STL or STEP, with selectable quality, watertight meshes and volume and weight estimate.
 - **Import** STEP (exact), STL, 3MF and OBJ. Meshes are converted into CAD solids (flat regions become real faces),
@@ -95,7 +106,7 @@ Everything runs in the browser, no installation, no account: **[3d-print-modelle
 ### Comfort
 - **Projects** in a collapsible bar at the bottom, with preview images, saved automatically in the browser (IndexedDB).
 - **Context bar** for the selection with the next useful steps, **tooltips** with shortcuts on every button.
-- **Colors with meaning**: sketch light blue, bodies indigo, edges and faces orange, union green, subtract red, intersect purple.
+- **Colors with meaning**: sketch light blue, bodies indigo, edges and faces orange, union green, subtract red, intersect purple, patterns teal.
 - Undo and redo, copy and paste, long computations can be cancelled.
 - **Language**: English or German, switchable in the top bar.
 - **Phones** get a short intro with a link to share instead of the editor; the CAD kernel only loads on a real screen.
@@ -120,7 +131,8 @@ Every step stays editable: expand a part in the panel, change its dimensions, do
 | Key | Action |
 | --- | --- |
 | `V` | Select and move |
-| `R` / `C` / `P` | Rectangle / circle / polygon |
+| `R` / `C` / `P` | Rectangle / circle / line |
+| Line tool: a number, then `Enter` | Exact length of the next segment (`30<45`: 30 at 45°) |
 | `F` | Edit edges and faces |
 | `L` | Lay a face flat on the bed |
 | `1` to `6`, `7` | 3D, top, front, back, left, right, bottom |

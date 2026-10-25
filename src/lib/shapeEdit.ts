@@ -2,6 +2,7 @@ import * as THREE from "three";
 import type { Body, Feature, Shape, Vec3 } from "../types";
 import { bodyMatrix, localBox, polyBounds } from "./geom";
 import { snapTo } from "./units";
+import { buildPattern, isPattern } from "./pattern";
 
 const MIN = 0.1;
 
@@ -160,6 +161,20 @@ export function scaleGroup(body: Body, f: Vec3, centred = false): Partial<Body> 
 
 export function scaleGroupShape(shape: Extract<Shape, { kind: "group" }>, anchor: Vec3, f: Vec3) {
   let approx = false;
+  if (isPattern(shape)) {
+    // a pattern scales its original and its spacing, the copies are built again from both
+    const p = shape.pattern;
+    const r = scaleBodyAbout(shape.children[0], anchor, f);
+    const others = [0, 1, 2].filter((a) => a !== p.circAxis);
+    const pattern = {
+      ...p,
+      spacing: r6(p.spacing * f[p.axis]),
+      rowSpacing: r6(p.rowSpacing * f[p.rowAxis]),
+      radius: r6((p.radius * (f[others[0]] + f[others[1]])) / 2),
+      center: p.center.map((v, a) => r6(anchor[a] + (v - anchor[a]) * f[a])) as Vec3,
+    };
+    return { shape: { ...shape, pattern, children: buildPattern(r.body, pattern) }, approx: r.approx };
+  }
   const children = shape.children.map((c) => {
     const r = scaleBodyAbout(c, anchor, f);
     approx ||= r.approx;

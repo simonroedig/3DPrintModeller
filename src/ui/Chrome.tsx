@@ -11,7 +11,6 @@ import {
   FileUp,
   FolderOpen,
   Globe,
-  Hexagon,
   Languages,
   MousePointer2,
   Redo2,
@@ -26,6 +25,7 @@ import {
 import { cancelWork, stalledFor, useMeshes } from "../cad/client";
 import {
   addPrimitive,
+  createPattern,
   fitView,
   combineSelection,
   redo,
@@ -47,6 +47,7 @@ import { OPS } from "./ops";
 import { TOOL_COLOR } from "./theme";
 import { APP_NAME, AUTHOR } from "./brand";
 import { CubeLogo } from "./Logo";
+import { CircularPatternIcon, LineToolIcon, LinearPatternIcon } from "./icons";
 import { MODE_COLOR, MODE_NAME } from "./Overlays";
 import { AXIS_COLOR, viewAxis } from "../lib/planes";
 import { setLang, t, useLang } from "../i18n";
@@ -184,6 +185,7 @@ export function ToolRail() {
   const tool = useStore((s) => s.tool);
   const selCount = useStore((s) => s.selection.filter((id) => s.doc.bodies.some((b) => b.id === id)).length);
   const hasGroup = useStore((s) => s.doc.bodies.some((b) => s.selection.includes(b.id) && b.shape.kind === "group"));
+  const patternHint = selCount === 1 ? "" : `. ${t("Select one body first")}`;
   const pick = (id: Tool) => () => setTool(tool === id && id !== "select" ? "select" : id);
   const prim = (kind: Parameters<typeof addPrimitive>[0]) => (e: React.MouseEvent) => addPrimitive(kind, e.shiftKey);
   return (
@@ -192,7 +194,7 @@ export function ToolRail() {
       <RailLabel color={TOOL_COLOR.sketch}>{t("Sketch")}</RailLabel>
       <ToolButton icon={<Square size={19} />} label={t("Rectangle")} kbd="R" color={TOOL_COLOR.sketch} on={tool === "rect"} onClick={pick("rect")} />
       <ToolButton icon={<Circle size={19} />} label={t("Circle")} kbd="C" color={TOOL_COLOR.sketch} on={tool === "circle"} onClick={pick("circle")} />
-      <ToolButton icon={<Hexagon size={19} />} label={t("Polygon / polyline")} kbd="P" color={TOOL_COLOR.sketch} on={tool === "poly"} onClick={pick("poly")} />
+      <ToolButton icon={<LineToolIcon size={19} />} label={t("Line: click points and close the shape, for any outline")} kbd="P" color={TOOL_COLOR.sketch} on={tool === "poly"} onClick={pick("poly")} />
       <RailLabel color={TOOL_COLOR.body}>{t("Bodies")}</RailLabel>
       <ToolButton icon={<Box size={19} />} label={t("Box (Shift: as hole)")} color={TOOL_COLOR.body} onClick={prim("box")} />
       <ToolButton icon={<Cylinder size={19} />} label={t("Cylinder (Shift: as hole)")} color={TOOL_COLOR.body} onClick={prim("cylinder")} />
@@ -210,6 +212,21 @@ export function ToolRail() {
         onClick={pick("edit")}
       />
       <ToolButton icon={<ArrowDownToLine size={19} />} label={t("Lay a face flat on the print bed")} kbd="L" color={TOOL_COLOR.layflat} on={tool === "layflat"} onClick={pick("layflat")} />
+      <RailLabel color={TOOL_COLOR.pattern}>{t("Pattern")}</RailLabel>
+      <ToolButton
+        icon={<LinearPatternIcon size={19} />}
+        label={`${t("Linear pattern: repeat the selected body in a row or grid, with a set spacing")}${patternHint}`}
+        color={TOOL_COLOR.pattern}
+        dim={selCount !== 1}
+        onClick={() => createPattern("linear")}
+      />
+      <ToolButton
+        icon={<CircularPatternIcon size={19} />}
+        label={`${t("Circular pattern: repeat the selected body around a center")}${patternHint}`}
+        color={TOOL_COLOR.pattern}
+        dim={selCount !== 1}
+        onClick={() => createPattern("circular")}
+      />
       <RailLabel color={TOOL_COLOR.union}>{t("Combine")}</RailLabel>
       {OPS.filter((o) => o.op !== "group").map((o) => (
         <ToolButton
@@ -298,7 +315,7 @@ export function StatusBar() {
       : "Click a body to select it · Shift+click: multi-select · Hold right mouse: orbit · Middle mouse: pan · Wheel: zoom",
     rect: "Click & drag (or click twice) for a rectangle · Alt: no grid · Esc: cancel",
     circle: "Click & drag for a circle · Alt: no grid · Esc: cancel",
-    poly: "Click to place points · Shift: 15° steps · Click the start point / Enter: close · Backspace: remove last point",
+    poly: "Click to place points · Type a length + Enter (30<45: at 45°) · Shift: 15° steps · Click the start point / Enter: close · Backspace: undo point",
     edit: edgeSel
       ? "Drag the arrow out: fillet · drag it in: chamfer · Shift+click: more edges · Enter: apply · Esc: clear selection"
       : faceSel

@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { useThree, type ThreeEvent } from "@react-three/fiber";
-import { Line } from "@react-three/drei";
+import { Html, Line } from "@react-three/drei";
 import type { Sketch, SketchShape, Vec2, Vec3 } from "../types";
 import { addSketch, beginTx, commit, currentSketchPlane, endTx, select, setTool, useStore, toast } from "../store/store";
 import { fromPlane2D, planeBasis, PLANE_AXIS, PLANE_AXIS_NAME, toPlane2D } from "../lib/planes";
 import { segmentsIntersect } from "../lib/geom";
-import { fmtNum, snapTo } from "../lib/units";
+import { fmtLen, fmtNum, parseLen, parseNumber, snapTo } from "../lib/units";
 import { DimLabel, PlaneGroup, ScreenScale, sketchToThreeShape, vLabel } from "./Gizmos";
 import { intersectPlane, pointerState, rayFromEvent, runDrag, toScreen } from "./interaction";
 import { t } from "../i18n";
@@ -134,9 +134,13 @@ function SketchDrawer({ tool }: { tool: "rect" | "circle" | "poly" }) {
   const get = useThree((s) => s.get);
   const [pts, setPts] = useState<Vec2[]>([]);
   const [cursor, setCursor] = useState<Vec2 | null>(null);
+  /** line tool: length typed on the keyboard for the next segment ("30", or "30<45" for 30 at 45°) */
+  const [typed, setTyped] = useState("");
   const down = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   const ptsRef = useRef(pts);
   ptsRef.current = pts;
+  const cursorRef = useRef(cursor);
+  cursorRef.current = cursor;
 
   const snapPoint = (world: THREE.Vector3, ev: { shiftKey: boolean; altKey: boolean }): Vec2 => {
     const step = ev.altKey ? 0 : snap;
@@ -178,32 +182,86 @@ function SketchDrawer({ tool }: { tool: "rect" | "circle" | "poly" }) {
     const clean = points.filter((p, i) => i === 0 || p[0] !== points[i - 1][0] || p[1] !== points[i - 1][1]);
     if (clean.length > 3 && clean[0][0] === clean[clean.length - 1][0] && clean[0][1] === clean[clean.length - 1][1]) clean.pop();
     if (clean.length < 3) {
-      toast(t("A polygon needs at least 3 points"), "error");
+      toast(t("A closed shape needs at least 3 points"), "error");
       return;
     }
     if (segmentsIntersect(clean)) {
-      toast(t("The polygon must not intersect itself"), "error");
+      toast(t("The lines must not cross each other"), "error");
       return;
     }
     addSketch({ kind: "poly", points: clean });
     setPts([]);
+    setTyped("");
+  };
+
+  /** next point from the typed length: along the mouse direction, or at the typed angle */
+  const placeTyped = (text: string) => {
+    const cur = ptsRef.current;
+    const last = cur[cur.length - 1];
+    if (!last) return;
+    const [lenText, angText] = text.split("<");
+    const len = parseLen(lenText, unit);
+    if (len === null || len <= 0) {
+      toast(t("Type a length, for example 20, or 30<45 for 30 at 45°"), "error");
+      return;
+    }
+    let ang: number;
+    if (angText !== undefined && angText.trim() !== "") {
+      const a = parseNumber(angText);
+      if (a === null) {
+        toast(t("Type a length, for example 20, or 30<45 for 30 at 45°"), "error");
+        return;
+      }
+      ang = THREE.MathUtils.degToRad(a);
+    } else {
+      const c = cursorRef.current;
+      const prev = cur[cur.length - 2];
+      if (c && (c[0] !== last[0] || c[1] !== last[1])) ang = Math.atan2(c[1] - last[1], c[0] - last[0]);
+      else if (prev) ang = Math.atan2(last[1] - prev[1], last[0] - prev[0]);
+      else ang = 0;
+    }
+    const r = (v: number) => Math.round(v * 1e6) / 1e6;
+    const p: Vec2 = [r(last[0] + Math.cos(ang) * len), r(last[1] + Math.sin(ang) * len)];
+    setTyped("");
+    if (cur.length >= 3 && Math.hypot(p[0] - cur[0][0], p[1] - cur[0][1]) < 1e-6) {
+      finishPoly(cur);
+      return;
+    }
+    setPts([...cur, p]);
   };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement)?.tagName === "INPUT") return;
       const cur = ptsRef.current;
+      const line = tool === "poly";
+      const stop = () => {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+      };
+      // while drawing a line, number keys type the length of the next segment (instead of switching views)
+      if (line && cur.length && !e.ctrlKey && !e.metaKey && !e.altKey && /^[0-9.,+\-*/()<]$/.test(e.key)) {
+        setTyped(typed + e.key);
+        stop();
+        return;
+      }
       if (e.key === "Escape") {
         if (useStore.getState().planePick) useStore.setState({ planePick: false });
+        else if (line && typed) setTyped("");
         else if (cur.length) setPts([]);
         else setTool("select");
         e.stopImmediatePropagation();
-      } else if (e.key === "Enter" && tool === "poly" && cur.length >= 3) {
+      } else if (e.key === "Enter" && line && typed) {
+        placeTyped(typed);
+        stop();
+      } else if (e.key === "Enter" && line && cur.length >= 3) {
         finishPoly(cur);
-      } else if (e.key === "Backspace" && tool === "poly" && cur.length) {
+      } else if (e.key === "Backspace" && line && typed) {
+        setTyped(typed.slice(0, -1));
+        stop();
+      } else if (e.key === "Backspace" && line && cur.length) {
         setPts(cur.slice(0, -1));
-        e.stopImmediatePropagation();
-        e.preventDefault();
+        stop();
       }
     };
     window.addEventListener("keydown", onKey, true);
@@ -217,6 +275,7 @@ function SketchDrawer({ tool }: { tool: "rect" | "circle" | "poly" }) {
     e.stopPropagation();
     const p = snapPoint(e.point, e.nativeEvent);
     if (tool === "poly") {
+      setTyped("");
       if (pts.length >= 3 && p === pts[0]) {
         finishPoly(pts);
         return;
@@ -268,16 +327,19 @@ function SketchDrawer({ tool }: { tool: "rect" | "circle" | "poly" }) {
       const c = circleFrom(pts[0], cursor, circleMode, snap) as Extract<SketchShape, { kind: "circle" }>;
       preview = c;
       labels.push({ pos: [c.cx, c.cy - c.d / 2 - 5, z], mm: c.d, prefix: "Ø" });
-    } else {
-      const last = pts[pts.length - 1];
-      labels.push({
-        pos: [(last[0] + cursor[0]) / 2, (last[1] + cursor[1]) / 2, z],
-        mm: Math.hypot(cursor[0] - last[0], cursor[1] - last[1]),
-      });
     }
   }
 
-  const polyLine: Vec3[] = tool === "poly" && pts.length ? [...pts.map(([x, y]) => [x, y, z] as Vec3), ...(cursor ? [[cursor[0], cursor[1], z] as Vec3] : [])] : [];
+  // line tool: the segment being drawn, how long and at which angle, and whether the next click closes the shape
+  const line = tool === "poly";
+  const last = line ? pts[pts.length - 1] : undefined;
+  const closing = line && pts.length >= 3 && cursor === pts[0];
+  const segLen = last && cursor ? Math.hypot(cursor[0] - last[0], cursor[1] - last[1]) : 0;
+  const segAng = last && cursor && segLen > 1e-9 ? (((Math.atan2(cursor[1] - last[1], cursor[0] - last[0]) * 180) / Math.PI) % 360 + 360) % 360 : null;
+  const polyLine: Vec3[] = line && pts.length ? [...pts.map(([x, y]) => [x, y, z] as Vec3), ...(cursor ? [[cursor[0], cursor[1], z] as Vec3] : [])] : [];
+  // dashed hint back to the start: the shape always ends there
+  const closeHint: Vec3[] = line && pts.length >= 2 && cursor && !closing ? [[cursor[0], cursor[1], z], [pts[0][0], pts[0][1], z]] : [];
+  const fillPts = line && pts.length >= 2 && cursor ? [...pts, ...(closing ? [] : [cursor])] : [];
 
   return (
     <PlaneGroup plane={plane}>
@@ -292,19 +354,63 @@ function SketchDrawer({ tool }: { tool: "rect" | "circle" | "poly" }) {
         </group>
       )}
       {preview && <Line points={outlinePoints(preview, z + 0.05)} color="#fbbf24" lineWidth={2} depthTest={false} />}
-      {polyLine.length > 1 && <Line points={polyLine} color="#fbbf24" lineWidth={2} depthTest={false} />}
-      {tool === "poly" &&
+      {fillPts.length >= 3 && <PolyFill points={fillPts} z={z + 0.03} closing={closing} />}
+      {closeHint.length > 0 && <Line points={closeHint} color="#fbbf24" lineWidth={1} dashed dashSize={2} gapSize={2} transparent opacity={0.45} depthTest={false} />}
+      {polyLine.length > 1 && <Line points={polyLine} color={closing ? "#4ade80" : "#fbbf24"} lineWidth={2} depthTest={false} />}
+      {line &&
         pts.map((p, i) => (
           <ScreenScale key={i} position={[p[0], p[1], z + 0.05]}>
+            {i === 0 && pts.length >= 3 && (
+              <mesh renderOrder={11}>
+                <ringGeometry args={closing ? [8, 11, 32] : [7, 8.5, 32]} />
+                <meshBasicMaterial color={closing ? "#4ade80" : "#f97316"} transparent opacity={closing ? 0.95 : 0.6} depthTest={false} />
+              </mesh>
+            )}
             <mesh renderOrder={12}>
-              <circleGeometry args={[i === 0 && pts.length >= 3 ? 6 : 4, 20]} />
-              <meshBasicMaterial color={i === 0 ? "#f97316" : "#fbbf24"} depthTest={false} />
+              <circleGeometry args={[i === 0 && pts.length >= 3 ? 5 : 4, 20]} />
+              <meshBasicMaterial color={i === 0 ? (closing ? "#4ade80" : "#f97316") : "#fbbf24"} depthTest={false} />
             </mesh>
           </ScreenScale>
         ))}
       {labels.map((l, i) => (
         <DimLabel key={i} position={l.pos} mm={l.mm} prefix={l.prefix} />
       ))}
+      {line && last && cursor && (
+        <Html position={[(last[0] + cursor[0]) / 2, (last[1] + cursor[1]) / 2, z]} center zIndexRange={[30, 10]} style={{ pointerEvents: "none" }}>
+          {typed ? (
+            <div className="dim-label line-typed">
+              {typed}
+              <span className="caret" />
+              {!typed.includes("<") && <span className="opacity-60"> {unit === "in" ? t("in") : unit}</span>}
+            </div>
+          ) : (
+            <div className="dim-label whitespace-nowrap">
+              {closing ? (
+                <span className="text-emerald-300">{t("Close shape")}</span>
+              ) : (
+                <>
+                  {fmtLen(segLen, unit)}
+                  {segAng !== null && <span className="opacity-70"> · {fmtNum(segAng, "mm", 1)}°</span>}
+                </>
+              )}
+            </div>
+          )}
+        </Html>
+      )}
     </PlaneGroup>
+  );
+}
+
+/** light fill of the shape being drawn with the line tool */
+function PolyFill({ points, z, closing }: { points: Vec2[]; z: number; closing: boolean }) {
+  const geo = useMemo(() => {
+    const shape = new THREE.Shape(points.map(([x, y]) => new THREE.Vector2(x, y)));
+    return new THREE.ShapeGeometry(shape);
+  }, [points]);
+  useEffect(() => () => geo.dispose(), [geo]);
+  return (
+    <mesh geometry={geo} position={[0, 0, z]} renderOrder={2}>
+      <meshBasicMaterial color={closing ? "#4ade80" : "#fbbf24"} transparent opacity={closing ? 0.16 : 0.07} depthWrite={false} depthTest={false} side={THREE.DoubleSide} />
+    </mesh>
   );
 }

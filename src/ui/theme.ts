@@ -8,6 +8,7 @@ export const TOOL_COLOR = {
   body: "#818cf8",
   edit: "#f97316",
   layflat: "#facc15",
+  pattern: "#2dd4bf",
   union: "#22c55e",
   subtract: "#f43f5e",
   intersect: "#a855f7",

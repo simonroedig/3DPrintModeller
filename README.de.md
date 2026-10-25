@@ -67,8 +67,10 @@ Alles läuft im Browser, ohne Installation und ohne Konto: **[3d-print-modeller.
 
 ![Skizze auf der Vorderseite der Lippe, oben rechts die Ebenen-Vorschau](docs/screenshots/de/sketch.png)
 
-- Rechteck, Kreis und Polygon, gezeichnet in der Ebene der aktuellen Ansicht: Oben, Unten, Vorne, Hinten, Links, Rechts
+- Rechteck, Kreis und Linienformen, gezeichnet in der Ebene der aktuellen Ansicht: Oben, Unten, Vorne, Hinten, Links, Rechts
   (in 3D auf dem Boden).
+- **Linie** (`P`) für beliebige Umrisse: Punkte klicken und die Form am Startpunkt schließen. Länge und Winkel sind beim Zeichnen
+  zu sehen, eine Zahl tippen und Enter drücken ergibt ein genaues Stück (`30<45` = 30 unter 45°).
 - **Ebenen-Vorschau oben rechts**: ein kleines 3D-Bild zeigt, wo die Skizze im Raum liegt, ein Auge in der Achsfarbe zeigt,
   von wo du schaust. Ziehen verschiebt die Ebene live und rastet bündig an Flächen ein. Oder eine Fläche anklicken,
   dann liegt die Skizze genau darauf.
@@ -89,6 +91,15 @@ Alles läuft im Browser, ohne Installation und ohne Konto: **[3d-print-modeller.
   oder herauslösen.
 - Kombinierte Körper sind **skalierbar** (Griffe, Maße oder Prozent), parametrisch: runde Teile bleiben rund, alles bleibt exakt.
 
+### Muster
+- **Linear**: einen Körper beliebig oft in einer Reihe wiederholen, mit Abstand Mitte zu Mitte oder als Lücke zwischen den Teilen.
+  Eine zweite Richtung macht aus der Reihe ein Raster.
+- **Kreis**: um einen Mittelpunkt mit Radius (oder Abstand zwischen Nachbarn), als ganzer Kreis oder als Bogen,
+  die Kopien drehen sich wie Speichen mit oder behalten ihre Richtung.
+- **Bleibt änderbar**: das Muster merkt sich seine Werte. Am Original etwas ändern (zum Beispiel den Durchmesser),
+  und jede Kopie zieht mit, auch wenn das Muster schon als Lochbild von einer Platte abgezogen ist.
+- **Zentrieren** mit einem Klick: ein Kreismuster legt seine Mitte genau auf die Mitte des Betts.
+
 ### Für den Druck
 - **Export** als 3MF (empfohlen), STL oder STEP, mit wählbarer Qualität, wasserdichtem Netz und Volumen- und Gewichtsschätzung.
 - **Import** von STEP (exakt), STL, 3MF und OBJ. Netze werden in CAD-Körper umgewandelt (ebene Bereiche werden echte Flächen),
@@ -98,7 +109,7 @@ Alles läuft im Browser, ohne Installation und ohne Konto: **[3d-print-modeller.
 ### Komfort
 - **Projekte** in einer einklappbaren Leiste unten, mit Vorschaubild, automatisch im Browser gespeichert (IndexedDB).
 - **Kontextleiste** zur Auswahl mit den nächsten sinnvollen Schritten, **Tooltips** mit Tastenkürzeln an allen Buttons.
-- **Farben mit Bedeutung**: Skizze hellblau, Körper indigo, Kanten und Flächen orange, Vereinen grün, Abziehen rot, Schnittmenge lila.
+- **Farben mit Bedeutung**: Skizze hellblau, Körper indigo, Kanten und Flächen orange, Vereinen grün, Abziehen rot, Schnittmenge lila, Muster türkis.
 - Rückgängig und Wiederholen, Kopieren und Einfügen, lange Berechnungen lassen sich abbrechen.
 - **Sprache**: Englisch oder Deutsch, umschaltbar oben in der Kopfzeile.
 - **Handys** bekommen statt des Editors eine kurze Vorstellung mit Link zum Teilen; der CAD-Kern lädt nur auf einem richtigen Bildschirm.
@@ -123,7 +134,8 @@ Jeder Schritt bleibt änderbar: Teil im Panel aufklappen, Maße anpassen, fertig
 | Taste | Aktion |
 | --- | --- |
 | `V` | Auswählen und verschieben |
-| `R` / `C` / `P` | Rechteck / Kreis / Polygon |
+| `R` / `C` / `P` | Rechteck / Kreis / Linie |
+| Linie: Zahl tippen, dann `Enter` | Genaue Länge des nächsten Stücks (`30<45`: 30 unter 45°) |
 | `F` | Kanten und Flächen bearbeiten |
 | `L` | Fläche aufs Bett legen |
 | `1` bis `6`, `7` | 3D, Oben, Vorne, Hinten, Links, Rechts, Unten |

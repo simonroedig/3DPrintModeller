@@ -33,7 +33,7 @@ import {
   TriangleRight,
   Ungroup,
 } from "lucide-react";
-import type { Body, BoolOp, Shape, ShapeKind, Sketch, SketchShape, TiltFeature, Vec2, Vec3 } from "../types";
+import type { Body, BoolOp, PatternSpec, Shape, ShapeKind, Sketch, SketchShape, TiltFeature, Vec2, Vec3 } from "../types";
 import {
   alignSelection,
   deleteSelection,
@@ -42,6 +42,7 @@ import {
   extrudeSketch,
   centerOnBed,
   combineSelection,
+  createPattern,
   extractGroupChild,
   KIND_LABEL,
   OP_NAME,
@@ -72,7 +73,9 @@ import { TOOL_COLOR } from "./theme";
 import { geometryKey } from "../cad/key";
 import { assetPayload, useMeshes } from "../cad/client";
 import { fmtLen, SNAP_OPTIONS } from "../lib/units";
-import { ORIENT_LABEL, PLANE_AXIS, PLANE_AXIS_NAME, viewAxis } from "../lib/planes";
+import { AXIS_COLOR, ORIENT_LABEL, PLANE_AXIS, PLANE_AXIS_NAME, viewAxis } from "../lib/planes";
+import { circleStep, isPattern, MAX_PATTERN, neighbourDistance, partSize, totalCount, withOriginal, withPattern, type PatternShape } from "../lib/pattern";
+import { CircularPatternIcon, LinearPatternIcon } from "./icons";
 import { LenField, NumField, Seg, Switch } from "./fields";
 import { locale, t, tMsg, tn } from "../i18n";
 
@@ -87,6 +90,11 @@ const ICON: Record<ShapeKind, ReactNode> = {
   group: <Layers size={14} />,
   imported: <FileBox size={14} />,
 };
+
+function iconFor(b: Body): ReactNode {
+  if (isPattern(b.shape)) return b.shape.pattern.type === "linear" ? <LinearPatternIcon size={14} /> : <CircularPatternIcon size={14} />;
+  return ICON[b.shape.kind];
+}
 
 const SKETCH_ICON: Record<SketchShape["kind"], ReactNode> = {
   rect: <Square size={14} />,
@@ -143,9 +151,10 @@ function SceneTree() {
                 </button>
               ) : null}
               <span className="shrink-0" style={{ color: b.hole ? "#94a3b8" : b.color }}>
-                {ICON[b.shape.kind]}
+                {iconFor(b)}
               </span>
               <span className={`truncate flex-1 ${b.hidden ? "opacity-40" : ""}`}>{b.name}</span>
+              {isPattern(b.shape) && <span className="text-[10px] px-1.5 rounded bg-teal-500/15 text-teal-300">× {b.shape.children.length}</span>}
               {b.features.length > 0 && <SquareRoundCorner size={12} className="text-ink-500" />}
               {b.hole && <span className="text-[10px] px-1.5 rounded bg-ink-700 text-ink-300">{t("Hole")}</span>}
               <button
@@ -163,7 +172,7 @@ function SceneTree() {
               <div className="ml-5 border-l border-ink-750 pl-1.5">
                 {b.shape.children.map((c) => (
                   <div key={c.id} className="flex items-center gap-1.5 h-6 px-2 text-ink-400 text-[12px]">
-                    <span style={{ color: c.hole ? "#94a3b8" : c.color }}>{ICON[c.shape.kind]}</span>
+                    <span style={{ color: c.hole ? "#94a3b8" : c.color }}>{iconFor(c)}</span>
                     <span className="truncate">{c.name}</span>
                     {c.hole && <span className="text-[10px] px-1 rounded bg-ink-750">{t("Hole")}</span>}
                   </div>
@@ -253,8 +262,12 @@ function BodyProps({ body }: { body: Body }) {
     <>
       <div className="px-3.5 pt-3 pb-3">
         <div className="flex items-center gap-2 text-ink-400 text-[11px] mb-1">
-          <span style={{ color: body.hole ? "#94a3b8" : body.color }}>{ICON[body.shape.kind]}</span>
-          {body.shape.kind === "group" ? t(`name|${OP_NAME[body.shape.op ?? "union"]}`) : t(KIND_LABEL[body.shape.kind])}
+          <span style={{ color: body.hole ? "#94a3b8" : body.color }}>{iconFor(body)}</span>
+          {isPattern(body.shape)
+            ? t(body.shape.pattern.type === "linear" ? "Linear pattern" : "Circular pattern")
+            : body.shape.kind === "group"
+              ? t(`name|${OP_NAME[body.shape.op ?? "union"]}`)
+              : t(KIND_LABEL[body.shape.kind])}
           {body.shape.kind === "group" && ` · ${t("{count} parts", { count: body.shape.children.length })}`}
         </div>
         <NameField value={body.name} onChange={(name) => updateBody(body.id, { name })} />
@@ -288,11 +301,16 @@ function BodyProps({ body }: { body: Body }) {
         ))}
       </div>
 
-      <Section title={t("Dimensions")}>
-        <ShapeParams body={body} />
-      </Section>
-
-      {body.shape.kind === "group" && <GroupParts body={body as GroupBody} />}
+      {isPattern(body.shape) ? (
+        <PatternProps body={body as Body & { shape: PatternShape }} />
+      ) : (
+        <>
+          <Section title={t("Dimensions")}>
+            <ShapeParams body={body} />
+          </Section>
+          {body.shape.kind === "group" && <GroupParts body={body as GroupBody} />}
+        </>
+      )}
 
       <Section
         title={t("Position")}
@@ -375,9 +393,19 @@ function BodyProps({ body }: { body: Body }) {
           <button className="btn danger" onClick={deleteSelection}>
             <Trash2 size={14} /> {t("Delete")}
           </button>
+          {!isMeshBody(body) && !isPattern(body.shape) && (
+            <>
+              <button className="btn" style={{ color: TOOL_COLOR.pattern }} title={t("Repeat this body in a row or grid, with a set spacing")} onClick={() => createPattern("linear")}>
+                <LinearPatternIcon size={15} /> <span className="text-ink-100">{t("Linear")}</span>
+              </button>
+              <button className="btn" style={{ color: TOOL_COLOR.pattern }} title={t("Repeat this body around a center")} onClick={() => createPattern("circular")}>
+                <CircularPatternIcon size={15} /> <span className="text-ink-100">{t("Circular")}</span>
+              </button>
+            </>
+          )}
           {body.shape.kind === "group" && (
-            <button className="btn col-span-2" onClick={ungroupSelection}>
-              <Ungroup size={14} /> {t("Ungroup")}
+            <button className="btn col-span-2" onClick={ungroupSelection} title={isPattern(body.shape) ? t("Every copy becomes a body of its own (the pattern values are gone then)") : undefined}>
+              <Ungroup size={14} /> {isPattern(body.shape) ? t("Split into single bodies") : t("Ungroup")}
             </button>
           )}
         </div>
@@ -565,6 +593,8 @@ function ShapeParams({ body, onShape }: { body: Body; onShape?: (shape: Shape) =
       );
     }
     case "group":
+      // a pattern inside a combined body keeps its own settings
+      if (isPattern(body.shape) && onShape) return <NestedPattern shape={body.shape} onShape={onShape} />;
       return <GroupDims body={body} onShape={onShape} />;
   }
 }
@@ -669,7 +699,7 @@ function GroupParts({ body }: { body: GroupBody }) {
             <div key={c.id} className={`rounded-md border ${isOpen ? "border-amber-400/60 bg-ink-850" : "border-ink-750"}`}>
               <div className="flex items-center gap-1.5 h-8 px-2 cursor-pointer" onClick={() => setOpen(isOpen ? null : c.id)}>
                 {isOpen ? <ChevronUp size={13} className="text-ink-400" /> : <ChevronDown size={13} className="text-ink-400" />}
-                <span style={{ color: c.hole ? "#94a3b8" : c.color }}>{ICON[c.shape.kind]}</span>
+                <span style={{ color: c.hole ? "#94a3b8" : c.color }}>{iconFor(c)}</span>
                 <span className="truncate flex-1 text-[12px]">{c.name}</span>
                 <span className={`text-[10px] px-1.5 rounded ${ROLE[role].cls}`}>{t(ROLE[role].label)}</span>
               </div>
@@ -722,6 +752,209 @@ function GroupParts({ body }: { body: GroupBody }) {
               : t("Parts are merged into one body; holes are subtracted.")}
       </div>
     </Section>
+  );
+}
+
+const AXIS_NAMES = ["X", "Y", "Z"] as const;
+
+function AxisSeg({ value, onChange, title, skip }: { value: 0 | 1 | 2; onChange: (a: 0 | 1 | 2) => void; title: string; skip?: number }) {
+  return (
+    <div className="seg !flex flex-1" title={title}>
+      {AXIS_NAMES.map((n, a) => (
+        <button
+          key={n}
+          className={`flex-1 ${value === a ? "on" : ""}`}
+          disabled={skip === a}
+          style={value === a ? { color: AXIS_COLOR[a], boxShadow: `inset 0 0 0 1px ${AXIS_COLOR[a]}99` } : { color: skip === a ? undefined : `${AXIS_COLOR[a]}cc` }}
+          onClick={() => onChange(a as 0 | 1 | 2)}
+        >
+          {n}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function Row({ label, children, title }: { label: string; children: ReactNode; title?: string }) {
+  return (
+    <div className="grid grid-cols-[86px_1fr] items-center gap-2" title={title}>
+      <span className="text-[12px] text-ink-400 truncate">{label}</span>
+      <div className="prop-row flex items-center gap-1.5 min-w-0">{children}</div>
+    </div>
+  );
+}
+
+/** Linear | Circular switch of a pattern */
+function PatternTypeSeg({ shape, onShape }: { shape: PatternShape; onShape: (shape: PatternShape) => void }) {
+  const snap = useStore((s) => s.doc.settings.snap);
+  return (
+    <div className="seg normal-case tracking-normal">
+      {(["linear", "circular"] as const).map((type) => (
+        <button
+          key={type}
+          className={shape.pattern.type === type ? "on" : ""}
+          style={shape.pattern.type === type ? { background: `${TOOL_COLOR.pattern}33`, color: TOOL_COLOR.pattern } : undefined}
+          onClick={() => onShape(withPattern(shape, { type }, snap))}
+        >
+          {type === "linear" ? t("Linear") : t("Circular")}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** how many, how far apart, which way (works for a pattern on its own and for one inside a combined body) */
+function PatternFields({ shape, onShape }: { shape: PatternShape; onShape: (shape: PatternShape) => void }) {
+  const p = shape.pattern;
+  const src = shape.children[0];
+  const unit = useStore((s) => s.doc.settings.unit);
+  const snap = useStore((s) => s.doc.settings.snap);
+  const set = (patch: Partial<PatternSpec>) => onShape(withPattern(shape, patch, snap));
+  const linear = p.type === "linear";
+  const ccStep = p.gap ? p.spacing + partSize(src, p.axis) : p.spacing;
+  const full = p.angle >= 360 - 1e-9;
+  return (
+    <>
+      <div className="flex flex-col gap-1.5">
+        <Row label={t("Count")} title={t("Number of parts, the original included")}>
+          <NumField value={p.count} step={1} digits={0} min={1} max={MAX_PATTERN} suffix="×" onChange={(count) => set({ count })} />
+        </Row>
+        {linear ? (
+          <>
+            <Row label={t("Direction")}>
+              <AxisSeg value={p.axis} title={t("The copies are lined up along this axis")} onChange={(axis) => set({ axis })} />
+            </Row>
+            <Row label={t("Measure")}>
+              <Seg
+                value={p.gap ? "gap" : "center"}
+                onChange={(v) => set({ gap: v === "gap" })}
+                options={[
+                  { value: "center", label: t("Center to center"), title: t("Distance from the middle of one part to the middle of the next") },
+                  { value: "gap", label: t("Gap"), title: t("Free space between two parts") },
+                ]}
+              />
+            </Row>
+            <Row label={p.gap ? t("Gap") : t("Spacing")}>
+              <LenField
+                mm={p.spacing}
+                onChange={(spacing) => set({ spacing })}
+                title={p.gap ? t("Free space between two parts") : t("Distance from the middle of one part to the middle of the next (negative: the other way)")}
+              />
+            </Row>
+            <div className="h-px bg-ink-750 my-1" />
+            <Row label={t("Grid")}>
+              <Switch
+                on={p.rows > 1}
+                onChange={(on) => set({ rows: on ? Math.max(2, p.rows) : 1 })}
+                label={t("second direction")}
+                title={t("Repeat the whole row once more in a second direction, for a grid")}
+              />
+            </Row>
+            {p.rows > 1 && (
+              <>
+                <Row label={t("Rows")} title={t("Number of rows, the first included")}>
+                  <NumField value={p.rows} step={1} digits={0} min={1} max={Math.floor(MAX_PATTERN / p.count)} suffix="×" onChange={(rows) => set({ rows })} />
+                </Row>
+                <Row label={t("Direction")}>
+                  <AxisSeg value={p.rowAxis} skip={p.axis} title={t("The rows are lined up along this axis")} onChange={(rowAxis) => set({ rowAxis })} />
+                </Row>
+                <Row label={p.gap ? t("Gap") : t("Spacing")}>
+                  <LenField mm={p.rowSpacing} onChange={(rowSpacing) => set({ rowSpacing })} title={p.gap ? t("Free space between two rows") : t("Distance between the middles of two rows")} />
+                </Row>
+              </>
+            )}
+          </>
+        ) : (
+          <>
+            <Row label={t("Radius")} title={t("From the center of the circle to the middle of each part")}>
+              <LenField label="R" mm={p.radius} min={0} onChange={(radius) => set({ radius })} />
+            </Row>
+            {p.count > 1 && (
+              <Row label={t("Spacing")} title={t("Center to center distance between neighbours; changes the radius")}>
+                <LenField
+                  label="↔"
+                  mm={neighbourDistance(p)}
+                  min={0.01}
+                  onChange={(d) => {
+                    const k = Math.sin(circleStep(p) / 2);
+                    if (k > 1e-9) set({ radius: Math.round((d / (2 * k)) * 1e6) / 1e6 });
+                  }}
+                />
+              </Row>
+            )}
+            <Row label={t("Angle")} title={t("360° spreads the parts evenly around the circle, less gives an arc")}>
+              <NumField value={p.angle} step={15} digits={2} min={1} max={360} suffix="°" onChange={(angle) => set({ angle })} />
+              {!full && (
+                <button className="btn !h-7 !px-2 text-[11.5px] shrink-0" onClick={() => set({ angle: 360 })}>
+                  360°
+                </button>
+              )}
+            </Row>
+            <Row label={t("Axis")}>
+              <AxisSeg value={p.circAxis} title={t("The parts turn around this axis (Z: flat on the bed)")} onChange={(circAxis) => set({ circAxis })} />
+            </Row>
+            <Row label={t("Orientation")}>
+              <Switch on={p.rotate} onChange={(rotate) => set({ rotate })} label={t("turn with the circle")} title={t("On: every copy turns like a spoke. Off: all copies keep the direction of the original")} />
+            </Row>
+          </>
+        )}
+      </div>
+      <div className="text-[11px] text-ink-500 mt-2 leading-snug">
+        {linear
+          ? t("{n} parts, {cc} apart (center to center).", { n: totalCount(p), cc: fmtLen(Math.abs(ccStep), unit) })
+          : t("{n} parts on a circle of {d} diameter.", { n: totalCount(p), d: fmtLen(p.radius * 2, unit) })}{" "}
+        {t("Changes to the original below apply to every copy.")}
+      </div>
+    </>
+  );
+}
+
+function PatternOriginal({ shape, onShape, nested }: { shape: PatternShape; onShape: (shape: PatternShape) => void; nested?: boolean }) {
+  const src = shape.children[0];
+  return (
+    <>
+      <div className="flex items-center gap-1.5 text-[12px] text-ink-300 mb-2">
+        <span style={{ color: src.hole ? "#94a3b8" : src.color }}>{iconFor(src)}</span>
+        <span className="truncate">{src.name}</span>
+        {!nested && <span className="text-[10px] px-1.5 rounded bg-amber-500/15 text-amber-300 ml-auto shrink-0">{t("orange in the model")}</span>}
+      </div>
+      <ShapeParams body={src} onShape={(next) => onShape(withOriginal(shape, { shape: next }))} />
+    </>
+  );
+}
+
+/** a pattern on its own: settings, centring, and the original all copies follow */
+function PatternProps({ body }: { body: Body & { shape: PatternShape } }) {
+  const onShape = (shape: PatternShape) => updateBody(body.id, { shape });
+  return (
+    <>
+      <Section title={<span style={{ color: TOOL_COLOR.pattern }}>{t("Pattern")}</span>} right={<PatternTypeSeg shape={body.shape} onShape={onShape} />}>
+        <PatternFields shape={body.shape} onShape={onShape} />
+        <div className="mt-2">
+          <CenterButtons label={body.shape.pattern.type === "linear" ? t("Center the pattern") : t("Center the circle")} />
+        </div>
+      </Section>
+      <Section title={t("Original")}>
+        <PatternOriginal shape={body.shape} onShape={onShape} />
+      </Section>
+    </>
+  );
+}
+
+/** a pattern inside a combined body (for example holes subtracted from a plate) */
+function NestedPattern({ shape, onShape }: { shape: PatternShape; onShape: (shape: Shape) => void }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] uppercase tracking-wider font-semibold" style={{ color: TOOL_COLOR.pattern }}>
+          {t("Pattern")}
+        </span>
+        <PatternTypeSeg shape={shape} onShape={onShape} />
+      </div>
+      <PatternFields shape={shape} onShape={onShape} />
+      <div className="text-[11px] uppercase tracking-wider font-semibold text-ink-400 mt-1">{t("Original")}</div>
+      <PatternOriginal shape={shape} onShape={onShape} nested />
+    </div>
   );
 }
 
@@ -826,7 +1059,7 @@ function SketchProps({ sketch }: { sketch: Sketch }) {
     <>
       <div className="px-3.5 pt-3 pb-3">
         <div className="flex items-center gap-2 text-sky-400 text-[11px] mb-1">
-          {SKETCH_ICON[s.kind]} {t("Sketch")} · {t(s.kind === "rect" ? "Rectangle" : s.kind === "circle" ? "Circle" : "Polygon")} ·{" "}
+          {SKETCH_ICON[s.kind]} {t("Sketch")} · {t(s.kind === "rect" ? "Rectangle" : s.kind === "circle" ? "Circle" : "Line shape")} ·{" "}
           {t(ORIENT_LABEL[sketch.plane.orient])}
         </div>
         <div className="text-[15px] font-semibold">{sketch.name}</div>

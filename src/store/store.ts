@@ -1,12 +1,13 @@
 import { create } from "zustand";
 import * as THREE from "three";
-import type { Asset, Body, BoolOp, Doc, EdgeRef, PlaneOrient, SketchPlane, FaceRef, Feature, Quat, Settings, Shape, ShapeKind, Sketch, SketchShape, Unit, Vec2, Vec3 } from "../types";
+import type { Asset, Body, BoolOp, Doc, EdgeRef, PatternSpec, PlaneOrient, SketchPlane, FaceRef, Feature, Quat, Settings, Shape, ShapeKind, Sketch, SketchShape, Unit, Vec2, Vec3 } from "../types";
 import { DEFAULT_SNAP, fmtLen, snapTo } from "../lib/units";
 import { fromPlane2D, orientForView, PLANE_AXIS, PLANE_AXIS_NAME, planeQuat } from "../lib/planes";
 import { assetPayload, importAsset, isAssetRegistered, registerAsset, setRestartHandler } from "../cad/client";
 import { BREP_TRIANGLE_LIMIT } from "../cad/regions";
 import { detectFormat, payloadFromAsset, toBase64 } from "../cad/importers";
-import { cleanQuat, localBox, polyBounds, polygonArea, quatFromEulerDeg, unionBox, worldBox } from "../lib/geom";
+import { bodyMatrix, cleanQuat, localBox, polyBounds, polygonArea, quatFromEulerDeg, unionBox, worldBox } from "../lib/geom";
+import { buildPattern, defaultPattern, isPattern, withOriginal, withPattern, type PatternShape } from "../lib/pattern";
 import { locale, t, tMsg } from "../i18n";
 
 export type Tool = "select" | "rect" | "circle" | "poly" | "edit" | "layflat";
@@ -650,6 +651,13 @@ export function centerOnBed(exact = false) {
   const bodies = sel.length ? sel : s.doc.bodies.filter((b) => !b.hidden);
   if (!bodies.length) return;
   const c = unionBox(bodies).getCenter(new THREE.Vector3());
+  // a full circle pattern: the middle of the circle goes to the middle of the bed
+  const only = bodies.length === 1 ? bodies[0] : null;
+  if (only && isPattern(only.shape) && only.shape.pattern.type === "circular" && only.shape.pattern.angle >= 360 && only.shape.pattern.count > 1) {
+    const mid = new THREE.Vector3(...only.shape.pattern.center).applyMatrix4(bodyMatrix(only));
+    c.x = mid.x;
+    c.y = mid.y;
+  }
   const step = s.doc.settings.snap;
   let dx = -c.x;
   let dy = -c.y;
@@ -861,6 +869,62 @@ export function ungroupSelection() {
   commit({ ...doc, bodies });
   set({ selection: newSel, ...noEdit });
   if (lostFeatures) toast(t("The group's fillets were removed when splitting"));
+}
+
+/* ------------------------------------------------------------------ */
+/* patterns                                                             */
+/* ------------------------------------------------------------------ */
+
+function patternOf(id: string) {
+  const g = getBody(id);
+  return g && isPattern(g.shape) ? (g as Body & { shape: PatternShape }) : null;
+}
+
+/**
+ * Repeats the selected body in a row (or grid) or around a circle. The result is one body that remembers
+ * the pattern: count, spacing and the original stay editable in the panel.
+ */
+export function createPattern(type: PatternSpec["type"]) {
+  const doc = get().doc;
+  const sel = selectedBodies();
+  if (sel.length !== 1) {
+    toast(t("Select one body to repeat. To repeat several, combine them first"));
+    return;
+  }
+  const b = sel[0];
+  if (isPattern(b.shape)) {
+    updatePattern(b.id, { type });
+    return;
+  }
+  if (isMeshBody(b)) {
+    toast(t("Mesh bodies (large STL/3MF/OBJ) cannot be repeated. Convert them to a CAD body in the panel first"), "error");
+    return;
+  }
+  const spec = defaultPattern(b, type, doc.settings.snap);
+  const group: Body = {
+    id: uid(),
+    name: nextName(doc, t("name|Pattern")),
+    shape: { kind: "group", op: "union", children: buildPattern(b, spec), pattern: spec },
+    position: [0, 0, 0],
+    quaternion: [0, 0, 0, 1],
+    hole: b.hole,
+    color: b.color,
+    features: [],
+  };
+  commit({ ...doc, bodies: doc.bodies.map((x) => (x.id === b.id ? group : x)) });
+  set({ selection: [group.id], ...noEdit, groupFocus: null, tool: "select" });
+  toast(t("Pattern created. Set the count and spacing in the panel on the right"));
+}
+
+export function updatePattern(id: string, patch: Partial<PatternSpec>) {
+  const g = patternOf(id);
+  if (g) updateBody(id, { shape: withPattern(g.shape, patch, get().doc.settings.snap) });
+}
+
+/** changes the original of a pattern; every copy follows */
+export function updatePatternOriginal(id: string, patch: Partial<Body>) {
+  const g = patternOf(id);
+  if (g) updateBody(id, { shape: withOriginal(g.shape, patch) });
 }
 
 /* ------------------------------------------------------------------ */

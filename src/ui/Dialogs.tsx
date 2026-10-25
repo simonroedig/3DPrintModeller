@@ -261,7 +261,8 @@ export function ExportDialog() {
 
 const KEYS: [string, string][] = [
   ["V", "Select & move"],
-  ["R / C / P", "Sketch a rectangle / circle / polygon in the plane of the current view (3D: ground plane)"],
+  ["R / C / P", "Sketch a rectangle / circle / line shape in the plane of the current view (3D: ground plane)"],
+  ["Line tool: type a number", "Exact length of the next segment, Enter places it (30<45: 30 at 45°)"],
   ["F", "Edit edges & faces (or double-click a body)"],
   ["L", "Lay a face flat on the print bed"],
   ["1 to 7", "3D / Top / Front / Back / Left / Right / Bottom"],

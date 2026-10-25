@@ -23,7 +23,7 @@ export const MODE_NAME: Partial<Record<Tool, string>> = {
   select: "Select",
   rect: "Sketch · Rectangle",
   circle: "Sketch · Circle",
-  poly: "Sketch · Polygon",
+  poly: "Sketch · Line",
   edit: "Edges & Faces",
   layflat: "Lay flat",
 };
@@ -75,7 +75,7 @@ export function ToolOptions() {
             ]}
           />
         )}
-        {tool === "poly" && <span className="text-ink-300 text-[12px]">{t("Click to place points · Click the start / Enter closes")}</span>}
+        {tool === "poly" && <span className="text-ink-300 text-[12px]">{t("Click points · type a length + Enter for an exact segment · click the start point to close")}</span>}
         <span className="text-ink-300 text-[12px]" title={t("The sketch lies in the plane of the current view (3D = floor) · set its position at the top right")}>
           {t("Plane: {orient} · {axis} = {value}", {
             orient: t(ORIENT_LABEL[plane.orient]),

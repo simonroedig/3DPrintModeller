@@ -1,8 +1,9 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { ArrowDownToLine, Copy, Layers2, LocateFixed, RotateCw, SquareRoundCorner, Trash2, MoveUp, SquareDashed } from "lucide-react";
 import {
   centerOnBed,
   combineSelection,
+  createPattern,
   deleteSelection,
   duplicateSelection,
   extrudeSketch,
@@ -16,13 +17,16 @@ import { OPS } from "./ops";
 import { fmtLen } from "../lib/units";
 import { TOOL_COLOR } from "./theme";
 import { t } from "../i18n";
+import { isPattern } from "../lib/pattern";
+import { CircularPatternIcon, LinearPatternIcon } from "./icons";
+import type { Body } from "../types";
 
-function CtxButton({ icon, label, kbd, color, onClick, tip }: { icon: ReactNode; label?: string; kbd?: string; color?: string; tip: string; onClick: () => void }) {
+function CtxButton({ icon, label, kbd, color, onClick, tip, on }: { icon: ReactNode; label?: string; kbd?: string; color?: string; tip: string; onClick: () => void; on?: boolean }) {
   return (
     <button
-      className={`ctx-btn ${label ? "" : "icon-only"}`}
+      className={`ctx-btn ${label ? "" : "icon-only"} ${on ? "on" : ""}`}
       style={color ? ({ "--tc": color } as React.CSSProperties) : undefined}
-      data-tip={kbd ? `${tip} (${kbd})` : tip}
+      data-tip={on ? undefined : kbd ? `${tip} (${kbd})` : tip}
       onClick={onClick}
     >
       {icon}
@@ -32,6 +36,54 @@ function CtxButton({ icon, label, kbd, color, onClick, tip }: { icon: ReactNode;
 }
 
 const Sep = () => <span className="w-px h-6 bg-ink-700 mx-0.5" />;
+
+/** "Pattern" with a small menu: in a row or around a center */
+function PatternButton({ body }: { body: Body }) {
+  const [open, setOpen] = useState(false);
+  const current = isPattern(body.shape) ? body.shape.pattern.type : null;
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: PointerEvent) => {
+      if (!(e.target as HTMLElement).closest?.(".pattern-menu-host")) setOpen(false);
+    };
+    window.addEventListener("pointerdown", close);
+    return () => window.removeEventListener("pointerdown", close);
+  }, [open]);
+  const pick = (type: "linear" | "circular") => {
+    setOpen(false);
+    createPattern(type);
+  };
+  return (
+    <span className="relative pattern-menu-host">
+      <CtxButton
+        icon={current === "circular" ? <CircularPatternIcon size={16} /> : <LinearPatternIcon size={16} />}
+        label={current ? t("Pattern · {count}", { count: body.shape.kind === "group" ? body.shape.children.length : 1 }) : t("Pattern")}
+        color={TOOL_COLOR.pattern}
+        on={open}
+        tip={current ? t("Switch between a row and a circle. Count and spacing are in the panel on the right") : t("Repeat this body: in a row, as a grid or around a center")}
+        onClick={() => setOpen(!open)}
+      />
+      {open && (
+        <div className="pattern-menu overlay-card absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 p-1 flex flex-col gap-0.5 w-[248px]">
+          {(
+            [
+              ["linear", <LinearPatternIcon size={20} />, t("Linear"), t("In a row or as a grid, with a set spacing")],
+              ["circular", <CircularPatternIcon size={20} />, t("Circular"), t("Around a center, like holes on a flange")],
+            ] as const
+          ).map(([type, icon, label, hint]) => (
+            <button key={type} className={`pattern-option ${current === type ? "on" : ""}`} onClick={() => pick(type)}>
+              <span className="pattern-option-icon">{icon}</span>
+              <span className="flex flex-col items-start text-left">
+                <span className="text-[12.5px] font-medium text-ink-100">{label}</span>
+                <span className="text-[11px] text-ink-400 leading-snug">{hint}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </span>
+  );
+}
 
 /**
  * Floating actions for what is selected, so the next useful steps (rounding edges, combining, …)
@@ -83,6 +135,7 @@ export function ContextBar() {
         <CtxButton icon={<ArrowDownToLine size={16} />} label={t("btn|Lay flat")} kbd="L" color={TOOL_COLOR.layflat} tip={t("Click a face that should rest on the bed")} onClick={() => setTool("layflat")} />
         <CtxButton icon={<RotateCw size={16} />} kbd="E" tip={t("Rotate 90° around the vertical axis")} color={TOOL_COLOR.select} onClick={() => rotateSelection(2, -90)} />
         <CtxButton icon={<LocateFixed size={16} />} kbd="M" tip={t("Center on the print bed (on the grid), Shift+M: exact")} color={TOOL_COLOR.select} onClick={() => centerOnBed(false)} />
+        {!mesh && <PatternButton body={b} />}
         {!mesh && (
           <CtxButton
             icon={<Layers2 size={16} />}

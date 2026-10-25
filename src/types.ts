@@ -18,7 +18,7 @@ export type Shape =
    * union = solids fused, holes cut · subtract = like union, the first child is the base and the others are holes ·
    * intersect = common volume of the solids · group = solids kept as separate pieces
    */
-  | { kind: "group"; children: Body[]; op?: BoolOp }
+  | { kind: "group"; children: Body[]; op?: BoolOp; pattern?: PatternSpec }
   /** solid `part` of an imported file (see Doc.assets); min/max = its bounds before scaling */
   | {
       kind: "imported";
@@ -32,6 +32,35 @@ export type Shape =
     };
 
 export type BoolOp = "union" | "subtract" | "intersect" | "group";
+
+/**
+ * Repeats the first child of a group (the original). The other children are generated from it,
+ * so changing the original or a value here updates every copy.
+ */
+export interface PatternSpec {
+  type: "linear" | "circular";
+  /** number of parts in the first direction (linear) or around the circle, the original included */
+  count: number;
+  /** linear: distance per step, read as centre to centre or as the gap between the parts (see `gap`) */
+  spacing: number;
+  axis: 0 | 1 | 2;
+  /** linear: second direction for a grid (1 = a single row) */
+  rows: number;
+  rowSpacing: number;
+  rowAxis: 0 | 1 | 2;
+  /** linear: spacing values are gaps between the parts instead of centre distances */
+  gap: boolean;
+  /** circular: distance from the centre of the circle to the centre of each part */
+  radius: number;
+  /** circular: spread in degrees; 360 = evenly around the whole circle */
+  angle: number;
+  /** circular: copies turn with the circle (like spokes) instead of keeping their orientation */
+  rotate: boolean;
+  /** circular: axis the copies turn around, through `center` */
+  circAxis: 0 | 1 | 2;
+  /** circular: centre of the circle, in the group's frame */
+  center: Vec3;
+}
 
 export type ShapeKind = Shape["kind"];
 
