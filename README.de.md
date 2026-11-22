@@ -152,8 +152,7 @@ Jeder Schritt bleibt änderbar: Teil im Panel aufklappen, Maße anpassen, fertig
 | `Shift` + Pfeil ziehen | Entlang des Pfeils verschieben statt die Größe zu ändern (`Strg`: kombinierte Körper proportional skalieren) |
 | `Q` / `E` | 90° um Z drehen |
 | `H` | Volumen oder Loch |
-| `Strg+C`, `Strg+V` | Kopieren, genau an derselben Stelle einfügen (in neuer Farbe) |
-| `Strg+D` | Duplizieren, direkt neben das Original |
+| `Strg+C`, `Strg+V` / `Strg+D` | Kopieren und Einfügen / Duplizieren: die Kopie bleibt genau an derselben Stelle, in neuer Farbe |
 | `Strg+Z` / `Strg+Shift+Z` | Rückgängig / Wiederholen |
 | Pfeiltasten, Bild ↑↓ | Auswahl um einen Rasterschritt verschieben (`Shift` ×10) |
 | `Esc` | Abbrechen, Werkzeug beenden |

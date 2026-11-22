@@ -772,15 +772,14 @@ export function copySelection() {
 /** pastes exactly where the copied bodies were: moving them is up to you */
 export function paste() {
   if (!clipboard.length) return;
-  insertCopies(clipboard, false);
-  toast(t("Pasted in the same place, in a new color. Drag it where you want it"));
+  insertCopies(clipboard);
 }
 
-/** Ctrl+D: the copy goes right next to the original */
+/** Ctrl+D: a copy in exactly the same place, like copy and paste */
 export function duplicateSelection() {
   const bodies = selectedBodies();
   if (!bodies.length) return;
-  insertCopies(bodies, true);
+  insertCopies(bodies);
 }
 
 /** a random colour of the palette that is not `avoid` */
@@ -789,20 +788,17 @@ function otherColor(avoid: string) {
   return choices[Math.floor(Math.random() * choices.length)];
 }
 
-function insertCopies(src: Body[], beside: boolean) {
+/** copies stay exactly where the originals are (moving them is up to you), in a new colour */
+function insertCopies(src: Body[]) {
   const doc = get().doc;
-  const box = unionBox(src);
-  const step = doc.settings.snap || 1;
-  const dx = beside ? Math.ceil((box.max.x - box.min.x + 5) / step) * step : 0;
   const copies = src.map((b) => {
     const c = cloneBody(b);
-    c.position = [c.position[0] + dx, c.position[1], c.position[2]];
-    // a new colour, so the copy stands out from the original
     c.color = otherColor(b.color);
     return c;
   });
   commit({ ...doc, bodies: [...doc.bodies, ...copies] });
   set({ selection: copies.map((c) => c.id), ...noEdit });
+  toast(t("Copy in the same place, in a new color. Drag it where you want it"));
 }
 
 export const OP_NAME: Record<BoolOp, string> = { union: "Union", subtract: "Difference", intersect: "Intersection", group: "Group" };

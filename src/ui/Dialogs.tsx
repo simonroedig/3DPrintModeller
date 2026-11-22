@@ -270,7 +270,7 @@ const KEYS: [string, string][] = [
   ["0", "Zoom to fit"],
   ["Ctrl + G", "Union (subtract, intersect, group: left toolbar / panel)"],
   ["Ctrl + Shift + G", "Split a combined body"],
-  ["Ctrl + D", "Duplicate (the copy goes right next to it)"],
+  ["Ctrl + D", "Duplicate (exactly in the same place, in a new color)"],
   ["Ctrl + C / V", "Copy / Paste (exactly in the same place, in a new color)"],
   ["Ctrl + Z / Ctrl + Shift + Z", "Undo / Redo"],
   ["Del / Backspace", "Delete selection"],
