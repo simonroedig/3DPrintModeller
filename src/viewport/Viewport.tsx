@@ -1,5 +1,7 @@
 import * as THREE from "three";
-import { Canvas } from "@react-three/fiber";
+import { useEffect } from "react";
+import { Canvas, useThree } from "@react-three/fiber";
+import { useMeshes } from "../cad/client";
 import { Line } from "@react-three/drei";
 import { select, useStore } from "../store/store";
 import { CameraRig } from "./CameraRig";
@@ -59,6 +61,23 @@ function Lights() {
   );
 }
 
+/**
+ * The canvas only draws on demand. React changes to objects trigger a frame, but removing one
+ * (switching the center lines off, for example) does not: redraw on every change of the app state.
+ */
+function RedrawOnChange() {
+  const invalidate = useThree((s) => s.invalidate);
+  useEffect(() => {
+    const a = useStore.subscribe(() => invalidate());
+    const b = useMeshes.subscribe(() => invalidate());
+    return () => {
+      a();
+      b();
+    };
+  }, [invalidate]);
+  return null;
+}
+
 export function Viewport() {
   return (
     <Canvas
@@ -77,6 +96,7 @@ export function Viewport() {
         if (import.meta.env.DEV) Object.assign(window, { __r3f: state.get });
       }}
     >
+      <RedrawOnChange />
       <CameraRig />
       <Lights />
       <group userData={{ noInset: true }}>

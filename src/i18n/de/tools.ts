@@ -125,6 +125,13 @@ const de: Record<string, string> = {
   "The full circle": "Der ganze Kreis",
   "1/{n} of the circle": "1/{n} des Kreises",
   Full: "Ganz",
+
+  // centring buttons, X-ray
+  "Center exactly": "Exakt zentrieren",
+  "In grid steps": "In Rasterschritten",
+  "X-ray": "Röntgen",
+  "X-ray: see through all bodies, so parts inside or behind others stay visible":
+    "Röntgenblick: durch alle Körper hindurchsehen, damit Teile innen oder dahinter sichtbar bleiben",
 };
 
 export default de;

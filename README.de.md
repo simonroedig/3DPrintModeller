@@ -59,15 +59,16 @@ Alles läuft im Browser, ohne Installation und ohne Konto: **[3d-print-modeller.
 - **Einheit und Raster** beim Start wählen (mm, cm, Zoll). Alles rastet auf das Raster, `Alt` beim Ziehen hebt das auf.
 - **Grundkörper**: Quader, Zylinder, Keil (mit Winkel), Kegel, Kugel, Rohr. Mit `Shift` direkt als Loch.
 - **Kreissegmente**: Zylinder, Rohre, Kegel und Kreis-Skizzen können nur ein Teil des Kreises sein, z. B. ein 45°-Tortenstück,
-  mit frei wählbarem Startwinkel.
+  mit frei wählbarem Startwinkel. Beim Drehen bleibt die Spitze des Tortenstücks an ihrem Platz.
 - **Verschieben mit Einrasten** an Flächen anderer Körper (bündig, anliegend, mittig) und an der Mitte des Druckbetts,
   pinke Hilfslinien zeigen woran.
 - **Griffe als Pfeile** in der Farbe ihrer Achse (X rot, Y grün, Z blau): Ziehen ändert die Größe, mit gehaltenem `Shift`
-  verschiebt der Pfeil das Teil stattdessen. Maß-Labels sind direkt im Modell editierbar.
+  werden sie zu Verschiebepfeilen für alle drei Achsen. Maß-Labels sind direkt im Modell editierbar.
 - **Exakte Maße**: runde Teile messen genau, was du eingibst (24 mm bleiben 24 mm, nicht die vom Dreiecksnetz gerundeten 23,99 mm).
 - **Drehen** in 90°-Schritten oder frei, **Fläche aufs Bett legen** per Klick, **Zentrieren** exakt auf dem Druckbett
   (oder in ganzen Rasterschritten), **Ausrichten** mehrerer Teile oder ihre **Mitten übereinander legen** (z. B. Zylinder stapeln).
 - **Mittellinien** auf Wunsch: die Mitte des Betts bleibt durch alle Körper hindurch sichtbar, die Mitte der Auswahl wird markiert.
+- **Röntgen**-Ansicht: durch alle Körper hindurchsehen, damit Teile innen oder dahinter sichtbar bleiben.
 
 ### Skizzieren in jeder Ebene
 

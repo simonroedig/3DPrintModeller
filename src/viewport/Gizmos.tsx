@@ -310,8 +310,44 @@ function ResizeHandles({ body, snap, get, unit }: { body: Body; snap: number; un
   const va = viewAxis(view);
   const axis = va === null ? null : new THREE.Vector3().setComponent(va, 1);
   const group = body.shape.kind === "group";
+  // with Shift every axis gets a move arrow, also where the body has no size arrow (e.g. Y of a cone)
+  const covered = new Set(specs.map((s) => axisName(new THREE.Vector3(...s.dir).applyQuaternion(q))));
+  const extra = shift
+    ? [0, 1, 2]
+        .filter((a) => !covered.has(AXIS_NAMES[a]) && a !== va)
+        .map((a) => {
+          const box = unionBox([body]);
+          const pos = box.getCenter(new THREE.Vector3()).setComponent(a, box.max.getComponent(a));
+          return { a, pos, dir: new THREE.Vector3().setComponent(a, 1) };
+        })
+    : [];
+  const startMove = (e: ThreeEvent<PointerEvent>, wp: THREE.Vector3, wd: THREE.Vector3) => {
+    const p0 = body.position;
+    const moveLabel = t("Move {axis}", { axis: axisName(wd) });
+    beginTx();
+    const ok = startAxisDrag(
+      get(),
+      e.nativeEvent,
+      wp,
+      wd,
+      (dist, ev) => {
+        const d = snapTo(dist, ev.altKey ? 0 : snap);
+        const mv = wd.clone().normalize().multiplyScalar(d);
+        updateBodies({ [body.id]: { position: [p0[0] + mv.x, p0[1] + mv.y, p0[2] + mv.z] } });
+        useStore.setState({ dragInfo: `${moveLabel} ${d >= 0 ? "+" : ""}${fmtLen(d, unit)}` });
+      },
+      () => {
+        endTx();
+        useStore.setState({ dragInfo: null });
+      },
+    );
+    if (!ok) endTx();
+  };
   return (
     <>
+      {extra.map(({ a, pos, dir }) => (
+        <Handle key={`move-${a}`} position={pos} dir={dir} arrow both color={AXIS_COLOR[a]} title={t("Move {axis}", { axis: AXIS_NAMES[a] })} onDown={(e) => startMove(e, pos, dir)} />
+      ))}
       {specs.map((spec) => {
         const wp = new THREE.Vector3(...spec.pos).applyMatrix4(m);
         const wd = new THREE.Vector3(...spec.dir).applyQuaternion(q);

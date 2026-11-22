@@ -256,6 +256,15 @@ function midDir(s: { angle?: number; start?: number }): [number, number] {
   return [Math.cos(a), Math.sin(a)];
 }
 
+/** true if the direction `a` (radians, from +X) lies on the arc of a full circle or segment */
+function onArc(s: { angle?: number; start?: number }, a: number): boolean {
+  if (!isSegment(s)) return true;
+  const start = ((s.start ?? 0) * Math.PI) / 180;
+  const sweep = ((s.angle ?? 360) * Math.PI) / 180;
+  const d = (((a - start) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+  return d <= sweep + 1e-9;
+}
+
 /** a point inside a circle segment (the axis for full circles), for the height arrows */
 function segMid(s: { angle?: number; start?: number }, r: number, ri = 0): Vec3 {
   if (!isSegment(s)) return [0, 0, 0];
@@ -319,19 +328,20 @@ export function handleSpecs(shape: Shape): HandleSpec[] {
       const r = shape.d / 2;
       const h = shape.kind === "sphere" ? shape.d : shape.h;
       const [cx, cy] = shape.kind === "sphere" ? [1, 0] : midDir(shape);
-      const list: HandleSpec[] = [
-        {
-          id: "r",
-          pos: [r * cx, r * cy, h / 2],
-          dir: [cx, cy, 0],
-          label: "Diameter",
-          apply: (t, snap) => {
-            const v = sn(shape.d + 2 * t, snap);
-            const next = shape.kind === "tube" ? { ...shape, d: v, t: Math.min(shape.t, v / 2 - 0.01) } : { ...shape, d: v };
-            return { shape: next, shift: [0, 0, 0], value: v };
-          },
+      const radial = (id: string, x: number, y: number): HandleSpec => ({
+        id,
+        pos: [r * x, r * y, h / 2],
+        dir: [x, y, 0],
+        label: "Diameter",
+        apply: (t, snap) => {
+          const v = sn(shape.d + 2 * t, snap);
+          const next = shape.kind === "tube" ? { ...shape, d: v, t: Math.min(shape.t, v / 2 - 0.01) } : { ...shape, d: v };
+          return { shape: next, shift: [0, 0, 0], value: v };
         },
-      ];
+      });
+      const list: HandleSpec[] = [radial("r", cx, cy)];
+      // a second one a quarter turn on (green on an upright cylinder): the same diameter, but Shift then moves along it
+      if (shape.kind === "sphere" || onArc(shape, Math.atan2(cy, cx) + Math.PI / 2)) list.push(radial("r2", -cy, cx));
       if (shape.kind !== "sphere") {
         const c = segMid(shape, r, shape.kind === "tube" ? r - shape.t : 0);
         list.push(bottomHandle(shape, c, sn));

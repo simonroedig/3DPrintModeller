@@ -27,6 +27,7 @@ import {
   LogOut,
   RotateCcw,
   RotateCw,
+  ScanEye,
   Square,
   SquareRoundCorner,
   Target,
@@ -59,6 +60,7 @@ import {
   setBodyShape,
   setSelectionMin,
   setCenterLines,
+  setXray,
   setSettings,
   setShowBed,
   setTool,
@@ -125,6 +127,7 @@ function SceneTree() {
   const selection = useStore((s) => s.selection);
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const centerLines = useStore((s) => s.centerLines);
+  const xray = useStore((s) => s.xray);
   const click = (id: string) => (e: React.MouseEvent) => {
     if (e.shiftKey || e.ctrlKey || e.metaKey) select(selection.includes(id) ? selection.filter((x) => x !== id) : [...selection, id]);
     else select([id]);
@@ -142,6 +145,14 @@ function SceneTree() {
             onClick={() => setCenterLines(!centerLines)}
           >
             <Crosshair size={13} /> {t("Center lines")}
+          </button>
+          <button
+            className={`center-toggle xray ${xray ? "on" : ""}`}
+            title={t("X-ray: see through all bodies, so parts inside or behind others stay visible")}
+            aria-pressed={xray}
+            onClick={() => setXray(!xray)}
+          >
+            <ScanEye size={13} /> {t("X-ray")}
           </button>
           <span className="text-ink-500">{bodies.length + sketches.length}</span>
         </span>
@@ -433,20 +444,20 @@ function BodyProps({ body }: { body: Body }) {
 /** middle of the bed in X/Y: exactly, or in whole grid steps (stays on the grid) */
 function CenterButtons({ label }: { label?: string }) {
   return (
-    <div className="flex gap-1.5 mt-2">
+    <div className="grid grid-cols-2 gap-1.5 mt-2">
       <button
-        className="btn flex-1"
+        className="btn"
         title={t("Exactly in the middle of the print bed (X and Y, the height stays), even between grid lines (M)")}
         onClick={() => centerOnBed(false)}
       >
-        <LocateFixed size={14} /> {label ?? t("Center")}
+        <LocateFixed size={14} /> {label ?? t("Center exactly")}
       </button>
       <button
-        className="btn !px-2.5"
+        className="btn"
         title={t("Only move in whole grid steps, so a part on the grid stays on it. The middle can then be half a step off (Shift+M)")}
         onClick={() => centerOnBed(true)}
       >
-        {t("on grid")}
+        {t("In grid steps")}
       </button>
     </div>
   );
@@ -997,7 +1008,7 @@ function PatternProps({ body }: { body: Body & { shape: PatternShape } }) {
       <Section title={<span style={{ color: TOOL_COLOR.pattern }}>{t("Pattern")}</span>} right={<PatternTypeSeg shape={body.shape} onShape={onShape} />}>
         <PatternFields shape={body.shape} onShape={onShape} />
         <div className="mt-2">
-          <CenterButtons label={body.shape.pattern.type === "linear" ? t("Center the pattern") : t("Center the circle")} />
+          <CenterButtons label={t("Center exactly")} />
         </div>
       </Section>
       <Section title={t("Original")}>
@@ -1101,7 +1112,7 @@ function MultiProps({ bodies }: { bodies: Body[] }) {
         <button className="btn w-full mt-2" onClick={dropToBed}>
           <ArrowDownToLine size={14} /> {t("Drop all to bed")}
         </button>
-        <CenterButtons label={t("Center together")} />
+        <CenterButtons label={t("Center exactly")} />
       </Section>
       <Section title={t("Rotate (together)")}>
         <RotateButtons />
@@ -1253,7 +1264,7 @@ function DocProps() {
             </button>
           ))}
         </div>
-        {count > 0 && <CenterButtons label={t("Center all")} />}
+        {count > 0 && <CenterButtons label={t("Center exactly")} />}
       </Section>
       <Section title={t("How it works")}>
         <ol className="text-[12px] text-ink-300 list-decimal pl-4 space-y-1.5">

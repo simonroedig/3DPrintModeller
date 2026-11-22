@@ -94,12 +94,13 @@ function CenterLines() {
   const sel = bodies.filter((b) => selection.includes(b.id) && !b.hidden);
   const box = sel.length ? unionBox(sel) : null;
   const c = box && !box.isEmpty() ? box.getCenter(new THREE.Vector3()) : null;
-  const line = { lineWidth: 1.4, dashed: true, dashSize: 3, gapSize: 2, transparent: true, depthTest: false, renderOrder: 30 } as const;
+  // solid: the grid already has dashes right at the middle
+  const line = { lineWidth: 1.6, transparent: true, depthTest: false, renderOrder: 30 } as const;
   return (
     <group>
-      <Line points={[[-L, 0, 0], [L, 0, 0]]} color="#f87171" opacity={0.85} {...line} />
-      <Line points={[[0, -L, 0], [0, L, 0]]} color="#4ade80" opacity={0.85} {...line} />
-      <Line points={[[0, 0, 0], [0, 0, H]]} color="#60a5fa" opacity={0.7} {...line} />
+      <Line points={[[-L, 0, 0], [L, 0, 0]]} color="#f87171" opacity={0.9} {...line} />
+      <Line points={[[0, -L, 0], [0, L, 0]]} color="#4ade80" opacity={0.9} {...line} />
+      <Line points={[[0, 0, 0], [0, 0, H]]} color="#60a5fa" opacity={0.8} {...line} />
       {c && box && (
         <ScreenScale position={[c.x, c.y, box.max.z]}>
           <Billboard>

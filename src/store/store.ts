@@ -90,6 +90,8 @@ export interface State {
   showBed: boolean;
   /** centre lines of the bed visible through bodies */
   centerLines: boolean;
+  /** see-through bodies */
+  xray: boolean;
   /** height used by the extrude buttons */
   extrudeHeight: number;
 }
@@ -139,6 +141,18 @@ export function setShowBed(show: boolean) {
   }
 }
 
+const XRAY_KEY = "printmodeller.xray";
+
+/** bodies drawn see-through, so parts inside or behind others stay visible */
+export function setXray(on: boolean) {
+  useStore.setState({ xray: on });
+  try {
+    localStorage.setItem(XRAY_KEY, on ? "1" : "0");
+  } catch {
+    /* ignore */
+  }
+}
+
 const CENTER_KEY = "printmodeller.centerLines";
 
 /** centre lines of the bed drawn on top of everything (plus the middle of the selection) */
@@ -181,6 +195,7 @@ export const useStore = create<State>(() => ({
   groupFocus: null,
   showBed: readFlag(BED_KEY, true),
   centerLines: readFlag(CENTER_KEY, false),
+  xray: readFlag(XRAY_KEY, false),
   extrudeHeight: 10,
 }));
 
@@ -585,10 +600,26 @@ export function setSelectionMin(axis: 0 | 1 | 2, value: number) {
   );
 }
 
-/** Re-orients bodies, keeping the xy-centre and bottom height of their joint bounding box. */
+/**
+ * Round parts turning about their own axis keep the middle of their circle in place (for a segment:
+ * the tip of the slice), not the middle of their box.
+ */
+function turnsAboutOrigin(b: Body, next: Quat) {
+  if (b.shape.kind !== "cylinder" && b.shape.kind !== "tube" && b.shape.kind !== "cone") return false;
+  const q0 = new THREE.Quaternion(...b.quaternion);
+  const r = new THREE.Quaternion(...next).multiply(q0.clone().invert());
+  const axis = new THREE.Vector3(0, 0, 1).applyQuaternion(q0);
+  return axis.clone().applyQuaternion(r).dot(axis) > 1 - 1e-9;
+}
+
+/**
+ * Re-orients bodies, keeping the xy-centre and bottom height of their joint bounding box.
+ * A single round part turning about its own axis keeps the centre of its circle in place instead.
+ */
 function reorient(bodies: Body[], compute: (b: Body) => Quat, bottom?: number) {
   const before = unionBox(bodies);
-  const c = before.getCenter(new THREE.Vector3());
+  const pivot = bodies.length === 1 && turnsAboutOrigin(bodies[0], compute(bodies[0])) ? bodies[0] : null;
+  const c = pivot ? new THREE.Vector3(...pivot.position) : before.getCenter(new THREE.Vector3());
   const rotated = bodies.map((b) => {
     const q0 = new THREE.Quaternion(...b.quaternion);
     const q1 = new THREE.Quaternion(...compute(b));
@@ -598,7 +629,7 @@ function reorient(bodies: Body[], compute: (b: Body) => Quat, bottom?: number) {
     return { ...b, quaternion: cleanQuat(q1), position: [p.x, p.y, p.z] as Vec3 };
   });
   const after = unionBox(rotated);
-  const ac = after.getCenter(new THREE.Vector3());
+  const ac = pivot ? new THREE.Vector3(...rotated[0].position) : after.getCenter(new THREE.Vector3());
   const targetBottom = bottom ?? before.min.z;
   const d = new THREE.Vector3(c.x - ac.x, c.y - ac.y, targetBottom - after.min.z);
   const updates: Record<string, Partial<Body>> = {};

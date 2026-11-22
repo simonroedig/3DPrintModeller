@@ -65,6 +65,7 @@ export function BodyView({ body }: { body: Body }) {
   const selected = useStore((s) => s.selection.includes(body.id));
   const tool = useStore((s) => s.tool);
   const planePick = useStore((s) => s.planePick);
+  const xray = useStore((s) => s.xray);
   const editing = useStore((s) => s.edgeSel?.bodyId === body.id || s.faceSel?.bodyId === body.id);
   const fillet = useStore((s) => (editing ? s.fillet : null));
   const faceOp = useStore((s) => (editing ? s.faceOp : null));
@@ -200,8 +201,23 @@ export function BodyView({ body }: { body: Body }) {
             emissive={emissive}
             emissiveIntensity={emissiveIntensity}
           />
+        ) : xray ? (
+          // X-ray: see-through, the edges of everything stay visible
+          <meshStandardMaterial
+            key="xray"
+            color={color}
+            roughness={0.62}
+            metalness={0.02}
+            emissive={emissive}
+            emissiveIntensity={emissiveIntensity}
+            transparent
+            opacity={selected ? 0.42 : 0.28}
+            depthWrite={false}
+            side={THREE.DoubleSide}
+          />
         ) : (
           <meshStandardMaterial
+            key="solid"
             color={color}
             roughness={0.62}
             metalness={0.02}
@@ -219,6 +235,7 @@ export function BodyView({ body }: { body: Body }) {
           transparent
           opacity={tool === "edit" ? 1 : selected ? 0.95 : 0.75}
           depthWrite={false}
+          depthTest={!xray}
         />
       </lineSegments>
       {body.shape.kind === "group" && selected && tool === "select" && <GroupGhosts body={body} />}

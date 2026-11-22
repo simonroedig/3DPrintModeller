@@ -684,6 +684,11 @@ label:has(> input[type="checkbox"]) {
   border-color: rgba(248, 113, 113, 0.6);
   background: rgba(248, 113, 113, 0.14);
 }
+.center-toggle.xray.on {
+  color: #bfdbfe;
+  border-color: rgba(96, 165, 250, 0.6);
+  background: rgba(96, 165, 250, 0.14);
+}
 
 /* pattern menu above the context bar */
 .pattern-option {

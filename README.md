@@ -59,15 +59,16 @@ Everything runs in the browser, no installation, no account: **[3d-print-modelle
 - **Unit and grid** chosen at the start (mm, cm, inch). Everything snaps to the grid, hold `Alt` while dragging to move freely.
 - **Primitives**: box, cylinder, wedge (with angle), cone, sphere, tube. Hold `Shift` to add one as a hole.
 - **Circle segments**: cylinders, tubes, cones and circle sketches can be just a part of the circle, e.g. a 45° slice,
-  with a free start angle.
+  with a free start angle. Turning a segment keeps the tip of the slice in place.
 - **Move with snapping** to faces of other bodies (flush, touching, centered) and to the middle of the print bed;
   pink guides show what it snapped to.
-- **Arrow handles** in the color of their axis (X red, Y green, Z blue): drag to resize, hold `Shift` to move the part
-  along that arrow instead. Dimension labels are editable right in the model.
+- **Arrow handles** in the color of their axis (X red, Y green, Z blue): drag to resize, hold `Shift` and they turn into
+  move arrows for all three axes. Dimension labels are editable right in the model.
 - **Exact dimensions**: round parts measure exactly what you typed (24 mm stays 24 mm, not the tessellated 23.99 mm).
 - **Rotate** in 90° steps or freely, **lay a face flat** on the bed with one click, **center** exactly on the print bed
   (or in whole grid steps), **align** several parts, or put their **centers on top of each other** (e.g. to stack cylinders).
 - **Center lines** on demand: the middle of the bed stays visible through all bodies, and the middle of the selection is marked.
+- **X-ray** view: see through all bodies, so parts inside or behind others stay visible.
 
 ### Sketch on any plane
 
