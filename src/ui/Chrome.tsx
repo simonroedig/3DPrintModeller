@@ -47,6 +47,7 @@ import { OPS } from "./ops";
 import { TOOL_COLOR } from "./theme";
 import { APP_NAME, AUTHOR } from "./brand";
 import { CubeLogo } from "./Logo";
+import { useNearestView } from "../viewport/nearestView";
 import { CircularPatternIcon, LineToolIcon, LinearPatternIcon } from "./icons";
 import { MODE_COLOR, MODE_NAME } from "./Overlays";
 import { AXIS_COLOR, viewAxis } from "../lib/planes";
@@ -270,6 +271,8 @@ function viewStyle(v: View): React.CSSProperties {
 
 export function ViewSwitcher() {
   const view = useStore((s) => s.view);
+  // in 3D: the view the camera is already closest to (one click snaps there)
+  const near = useNearestView((s) => s.near);
   const flashNonce = useStore((s) => s.viewFlash);
   const [flashedView, setFlashedView] = useState<View | null>(null);
   useEffect(() => {
@@ -285,9 +288,13 @@ export function ViewSwitcher() {
         {VIEWS.map((v) => (
           <button
             key={`${v.id}-${v.id === view && flash ? flashNonce : 0}`}
-            className={`${view === v.id ? "on" : ""} ${v.id === view && flash ? "view-flash" : ""}`}
+            className={`${view === v.id ? "on" : ""} ${v.id === view && flash ? "view-flash" : ""} ${near === v.id ? "near" : ""}`}
             style={viewStyle(v.id)}
-            title={t("{view} view ({key})", { view: t(v.label), key: v.kbd })}
+            title={
+              near === v.id
+                ? t("{view} view ({key}): the camera is closest to this view, one click snaps there", { view: t(v.label), key: v.kbd })
+                : t("{view} view ({key})", { view: t(v.label), key: v.kbd })
+            }
             onMouseEnter={() => useStore.setState({ viewHover: v.id })}
             onClick={() => setView(v.id)}
           >

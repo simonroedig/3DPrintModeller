@@ -126,6 +126,10 @@ const de: Record<string, string> = {
   "1/{n} of the circle": "1/{n} des Kreises",
   Full: "Ganz",
 
+  // nearest view while orbiting
+  "{view} view ({key}): the camera is closest to this view, one click snaps there":
+    "Ansicht {view} ({key}): die Kamera ist dieser Ansicht am nächsten, ein Klick springt hin",
+
   // copy and paste
   "Duplicate (exactly in the same place, in a new color)": "Duplizieren (genau an derselben Stelle, in neuer Farbe)",
   "Copy / Paste (exactly in the same place, in a new color)": "Kopieren / Einfügen (genau an derselben Stelle, in neuer Farbe)",

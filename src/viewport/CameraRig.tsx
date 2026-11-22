@@ -1,12 +1,13 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
-import { useThree } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, OrthographicCamera, PerspectiveCamera } from "@react-three/drei";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import type { Sketch } from "../types";
 import { useStore } from "../store/store";
 import { polyBounds, unionBox } from "../lib/geom";
 import { fromPlane2D, VIEW_DIR } from "../lib/planes";
+import { useNearestView } from "./nearestView";
 
 const FOV = 35;
 
@@ -37,6 +38,31 @@ export function sceneBox() {
   const min = 40;
   box.expandByVector(new THREE.Vector3(Math.max(0, (min - size.x) / 2), Math.max(0, (min - size.y) / 2), Math.max(0, (min - size.z) / 4)));
   return box;
+}
+
+const SIDES = ["top", "bottom", "front", "back", "right", "left"] as const;
+const _dir = new THREE.Vector3();
+
+/** keeps track of the 2D view the 3D camera is closest to */
+function NearestView() {
+  useFrame((state) => {
+    const { view } = useStore.getState();
+    let near: (typeof SIDES)[number] | null = null;
+    const ctl = state.controls as unknown as OrbitControlsImpl | null;
+    if (view === "iso" && ctl) {
+      _dir.copy(state.camera.position).sub(ctl.target).normalize();
+      let best = -Infinity;
+      for (const s of SIDES) {
+        const d = _dir.dot(VIEW_DIR[s]);
+        if (d > best) {
+          best = d;
+          near = s;
+        }
+      }
+    }
+    if (useNearestView.getState().near !== near) useNearestView.setState({ near });
+  });
+  return null;
 }
 
 /** pending hand-over from a 2D view to the 3D view while the right mouse button is held */
@@ -140,6 +166,7 @@ export function CameraRig() {
   // left button is reserved for selecting/drawing; hold the right button to orbit (2D views switch to 3D first)
   return (
     <>
+      <NearestView />
       <PerspectiveCamera makeDefault={!isOrtho} fov={FOV} near={0.5} far={50000} position={[200, -320, 260]} up={[0, 0, 1]} />
       <OrthographicCamera makeDefault={isOrtho} near={-50000} far={50000} position={[0, 0, 2000]} zoom={3} />
       <OrbitControls

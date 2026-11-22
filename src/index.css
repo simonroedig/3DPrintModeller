@@ -737,6 +737,22 @@ label:has(> input[type="checkbox"]) {
 .view-seg button:hover:not(.on) {
   color: var(--vc-hover);
 }
+/* 3D view: the side the camera is closest to, in its axis colour with a small dot */
+.view-seg button.near:not(.on) {
+  position: relative;
+  color: var(--vc-hover);
+}
+.view-seg button.near:not(.on)::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 1px;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--vc-hover);
+}
 .view-seg button.on {
   background: var(--vc);
   color: var(--vc-on);
