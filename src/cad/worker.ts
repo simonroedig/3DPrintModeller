@@ -20,7 +20,8 @@ import {
   type Edge,
   type Face,
 } from "replicad";
-import type { Body, EdgeFeature, EdgeInfo, EdgeRef, ExportFormat, ExportQuality, FaceInfo, FaceRef, Feature, MeshData, Shape, Vec3 } from "../types";
+import type { Body, EdgeFeature, EdgeInfo, EdgeRef, ExportFormat, ExportQuality, FaceInfo, FaceRef, Feature, MeshData, Segment, Shape, Vec3 } from "../types";
+import { isSegment, sweepOf } from "../lib/segment";
 import { geometryKey } from "./key";
 import { to3MF, toBinarySTL, type ExportPart } from "./formats";
 import { meshToSolids, readSTEP } from "./meshToBrep";
@@ -132,7 +133,11 @@ function buildBase(shape: Shape): Shape3D {
         .sketchOnPlane("YZ")
         .extrude(shape.w) as Shape3D;
     case "cylinder":
-      return makeCylinder(shape.d / 2, shape.h, [0, 0, 0], [0, 0, 1]);
+      if (!isSegment(shape)) return makeCylinder(shape.d / 2, shape.h, [0, 0, 0], [0, 0, 1]);
+      return revolveSegment(
+        draw([0, 0]).lineTo([shape.d / 2, 0]).lineTo([shape.d / 2, shape.h]).lineTo([0, shape.h]).close(),
+        shape,
+      );
     case "cone": {
       const r1 = Math.max(shape.d1 / 2, 0);
       const r2 = Math.max(shape.d2 / 2, 0);
@@ -141,20 +146,14 @@ function buildBase(shape: Shape): Shape3D {
       if (r2 > EPS) pen = pen.lineTo([r2, shape.h]);
       else pen = pen.lineTo([0, shape.h]);
       if (r2 > EPS) pen = pen.lineTo([0, shape.h]);
-      return pen.close().sketchOnPlane("XZ").revolve([0, 0, 1]) as Shape3D;
+      return revolveSegment(pen.close(), shape);
     }
     case "sphere":
       return makeSphere(shape.d / 2).translate(0, 0, shape.d / 2);
     case "tube": {
       const ro = shape.d / 2;
       const ri = Math.max(ro - shape.t, 0.01);
-      return draw([ri, 0])
-        .lineTo([ro, 0])
-        .lineTo([ro, shape.h])
-        .lineTo([ri, shape.h])
-        .close()
-        .sketchOnPlane("XZ")
-        .revolve([0, 0, 1]) as Shape3D;
+      return revolveSegment(draw([ri, 0]).lineTo([ro, 0]).lineTo([ro, shape.h]).lineTo([ri, shape.h]).close(), shape);
     }
     case "prism": {
       const pts = shape.points;
@@ -190,6 +189,15 @@ function buildBase(shape: Shape): Shape3D {
       return result;
     }
   }
+}
+
+/** turns a profile (drawn in XZ) around Z: the whole circle, or a segment from `start` over `angle` degrees */
+function revolveSegment(profile: ReturnType<ReturnType<typeof draw>["close"]>, seg: Segment): Shape3D {
+  const sketch = profile.sketchOnPlane("XZ");
+  if (!isSegment(seg)) return sketch.revolve([0, 0, 1]) as Shape3D;
+  const solid = sketch.revolve([0, 0, 1], { angle: sweepOf(seg) }) as Shape3D;
+  const start = seg.start ?? 0;
+  return Math.abs(start) > 1e-9 ? solid.rotate(start, [0, 0, 0], [0, 0, 1]) : solid;
 }
 
 function commonAll(shapes: Shape3D[]): Shape3D {

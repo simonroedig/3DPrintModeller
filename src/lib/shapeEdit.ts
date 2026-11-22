@@ -1,10 +1,27 @@
 import * as THREE from "three";
 import type { Body, Feature, Shape, Vec3 } from "../types";
-import { bodyMatrix, localBox, polyBounds } from "./geom";
+import { bodyMatrix, isSegment, localBox, polyBounds } from "./geom";
 import { snapTo } from "./units";
 import { buildPattern, isPattern } from "./pattern";
 
 const MIN = 0.1;
+
+/**
+ * A segment of a circle is not as wide as its diameter: finds the value for `make`
+ * that gives the wanted extent along `axis` (a few proportional steps are exact enough).
+ */
+function fitExtent(make: (v: number) => Shape, v0: number, axis: number, size: number): Shape {
+  let v = v0;
+  for (let i = 0; i < 12; i++) {
+    const b = localBox(make(v));
+    const e = b.max.getComponent(axis) - b.min.getComponent(axis);
+    if (e <= 1e-9) break;
+    const next = (v * size) / e;
+    if (Math.abs(next - v) < 1e-9) break;
+    v = next;
+  }
+  return make(Math.round(v * 1e6) / 1e6);
+}
 
 /** Scale a shape so its local extent along `axis` becomes `size`. */
 export function resizeLocal(shape: Shape, axis: number, size: number): Shape | null {
@@ -16,14 +33,16 @@ export function resizeLocal(shape: Shape, axis: number, size: number): Shape | n
       return { ...shape, [k]: s };
     }
     case "cylinder":
-    case "tube":
+    case "tube": {
       if (axis === 2) return { ...shape, h: s };
-      if (shape.kind === "tube") return { ...shape, d: s, t: Math.min(shape.t, s / 2 - 0.01) };
-      return { ...shape, d: s };
+      const make = (d: number): Shape => (shape.kind === "tube" ? { ...shape, d, t: Math.min(shape.t, d / 2 - 0.01) } : { ...shape, d });
+      return isSegment(shape) ? fitExtent(make, shape.d, axis, s) : make(s);
+    }
     case "cone": {
       if (axis === 2) return { ...shape, h: s };
       const f = s / Math.max(shape.d1, shape.d2, MIN);
-      return { ...shape, d1: shape.d1 * f, d2: shape.d2 * f };
+      const make = (k: number): Shape => ({ ...shape, d1: shape.d1 * k, d2: shape.d2 * k });
+      return isSegment(shape) ? fitExtent(make, 1, axis, s) : make(f);
     }
     case "sphere":
       return { ...shape, d: s };
@@ -230,6 +249,21 @@ export interface HandleSpec {
   ) => { shape: Shape; shift: Vec3; value: number; mapFeatures?: (features: Feature[]) => Feature[] };
 }
 
+/** direction to the middle of a circle segment (+X for full circles) */
+function midDir(s: { angle?: number; start?: number }): [number, number] {
+  if (!isSegment(s)) return [1, 0];
+  const a = (((s.start ?? 0) + (s.angle ?? 360) / 2) * Math.PI) / 180;
+  return [Math.cos(a), Math.sin(a)];
+}
+
+/** a point inside a circle segment (the axis for full circles), for the height arrows */
+function segMid(s: { angle?: number; start?: number }, r: number, ri = 0): Vec3 {
+  if (!isSegment(s)) return [0, 0, 0];
+  const [x, y] = midDir(s);
+  const k = ri > 0 ? (r + ri) / 2 : r / 2;
+  return [x * k, y * k, 0];
+}
+
 /** handle on the bottom face that grows a height parameter downwards */
 function bottomHandle(shape: Shape & { h: number }, pos: Vec3, sn: (v: number, snap: number) => number): HandleSpec {
   return {
@@ -284,11 +318,12 @@ export function handleSpecs(shape: Shape): HandleSpec[] {
     case "sphere": {
       const r = shape.d / 2;
       const h = shape.kind === "sphere" ? shape.d : shape.h;
+      const [cx, cy] = shape.kind === "sphere" ? [1, 0] : midDir(shape);
       const list: HandleSpec[] = [
         {
           id: "r",
-          pos: [r, 0, h / 2],
-          dir: [1, 0, 0],
+          pos: [r * cx, r * cy, h / 2],
+          dir: [cx, cy, 0],
           label: "Diameter",
           apply: (t, snap) => {
             const v = sn(shape.d + 2 * t, snap);
@@ -298,10 +333,11 @@ export function handleSpecs(shape: Shape): HandleSpec[] {
         },
       ];
       if (shape.kind !== "sphere") {
-        list.push(bottomHandle(shape, [0, 0, 0], sn));
+        const c = segMid(shape, r, shape.kind === "tube" ? r - shape.t : 0);
+        list.push(bottomHandle(shape, c, sn));
         list.push({
           id: "h",
-          pos: [0, 0, shape.h],
+          pos: [c[0], c[1], shape.h],
           dir: [0, 0, 1],
           label: "Height",
           apply: (t, snap) => {
@@ -312,12 +348,13 @@ export function handleSpecs(shape: Shape): HandleSpec[] {
       }
       return list;
     }
-    case "cone":
+    case "cone": {
+      const [cx, cy] = midDir(shape);
       return [
         {
           id: "d1",
-          pos: [shape.d1 / 2, 0, 0],
-          dir: [1, 0, 0],
+          pos: [(shape.d1 / 2) * cx, (shape.d1 / 2) * cy, 0],
+          dir: [cx, cy, 0],
           label: "Ø bottom",
           apply: (t, snap) => {
             const v = Math.max(snapTo(shape.d1 + 2 * t, snap), 0);
@@ -326,8 +363,8 @@ export function handleSpecs(shape: Shape): HandleSpec[] {
         },
         {
           id: "d2",
-          pos: [shape.d2 / 2, 0, shape.h],
-          dir: [1, 0, 0],
+          pos: [(shape.d2 / 2) * cx, (shape.d2 / 2) * cy, shape.h],
+          dir: [cx, cy, 0],
           label: "Ø top",
           apply: (t, snap) => {
             const v = Math.max(snapTo(shape.d2 + 2 * t, snap), 0);
@@ -336,7 +373,7 @@ export function handleSpecs(shape: Shape): HandleSpec[] {
         },
         {
           id: "h",
-          pos: [0, 0, shape.h],
+          pos: [...segMid(shape, shape.d2 / 2).slice(0, 2), shape.h] as Vec3,
           dir: [0, 0, 1],
           label: "Height",
           apply: (t, snap) => {
@@ -344,8 +381,9 @@ export function handleSpecs(shape: Shape): HandleSpec[] {
             return { shape: { ...shape, h: v }, shift: [0, 0, 0], value: v };
           },
         },
-        bottomHandle(shape, [0, 0, 0], sn),
+        bottomHandle(shape, segMid(shape, shape.d1 / 2), sn),
       ];
+    }
     case "prism": {
       const pb = polyBounds(shape.points);
       return [

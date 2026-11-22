@@ -48,16 +48,31 @@ export function snapMove(
       consider(mC, (oMin + oMax) / 2, o, false);
     }
     if (a === 2) consider(mMin, 0, null, true);
+    // the middle of the part onto the middle of the bed (also between grid lines)
+    else consider(mC, 0, null, false);
     const b = best as { diff: number; target: number; other: THREE.Box3 | null; touch: boolean } | null;
     if (b) {
       delta[a] = raw[a] + b.diff;
       snapped[a] = true;
       if (b.other) guides.push(makeGuide(moving, delta, b.other, a, b.target));
+      else if (a !== 2) guides.push(bedCenterGuide(moving, delta, a));
     } else {
       delta[a] = snapTo(raw[a], grid);
     }
   }
   return { delta, guides, snapped };
+}
+
+/** the bed's centre line the part snapped to */
+function bedCenterGuide(moving: THREE.Box3, delta: Vec3, axis: number): Guide {
+  const m = moving.clone().translate(new THREE.Vector3(...delta));
+  const along = axis === 0 ? 1 : 0;
+  const a: Vec3 = [0, 0, 0];
+  const b: Vec3 = [0, 0, 0];
+  a[along] = Math.min(comp(m.min, along), 0) - 12;
+  b[along] = Math.max(comp(m.max, along), 0) + 12;
+  a[2] = b[2] = comp(m.min, 2);
+  return { a, b };
 }
 
 function makeGuide(moving: THREE.Box3, delta: Vec3, other: THREE.Box3, axis: number, value: number): Guide {

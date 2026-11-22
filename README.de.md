@@ -58,10 +58,16 @@ Alles läuft im Browser, ohne Installation und ohne Konto: **[3d-print-modeller.
 ### Bauen
 - **Einheit und Raster** beim Start wählen (mm, cm, Zoll). Alles rastet auf das Raster, `Alt` beim Ziehen hebt das auf.
 - **Grundkörper**: Quader, Zylinder, Keil (mit Winkel), Kegel, Kugel, Rohr. Mit `Shift` direkt als Loch.
-- **Verschieben mit Einrasten** an Flächen anderer Körper (bündig, anliegend, mittig) und am Druckbett, pinke Hilfslinien zeigen woran.
-- **Griffe als Pfeile** in der Farbe ihrer Achse (X rot, Y grün, Z blau), Maß-Labels direkt im Modell editierbar.
-- **Drehen** in 90°-Schritten oder frei, **Fläche aufs Bett legen** per Klick, **Zentrieren** auf dem Druckbett (im Raster oder exakt),
-  **Ausrichten** mehrerer Teile.
+- **Kreissegmente**: Zylinder, Rohre, Kegel und Kreis-Skizzen können nur ein Teil des Kreises sein, z. B. ein 45°-Tortenstück,
+  mit frei wählbarem Startwinkel.
+- **Verschieben mit Einrasten** an Flächen anderer Körper (bündig, anliegend, mittig) und an der Mitte des Druckbetts,
+  pinke Hilfslinien zeigen woran.
+- **Griffe als Pfeile** in der Farbe ihrer Achse (X rot, Y grün, Z blau): Ziehen ändert die Größe, mit gehaltenem `Shift`
+  verschiebt der Pfeil das Teil stattdessen. Maß-Labels sind direkt im Modell editierbar.
+- **Exakte Maße**: runde Teile messen genau, was du eingibst (24 mm bleiben 24 mm, nicht die vom Dreiecksnetz gerundeten 23,99 mm).
+- **Drehen** in 90°-Schritten oder frei, **Fläche aufs Bett legen** per Klick, **Zentrieren** exakt auf dem Druckbett
+  (oder in ganzen Rasterschritten), **Ausrichten** mehrerer Teile oder ihre **Mitten übereinander legen** (z. B. Zylinder stapeln).
+- **Mittellinien** auf Wunsch: die Mitte des Betts bleibt durch alle Körper hindurch sichtbar, die Mitte der Auswahl wird markiert.
 
 ### Skizzieren in jeder Ebene
 
@@ -141,7 +147,8 @@ Jeder Schritt bleibt änderbar: Teil im Panel aufklappen, Maße anpassen, fertig
 | `1` bis `6`, `7` | 3D, Oben, Vorne, Hinten, Links, Rechts, Unten |
 | `Leertaste` / `0` | Oben und 3D wechseln / alles einpassen |
 | `Strg+G` / `Strg+Shift+G` | Vereinen / Trennen |
-| `M` / `Shift+M` | Mittig aufs Bett (im Raster / exakt) |
+| `M` / `Shift+M` | Mittig aufs Bett (exakt / in ganzen Rasterschritten) |
+| `Shift` + Pfeil ziehen | Entlang des Pfeils verschieben statt die Größe zu ändern (`Strg`: kombinierte Körper proportional skalieren) |
 | `Q` / `E` | 90° um Z drehen |
 | `H` | Volumen oder Loch |
 | `Strg+D`, `Strg+C`, `Strg+V` | Duplizieren, Kopieren, Einfügen |

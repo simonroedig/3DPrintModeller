@@ -6,7 +6,7 @@ import { fromPlane2D, orientForView, PLANE_AXIS, PLANE_AXIS_NAME, planeQuat } fr
 import { assetPayload, importAsset, isAssetRegistered, registerAsset, setRestartHandler } from "../cad/client";
 import { BREP_TRIANGLE_LIMIT } from "../cad/regions";
 import { detectFormat, payloadFromAsset, toBase64 } from "../cad/importers";
-import { bodyMatrix, cleanQuat, localBox, polyBounds, polygonArea, quatFromEulerDeg, unionBox, worldBox } from "../lib/geom";
+import { bodyMatrix, cleanQuat, isSegment, localBox, polyBounds, polygonArea, quatFromEulerDeg, sweepOf, unionBox, worldBox } from "../lib/geom";
 import { buildPattern, defaultPattern, isPattern, withOriginal, withPattern, type PatternShape } from "../lib/pattern";
 import { locale, t, tMsg } from "../i18n";
 
@@ -88,6 +88,8 @@ export interface State {
   groupFocus: { groupId: string; childId: string } | null;
   /** print bed drawn on the ground */
   showBed: boolean;
+  /** centre lines of the bed visible through bodies */
+  centerLines: boolean;
   /** height used by the extrude buttons */
   extrudeHeight: number;
 }
@@ -137,6 +139,18 @@ export function setShowBed(show: boolean) {
   }
 }
 
+const CENTER_KEY = "printmodeller.centerLines";
+
+/** centre lines of the bed drawn on top of everything (plus the middle of the selection) */
+export function setCenterLines(on: boolean) {
+  useStore.setState({ centerLines: on });
+  try {
+    localStorage.setItem(CENTER_KEY, on ? "1" : "0");
+  } catch {
+    /* ignore */
+  }
+}
+
 export const useStore = create<State>(() => ({
   doc: initialDoc ?? emptyDoc(),
   past: [],
@@ -166,6 +180,7 @@ export const useStore = create<State>(() => ({
   planeDrag: false,
   groupFocus: null,
   showBed: readFlag(BED_KEY, true),
+  centerLines: readFlag(CENTER_KEY, false),
   extrudeHeight: 10,
 }));
 
@@ -513,7 +528,7 @@ export function sketchToBody(doc: Doc, sketch: Sketch, height: number, hole: boo
     position = [round6(box.min.x), round6(box.min.y), round6(box.min.z)];
   } else if (s.kind === "circle") {
     if (s.d < 1e-3) return null;
-    shape = { kind: "cylinder", d: s.d, h };
+    shape = { kind: "cylinder", d: s.d, h, ...(isSegment(s) ? { angle: sweepOf(s), start: s.start ?? 0 } : {}) };
     position = fromPlane2D(plane, s.cx, s.cy, z0).toArray() as Vec3;
     quaternion = quat;
   } else {
@@ -642,10 +657,11 @@ export function dropToBed() {
 
 /**
  * Puts the selection (or, with nothing selected, all visible bodies) in the middle of the bed, X and Y only;
- * the height stays. By default the move is a whole number of grid steps, so parts stay on the grid;
- * `exact` centres to the micrometre.
+ * the height stays. By default the middle lands exactly on the bed centre; `onGrid` moves by whole grid
+ * steps instead, so parts that sit on the grid stay on it (the middle may then be off by half a step).
  */
-export function centerOnBed(exact = false) {
+export function centerOnBed(onGrid = false) {
+  const exact = !onGrid;
   const s = get();
   const sel = selectedBodies();
   const bodies = sel.length ? sel : s.doc.bodies.filter((b) => !b.hidden);
@@ -673,6 +689,26 @@ export function centerOnBed(exact = false) {
     bodies.map((b) => b.id),
     [round6(dx), round6(dy), 0],
   );
+}
+
+/**
+ * Puts the middles (X and Y) of all selected bodies on the middle of the one picked first,
+ * for example to stack two cylinders exactly on top of each other. The height stays.
+ */
+export function alignCenters() {
+  const bodies = orderedSelection();
+  if (bodies.length < 2) {
+    toast(t("Select at least two bodies (Shift + click)"));
+    return;
+  }
+  const c = worldBox(bodies[0]).getCenter(new THREE.Vector3());
+  const updates: Record<string, Partial<Body>> = {};
+  for (const b of bodies.slice(1)) {
+    const bc = worldBox(b).getCenter(new THREE.Vector3());
+    updates[b.id] = { position: [round6(b.position[0] + c.x - bc.x), round6(b.position[1] + c.y - bc.y), b.position[2]] };
+  }
+  updateBodies(updates);
+  toast(t("Centered on “{name}”", { name: bodies[0].name }));
 }
 
 export function deleteSelection() {

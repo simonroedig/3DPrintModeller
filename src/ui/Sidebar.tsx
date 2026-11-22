@@ -15,6 +15,7 @@ import {
   CircleDot,
   Cone,
   Copy,
+  Crosshair,
   Cylinder,
   Eye,
   EyeOff,
@@ -28,13 +29,15 @@ import {
   RotateCw,
   Square,
   SquareRoundCorner,
+  Target,
   Trash2,
   TriangleAlert,
   TriangleRight,
   Ungroup,
 } from "lucide-react";
-import type { Body, BoolOp, PatternSpec, Shape, ShapeKind, Sketch, SketchShape, TiltFeature, Vec2, Vec3 } from "../types";
+import type { Body, BoolOp, PatternSpec, Segment, Shape, ShapeKind, Sketch, SketchShape, TiltFeature, Vec2, Vec3 } from "../types";
 import {
+  alignCenters,
   alignSelection,
   deleteSelection,
   dropToBed,
@@ -55,6 +58,7 @@ import {
   setBodyEuler,
   setBodyShape,
   setSelectionMin,
+  setCenterLines,
   setSettings,
   setShowBed,
   setTool,
@@ -66,7 +70,7 @@ import {
   updateSketch,
   useStore,
 } from "../store/store";
-import { bodyMatrix, eulerDeg, localBox, polyBounds, polygonArea, unionBox } from "../lib/geom";
+import { bodyMatrix, eulerDeg, isSegment, localBox, polyBounds, polygonArea, sweepOf, unionBox } from "../lib/geom";
 import { scaleGroup, scaleGroupShape } from "../lib/shapeEdit";
 import { OPS } from "./ops";
 import { TOOL_COLOR } from "./theme";
@@ -120,6 +124,7 @@ function SceneTree() {
   const sketches = useStore((s) => s.doc.sketches);
   const selection = useStore((s) => s.selection);
   const [open, setOpen] = useState<Record<string, boolean>>({});
+  const centerLines = useStore((s) => s.centerLines);
   const click = (id: string) => (e: React.MouseEvent) => {
     if (e.shiftKey || e.ctrlKey || e.metaKey) select(selection.includes(id) ? selection.filter((x) => x !== id) : [...selection, id]);
     else select([id]);
@@ -129,7 +134,17 @@ function SceneTree() {
     <div className="max-h-[38%] min-h-[110px] flex flex-col border-b border-ink-750">
       <div className="panel-title px-3.5 pt-3 !mb-1.5">
         <span>{t("Objects")}</span>
-        <span className="normal-case tracking-normal text-ink-500">{bodies.length + sketches.length}</span>
+        <span className="flex items-center gap-2 normal-case tracking-normal">
+          <button
+            className={`center-toggle ${centerLines ? "on" : ""}`}
+            title={t("Center lines: always show the middle of the bed, also through bodies, and mark the middle of the selection")}
+            aria-pressed={centerLines}
+            onClick={() => setCenterLines(!centerLines)}
+          >
+            <Crosshair size={13} /> {t("Center lines")}
+          </button>
+          <span className="text-ink-500">{bodies.length + sketches.length}</span>
+        </span>
       </div>
       <div className="overflow-y-auto scroll-thin px-1.5 pb-2">
         {empty && <div className="text-ink-500 px-2 py-3 text-[12px]">{t("Nothing here yet. Draw a sketch or add a body.")}</div>}
@@ -269,6 +284,7 @@ function BodyProps({ body }: { body: Body }) {
               ? t(`name|${OP_NAME[body.shape.op ?? "union"]}`)
               : t(KIND_LABEL[body.shape.kind])}
           {body.shape.kind === "group" && ` · ${t("{count} parts", { count: body.shape.children.length })}`}
+          {(body.shape.kind === "cylinder" || body.shape.kind === "tube" || body.shape.kind === "cone") && isSegment(body.shape) && ` · ${t("{angle}° segment", { angle: fmtDeg(sweepOf(body.shape)) })}`}
         </div>
         <NameField value={body.name} onChange={(name) => updateBody(body.id, { name })} />
         <div className="flex items-center gap-2 mt-3">
@@ -414,19 +430,23 @@ function BodyProps({ body }: { body: Body }) {
   );
 }
 
-/** middle of the bed in X/Y: by default in whole grid steps (stays on the grid), or exactly */
+/** middle of the bed in X/Y: exactly, or in whole grid steps (stays on the grid) */
 function CenterButtons({ label }: { label?: string }) {
   return (
     <div className="flex gap-1.5 mt-2">
       <button
         className="btn flex-1"
-        title={t("Center on the print bed (X and Y, the height stays), in whole grid steps so everything stays on the grid (M)")}
+        title={t("Exactly in the middle of the print bed (X and Y, the height stays), even between grid lines (M)")}
         onClick={() => centerOnBed(false)}
       >
         <LocateFixed size={14} /> {label ?? t("Center")}
       </button>
-      <button className="btn !px-2.5" title={t("Exactly centered, even if it is then no longer exactly on the grid (Shift+M)")} onClick={() => centerOnBed(true)}>
-        {t("exactly")}
+      <button
+        className="btn !px-2.5"
+        title={t("Only move in whole grid steps, so a part on the grid stays on it. The middle can then be half a step off (Shift+M)")}
+        onClick={() => centerOnBed(true)}
+      >
+        {t("on grid")}
       </button>
     </div>
   );
@@ -490,18 +510,24 @@ function ShapeParams({ body, onShape }: { body: Body; onShape?: (shape: Shape) =
     }
     case "cylinder":
       return (
-        <Grid2>
-          <LenField label="Ø" title={t("Diameter")} mm={s.d} min={min} onChange={(d) => set({ ...s, d })} />
-          <LenField label={t("H")} title={t("Height")} mm={s.h} min={min} onChange={(h) => set({ ...s, h })} />
-        </Grid2>
+        <>
+          <Grid2>
+            <LenField label="Ø" title={t("Diameter")} mm={s.d} min={min} onChange={(d) => set({ ...s, d })} />
+            <LenField label={t("H")} title={t("Height")} mm={s.h} min={min} onChange={(h) => set({ ...s, h })} />
+          </Grid2>
+          <SegmentFields seg={s} onChange={(seg) => set({ ...s, ...seg })} />
+        </>
       );
     case "cone":
       return (
-        <div className="grid grid-cols-3 gap-1.5">
-          <LenField label="Ø↓" title={t("Bottom diameter")} mm={s.d1} min={0} onChange={(d1) => set({ ...s, d1 })} />
-          <LenField label="Ø↑" title={t("Top diameter")} mm={s.d2} min={0} onChange={(d2) => set({ ...s, d2 })} />
-          <LenField label={t("H")} title={t("Height")} mm={s.h} min={min} onChange={(h) => set({ ...s, h })} />
-        </div>
+        <>
+          <div className="grid grid-cols-3 gap-1.5">
+            <LenField label="Ø↓" title={t("Bottom diameter")} mm={s.d1} min={0} onChange={(d1) => set({ ...s, d1 })} />
+            <LenField label="Ø↑" title={t("Top diameter")} mm={s.d2} min={0} onChange={(d2) => set({ ...s, d2 })} />
+            <LenField label={t("H")} title={t("Height")} mm={s.h} min={min} onChange={(h) => set({ ...s, h })} />
+          </div>
+          <SegmentFields seg={s} onChange={(seg) => set({ ...s, ...seg })} />
+        </>
       );
     case "sphere":
       return (
@@ -511,11 +537,14 @@ function ShapeParams({ body, onShape }: { body: Body; onShape?: (shape: Shape) =
       );
     case "tube":
       return (
-        <div className="grid grid-cols-3 gap-1.5">
-          <LenField label="Ø" title={t("Outer diameter")} mm={s.d} min={min} onChange={(d) => set({ ...s, d, t: Math.min(s.t, d / 2 - 0.01) })} />
-          <LenField label={t("Wall")} title={t("Wall thickness")} mm={s.t} min={0.05} onChange={(t) => set({ ...s, t: Math.min(t, s.d / 2 - 0.01) })} />
-          <LenField label={t("H")} title={t("Height")} mm={s.h} min={min} onChange={(h) => set({ ...s, h })} />
-        </div>
+        <>
+          <div className="grid grid-cols-3 gap-1.5">
+            <LenField label="Ø" title={t("Outer diameter")} mm={s.d} min={min} onChange={(d) => set({ ...s, d, t: Math.min(s.t, d / 2 - 0.01) })} />
+            <LenField label={t("Wall")} title={t("Wall thickness")} mm={s.t} min={0.05} onChange={(t) => set({ ...s, t: Math.min(t, s.d / 2 - 0.01) })} />
+            <LenField label={t("H")} title={t("Height")} mm={s.h} min={min} onChange={(h) => set({ ...s, h })} />
+          </div>
+          <SegmentFields seg={s} onChange={(seg) => set({ ...s, ...seg })} />
+        </>
       );
     case "prism": {
       const pb = polyBounds(s.points);
@@ -599,6 +628,43 @@ function ShapeParams({ body, onShape }: { body: Body; onShape?: (shape: Shape) =
   }
 }
 
+const SEGMENT_PRESETS = [45, 60, 90, 120, 180, 360];
+const fmtDeg = (v: number) => {
+  const r = String(Math.round(v * 100) / 100);
+  return locale().startsWith("de") ? r.replace(".", ",") : r;
+};
+
+/** part of the circle only: how many degrees, starting where (0° = +X, counter-clockwise from above) */
+function SegmentFields({ seg, onChange }: { seg: Segment; onChange: (seg: Required<Segment>) => void }) {
+  const angle = Math.min(360, Math.max(1, seg.angle ?? 360));
+  const start = seg.start ?? 0;
+  const full = angle >= 360 - 1e-9;
+  return (
+    <div className="mt-2">
+      <div className="grid grid-cols-2 gap-1.5">
+        <div title={t("Only this part of the circle, e.g. 45° for a slice. 360° = the full circle")}>
+          <NumField label={t("Segment")} value={angle} suffix="°" step={5} min={1} max={360} onChange={(a) => onChange({ angle: a, start })} />
+        </div>
+        <div title={t("Where the segment starts: 0° points along +X, angles go counter-clockwise seen from above")} className={full ? "opacity-40" : ""}>
+          <NumField label={t("from")} value={start} suffix="°" step={15} min={-360} max={360} onChange={(v) => onChange({ angle, start: v })} />
+        </div>
+      </div>
+      <div className="flex gap-1 mt-1.5">
+        {SEGMENT_PRESETS.map((a) => (
+          <button
+            key={a}
+            className={`btn flex-1 !h-6 !px-0 text-[11px] ${Math.abs(a - angle) < 1e-9 ? "primary" : ""}`}
+            title={a === 360 ? t("The full circle") : t("1/{n} of the circle", { n: Math.round(360 / a) })}
+            onClick={() => onChange({ angle: a, start })}
+          >
+            {a === 360 ? t("Full") : `${a}°`}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 type GroupBody = Body & { shape: Extract<Shape, { kind: "group" }> };
 
 /** outer size of a combined body; changing it scales all parts (round parts stay round) */
@@ -654,7 +720,7 @@ function GroupDims({ body, onShape }: { body: Body; onShape?: (shape: Shape) => 
           {t("Apply")}
         </button>
       </div>
-      <div className="text-[11px] text-ink-500 mt-1.5 leading-snug">{t("Dragging the handles scales too · with Shift proportionally.")}</div>
+      <div className="text-[11px] text-ink-500 mt-1.5 leading-snug">{t("Dragging the arrows scales too · with Ctrl proportionally · with Shift they move.")}</div>
     </>
   );
 }
@@ -1018,6 +1084,13 @@ function MultiProps({ bodies }: { bodies: Body[] }) {
           <AlignRow axis={1} label="Y" icons={[<AlignEndHorizontal size={14} />, <AlignCenterHorizontal size={14} />, <AlignStartHorizontal size={14} />]} />
           <AlignRow axis={2} label="Z" icons={[<AlignEndHorizontal size={14} />, <AlignCenterHorizontal size={14} />, <AlignStartHorizontal size={14} />]} />
         </div>
+        <button
+          className="btn w-full mt-2"
+          title={t("Put the middles of all on the middle of the body picked first (X and Y), e.g. to stack cylinders exactly")}
+          onClick={alignCenters}
+        >
+          <Target size={14} /> {t("Align centers on {name}", { name: ordered[0]?.name ?? "" })}
+        </button>
       </Section>
       <Section title={t("Position (together)")}>
         <div className="grid grid-cols-3 gap-1.5">
@@ -1059,7 +1132,7 @@ function SketchProps({ sketch }: { sketch: Sketch }) {
     <>
       <div className="px-3.5 pt-3 pb-3">
         <div className="flex items-center gap-2 text-sky-400 text-[11px] mb-1">
-          {SKETCH_ICON[s.kind]} {t("Sketch")} · {t(s.kind === "rect" ? "Rectangle" : s.kind === "circle" ? "Circle" : "Line shape")} ·{" "}
+          {SKETCH_ICON[s.kind]} {t("Sketch")} · {t(s.kind === "rect" ? "Rectangle" : s.kind === "circle" ? (isSegment(s) ? "Circle segment" : "Circle") : "Line shape")} ·{" "}
           {t(ORIENT_LABEL[sketch.plane.orient])}
         </div>
         <div className="text-[15px] font-semibold">{sketch.name}</div>
@@ -1079,12 +1152,15 @@ function SketchProps({ sketch }: { sketch: Sketch }) {
           </>
         )}
         {s.kind === "circle" && (
-          <Grid2>
-            <LenField label="Ø" mm={s.d} min={0.05} onChange={(d) => upd({ ...s, d })} />
-            <div />
-            <LenField label={t("Center {axis}", { axis: flat ? "X" : "↔" })} mm={s.cx} onChange={(cx) => upd({ ...s, cx })} />
-            <LenField label={t("Center {axis}", { axis: flat ? "Y" : "↕" })} mm={s.cy} onChange={(cy) => upd({ ...s, cy })} />
-          </Grid2>
+          <>
+            <Grid2>
+              <LenField label="Ø" mm={s.d} min={0.05} onChange={(d) => upd({ ...s, d })} />
+              <div />
+              <LenField label={t("Center {axis}", { axis: flat ? "X" : "↔" })} mm={s.cx} onChange={(cx) => upd({ ...s, cx })} />
+              <LenField label={t("Center {axis}", { axis: flat ? "Y" : "↕" })} mm={s.cy} onChange={(cy) => upd({ ...s, cy })} />
+            </Grid2>
+            <SegmentFields seg={s} onChange={(seg) => upd({ ...s, ...seg })} />
+          </>
         )}
         {s.kind === "poly" && (
           <div className="text-ink-300 text-[12px]">

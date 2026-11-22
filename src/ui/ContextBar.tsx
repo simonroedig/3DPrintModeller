@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowDownToLine, Copy, Layers2, LocateFixed, RotateCw, SquareRoundCorner, Trash2, MoveUp, SquareDashed } from "lucide-react";
+import { ArrowDownToLine, Copy, Layers2, LocateFixed, RotateCw, SquareRoundCorner, Target, Trash2, MoveUp, SquareDashed } from "lucide-react";
 import {
+  alignCenters,
   centerOnBed,
   combineSelection,
   createPattern,
@@ -134,7 +135,7 @@ export function ContextBar() {
         )}
         <CtxButton icon={<ArrowDownToLine size={16} />} label={t("btn|Lay flat")} kbd="L" color={TOOL_COLOR.layflat} tip={t("Click a face that should rest on the bed")} onClick={() => setTool("layflat")} />
         <CtxButton icon={<RotateCw size={16} />} kbd="E" tip={t("Rotate 90° around the vertical axis")} color={TOOL_COLOR.select} onClick={() => rotateSelection(2, -90)} />
-        <CtxButton icon={<LocateFixed size={16} />} kbd="M" tip={t("Center on the print bed (on the grid), Shift+M: exact")} color={TOOL_COLOR.select} onClick={() => centerOnBed(false)} />
+        <CtxButton icon={<LocateFixed size={16} />} kbd="M" tip={t("Exactly in the middle of the print bed (Shift+M: in whole grid steps)")} color={TOOL_COLOR.select} onClick={() => centerOnBed(false)} />
         {!mesh && <PatternButton body={b} />}
         {!mesh && (
           <CtxButton
@@ -158,7 +159,14 @@ export function ContextBar() {
           <CtxButton key={o.op} icon={o.icon(16)} label={t(o.label)} kbd={o.kbd && t(o.kbd)} color={TOOL_COLOR[o.op]} tip={t(o.tip)} onClick={() => combineSelection(o.op)} />
         ))}
         <Sep />
-        <CtxButton icon={<LocateFixed size={16} />} kbd="M" tip={t("Center all together on the print bed (on the grid), Shift+M: exact")} color={TOOL_COLOR.select} onClick={() => centerOnBed(false)} />
+        <CtxButton
+          icon={<Target size={16} />}
+          label={t("Align centers")}
+          color={TOOL_COLOR.select}
+          tip={t("Put the middles of all on the middle of the body picked first (X and Y), e.g. to stack cylinders exactly")}
+          onClick={alignCenters}
+        />
+        <CtxButton icon={<LocateFixed size={16} />} kbd="M" tip={t("All together exactly in the middle of the print bed (Shift+M: in whole grid steps)")} color={TOOL_COLOR.select} onClick={() => centerOnBed(false)} />
         <CtxButton icon={<Copy size={16} />} tip={t("Duplicate")} kbd={t("Ctrl D")} onClick={duplicateSelection} />
         <CtxButton icon={<Trash2 size={16} />} tip={t("Delete")} kbd={t("Del")} color="#f87171" onClick={deleteSelection} />
       </>

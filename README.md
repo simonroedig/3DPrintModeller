@@ -58,10 +58,16 @@ Everything runs in the browser, no installation, no account: **[3d-print-modelle
 ### Build
 - **Unit and grid** chosen at the start (mm, cm, inch). Everything snaps to the grid, hold `Alt` while dragging to move freely.
 - **Primitives**: box, cylinder, wedge (with angle), cone, sphere, tube. Hold `Shift` to add one as a hole.
-- **Move with snapping** to faces of other bodies (flush, touching, centered) and to the print bed; pink guides show what it snapped to.
-- **Arrow handles** in the color of their axis (X red, Y green, Z blue), dimension labels editable right in the model.
-- **Rotate** in 90° steps or freely, **lay a face flat** on the bed with one click, **center** on the print bed (on the grid or exactly),
-  **align** several parts.
+- **Circle segments**: cylinders, tubes, cones and circle sketches can be just a part of the circle, e.g. a 45° slice,
+  with a free start angle.
+- **Move with snapping** to faces of other bodies (flush, touching, centered) and to the middle of the print bed;
+  pink guides show what it snapped to.
+- **Arrow handles** in the color of their axis (X red, Y green, Z blue): drag to resize, hold `Shift` to move the part
+  along that arrow instead. Dimension labels are editable right in the model.
+- **Exact dimensions**: round parts measure exactly what you typed (24 mm stays 24 mm, not the tessellated 23.99 mm).
+- **Rotate** in 90° steps or freely, **lay a face flat** on the bed with one click, **center** exactly on the print bed
+  (or in whole grid steps), **align** several parts, or put their **centers on top of each other** (e.g. to stack cylinders).
+- **Center lines** on demand: the middle of the bed stays visible through all bodies, and the middle of the selection is marked.
 
 ### Sketch on any plane
 
@@ -138,7 +144,8 @@ Every step stays editable: expand a part in the panel, change its dimensions, do
 | `1` to `6`, `7` | 3D, top, front, back, left, right, bottom |
 | `Space` / `0` | Toggle top and 3D / fit everything |
 | `Ctrl+G` / `Ctrl+Shift+G` | Union / split |
-| `M` / `Shift+M` | Center on the bed (on the grid / exactly) |
+| `M` / `Shift+M` | Center on the bed (exactly / in whole grid steps) |
+| `Shift` + drag an arrow | Move along that arrow instead of resizing (`Ctrl`: scale combined bodies proportionally) |
 | `Q` / `E` | Rotate 90° around Z |
 | `H` | Solid or hole |
 | `Ctrl+D`, `Ctrl+C`, `Ctrl+V` | Duplicate, copy, paste |

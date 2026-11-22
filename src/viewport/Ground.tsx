@@ -1,7 +1,10 @@
 import { useMemo } from "react";
 import * as THREE from "three";
-import { Grid, Line } from "@react-three/drei";
+import { Billboard, Grid, Line } from "@react-three/drei";
 import { useStore } from "../store/store";
+import { unionBox } from "../lib/geom";
+import { useMeshes } from "../cad/client";
+import { ScreenScale } from "./Gizmos";
 
 export function Ground() {
   const view = useStore((s) => s.view);
@@ -63,10 +66,52 @@ export function Ground() {
           <Line points={bedOutline} color="#4a7fc1" lineWidth={1.5} transparent opacity={0.7} />
         </>
       )}
+      <CenterLines />
       {/* origin axes */}
       <Line points={[[0, 0, 0.02], [20, 0, 0.02]]} color="#e5484d" lineWidth={2} />
       <Line points={[[0, 0, 0.02], [0, 20, 0.02]]} color="#30a46c" lineWidth={2} />
       <Line points={[[0, 0, 0], [0, 0, 20]]} color="#3e63dd" lineWidth={2} />
+    </group>
+  );
+}
+
+/**
+ * The middle of the bed as long lines that stay visible on top of the bodies, plus a cross on the
+ * middle of the selection: you can see at a glance whether a part really sits in the middle.
+ */
+function CenterLines() {
+  const on = useStore((s) => s.centerLines);
+  const bed = useStore((s) => s.doc.settings.bed);
+  const bodies = useStore((s) => s.doc.bodies);
+  const selection = useStore((s) => s.selection);
+  useMeshes((s) => s.meshes);
+  if (!on) return null;
+  const visible = bodies.filter((b) => !b.hidden);
+  const all = visible.length ? unionBox(visible) : null;
+  const reach = (v: number) => Math.abs(v) + 20;
+  const L = Math.max(bed.x / 2 + 15, bed.y / 2 + 15, all ? Math.max(reach(all.min.x), reach(all.max.x), reach(all.min.y), reach(all.max.y)) : 0);
+  const H = Math.max(40, all ? all.max.z + 20 : 0);
+  const sel = bodies.filter((b) => selection.includes(b.id) && !b.hidden);
+  const box = sel.length ? unionBox(sel) : null;
+  const c = box && !box.isEmpty() ? box.getCenter(new THREE.Vector3()) : null;
+  const line = { lineWidth: 1.4, dashed: true, dashSize: 3, gapSize: 2, transparent: true, depthTest: false, renderOrder: 30 } as const;
+  return (
+    <group>
+      <Line points={[[-L, 0, 0], [L, 0, 0]]} color="#f87171" opacity={0.85} {...line} />
+      <Line points={[[0, -L, 0], [0, L, 0]]} color="#4ade80" opacity={0.85} {...line} />
+      <Line points={[[0, 0, 0], [0, 0, H]]} color="#60a5fa" opacity={0.7} {...line} />
+      {c && box && (
+        <ScreenScale position={[c.x, c.y, box.max.z]}>
+          <Billboard>
+            <Line points={[[-9, 0, 0], [9, 0, 0]]} color="#ffffff" lineWidth={2} depthTest={false} renderOrder={31} />
+            <Line points={[[0, -9, 0], [0, 9, 0]]} color="#ffffff" lineWidth={2} depthTest={false} renderOrder={31} />
+            <mesh renderOrder={31}>
+              <ringGeometry args={[4, 5.5, 24]} />
+              <meshBasicMaterial color="#ffffff" depthTest={false} transparent side={THREE.DoubleSide} />
+            </mesh>
+          </Billboard>
+        </ScreenScale>
+      )}
     </group>
   );
 }

@@ -2,6 +2,9 @@ import * as THREE from "three";
 import type { Body, MeshData, Quat, Shape, Vec2, Vec3 } from "../types";
 import { geometryKey } from "../cad/key";
 import { useMeshes } from "../cad/client";
+import { arcBounds, sweepOf } from "./segment";
+
+export { arcBounds, isSegment, sweepOf } from "./segment";
 
 export const Z_UP = new THREE.Vector3(0, 0, 1);
 
@@ -30,13 +33,12 @@ export function localBox(shape: Shape): THREE.Box3 {
     case "wedge":
       return b.set(new THREE.Vector3(0, 0, 0), new THREE.Vector3(shape.w, shape.d, shape.h));
     case "cylinder":
-    case "tube": {
-      const r = shape.d / 2;
-      return b.set(new THREE.Vector3(-r, -r, 0), new THREE.Vector3(r, r, shape.h));
-    }
+    case "tube":
     case "cone": {
-      const r = Math.max(shape.d1, shape.d2) / 2;
-      return b.set(new THREE.Vector3(-r, -r, 0), new THREE.Vector3(r, r, shape.h));
+      const r = shape.kind === "cone" ? Math.max(shape.d1, shape.d2) / 2 : shape.d / 2;
+      const ri = shape.kind === "tube" ? Math.max(r - shape.t, 0) : 0;
+      const a = arcBounds(r, shape.start ?? 0, sweepOf(shape), ri);
+      return b.set(new THREE.Vector3(a.minX, a.minY, 0), new THREE.Vector3(a.maxX, a.maxY, shape.h));
     }
     case "sphere": {
       const r = shape.d / 2;
@@ -72,22 +74,40 @@ export function meshFor(body: { shape: Shape; features: Body["features"] }): Mes
 
 const _v = new THREE.Vector3();
 
-/** Axis aligned box of a body in its parent frame. Uses the mesh when available (exact). */
+/** true if the shape (or a part of it) has edits that can grow it beyond its parametric box */
+function canGrow(b: Pick<Body, "shape" | "features">): boolean {
+  if (b.features.some((f) => f.type === "push" || f.type === "tilt")) return true;
+  return b.shape.kind === "group" && b.shape.children.some(canGrow);
+}
+
+/**
+ * Axis aligned box of a body in its parent frame.
+ * The mesh is exact for edits and free rotations, but its triangles cut a little off round parts
+ * (a 24 mm cylinder would measure 23.99 mm). So each side takes the parametric value when the mesh
+ * only falls short of it by such a sliver.
+ */
 export function worldBox(
   body: Pick<Body, "shape" | "features" | "position" | "quaternion">,
   mesh: MeshData | undefined = meshFor(body),
 ): THREE.Box3 {
   const m = bodyMatrix(body);
+  const exact = localBox(body.shape).applyMatrix4(m);
+  if (!mesh || !mesh.positions.length) return exact;
   const box = new THREE.Box3();
-  if (mesh && mesh.positions.length) {
-    const p = mesh.positions;
-    for (let i = 0; i < p.length; i += 3) {
-      _v.set(p[i], p[i + 1], p[i + 2]).applyMatrix4(m);
-      box.expandByPoint(_v);
-    }
-    return box;
+  const p = mesh.positions;
+  for (let i = 0; i < p.length; i += 3) {
+    _v.set(p[i], p[i + 1], p[i + 2]).applyMatrix4(m);
+    box.expandByPoint(_v);
   }
-  return localBox(body.shape).applyMatrix4(m);
+  if (canGrow(body) || exact.isEmpty()) return box;
+  const tol = Math.min(0.2, Math.max(0.02, box.min.distanceTo(box.max) * 0.003));
+  for (let a = 0; a < 3; a++) {
+    const lo = box.min.getComponent(a) - exact.min.getComponent(a);
+    const hi = exact.max.getComponent(a) - box.max.getComponent(a);
+    if (lo >= -1e-6 && lo < tol) box.min.setComponent(a, exact.min.getComponent(a));
+    if (hi >= -1e-6 && hi < tol) box.max.setComponent(a, exact.max.getComponent(a));
+  }
+  return box;
 }
 
 export function unionBox(bodies: Body[]) {

@@ -4,11 +4,12 @@ import { useFrame, useThree, type RootState, type ThreeEvent } from "@react-thre
 import { Html, Line } from "@react-three/drei";
 import type { Body, Sketch, SketchPlane, SketchShape, Unit, Vec3 } from "../types";
 import { beginTx, endTx, extrudeSketch, setBodyShape, updateBodies, updateSketch, useStore, toast } from "../store/store";
-import { bodyMatrix, unionBox } from "../lib/geom";
+import { bodyMatrix, isSegment, sweepOf, unionBox } from "../lib/geom";
 import { useMeshes } from "../cad/client";
 import { handleSpecs, resizeWorld } from "../lib/shapeEdit";
 import { fmtLen, fmtNum, parseLen, snapTo } from "../lib/units";
 import { pointerState, startAxisDrag, worldPerPixel } from "./interaction";
+import { useKeys } from "./keys";
 import { startScrub } from "../ui/fields";
 import { AXIS_COLOR, axisColorOf, fromPlane2D, planeBasis, planeOrigin, planeQuat, PLANE_AXIS, viewAxis } from "../lib/planes";
 import { t } from "../i18n";
@@ -288,13 +289,27 @@ export function SelectionGizmos() {
   );
 }
 
+const AXIS_NAMES = ["X", "Y", "Z"];
+
+/** name of the world axis a direction runs along, e.g. "Z" */
+function axisName(d: THREE.Vector3) {
+  const a = [Math.abs(d.x), Math.abs(d.y), Math.abs(d.z)];
+  return AXIS_NAMES[a.indexOf(Math.max(...a))];
+}
+
+/**
+ * Arrows on the faces of the selected body: dragging changes the size.
+ * With Shift held they move the body along their axis instead (Ctrl: combined bodies scale proportionally).
+ */
 function ResizeHandles({ body, snap, get, unit }: { body: Body; snap: number; unit: Unit; get: () => RootState }) {
   const view = useStore((s) => s.view);
+  const shift = useKeys((s) => s.shift);
   const specs = handleSpecs(body.shape);
   const m = bodyMatrix(body);
   const q = new THREE.Quaternion(...body.quaternion);
   const va = viewAxis(view);
   const axis = va === null ? null : new THREE.Vector3().setComponent(va, 1);
+  const group = body.shape.kind === "group";
   return (
     <>
       {specs.map((spec) => {
@@ -303,16 +318,27 @@ function ResizeHandles({ body, snap, get, unit }: { body: Body; snap: number; un
         // a handle pointing at the viewer cannot be dragged: hide it in the 2D views
         if (axis && Math.abs(wd.dot(axis)) > 0.9) return null;
         const label = t(spec.label);
+        const moveLabel = t("Move {axis}", { axis: axisName(wd) });
         return (
           <Handle
             key={spec.id}
             position={wp}
             dir={wd}
-            grip
+            grip={!shift}
+            arrow={shift}
+            both={shift}
             color={axisColorOf(wd)}
-            title={body.shape.kind === "group" ? t("{label} (Shift: proportional)", { label }) : label}
+            title={
+              shift
+                ? moveLabel
+                : group
+                  ? t("{label} · Shift: move · Ctrl: proportional", { label })
+                  : t("{label} · Shift: move", { label })
+            }
             onDown={(e) => {
               const p0 = body.position;
+              const shape0 = body.shape;
+              const features0 = body.features;
               beginTx();
               const ok = startAxisDrag(
                 get(),
@@ -320,9 +346,18 @@ function ResizeHandles({ body, snap, get, unit }: { body: Body; snap: number; un
                 wp,
                 wd,
                 (t, ev) => {
-                  const r = spec.apply(t, ev.altKey ? 0 : snap, ev.shiftKey);
+                  const step = ev.altKey ? 0 : snap;
+                  if (ev.shiftKey) {
+                    // move along the arrow instead of resizing
+                    const d = snapTo(t, step);
+                    const mv = wd.clone().normalize().multiplyScalar(d);
+                    setBodyShape(body.id, shape0, [p0[0] + mv.x, p0[1] + mv.y, p0[2] + mv.z], features0);
+                    useStore.setState({ dragInfo: `${moveLabel} ${d >= 0 ? "+" : ""}${fmtLen(d, unit)}` });
+                    return;
+                  }
+                  const r = spec.apply(t, step, ev.ctrlKey || ev.metaKey);
                   const sh = new THREE.Vector3(...r.shift).applyQuaternion(q);
-                  setBodyShape(body.id, r.shape, [p0[0] + sh.x, p0[1] + sh.y, p0[2] + sh.z], r.mapFeatures?.(body.features));
+                  setBodyShape(body.id, r.shape, [p0[0] + sh.x, p0[1] + sh.y, p0[2] + sh.z], r.mapFeatures?.(features0));
                   useStore.setState({ dragInfo: `${label} ${fmtLen(r.value, unit)}` });
                 },
                 () => {
@@ -364,7 +399,14 @@ export function sketchToThreeShape(s: SketchShape): THREE.Shape {
     shape.lineTo(s.x, s.y + s.d);
     shape.closePath();
   } else if (s.kind === "circle") {
-    shape.absarc(s.cx, s.cy, s.d / 2, 0, Math.PI * 2, false);
+    if (isSegment(s)) {
+      const a0 = ((s.start ?? 0) * Math.PI) / 180;
+      const a1 = a0 + (sweepOf(s) * Math.PI) / 180;
+      shape.moveTo(s.cx, s.cy);
+      shape.lineTo(s.cx + (Math.cos(a0) * s.d) / 2, s.cy + (Math.sin(a0) * s.d) / 2);
+      shape.absarc(s.cx, s.cy, s.d / 2, a0, a1, false);
+      shape.closePath();
+    } else shape.absarc(s.cx, s.cy, s.d / 2, 0, Math.PI * 2, false);
   } else {
     s.points.forEach(([x, y], i) => (i ? shape.lineTo(x, y) : shape.moveTo(x, y)));
     shape.closePath();

@@ -5,7 +5,7 @@ import { Html, Line } from "@react-three/drei";
 import type { Sketch, SketchShape, Vec2, Vec3 } from "../types";
 import { addSketch, beginTx, commit, currentSketchPlane, endTx, select, setTool, useStore, toast } from "../store/store";
 import { fromPlane2D, planeBasis, PLANE_AXIS, PLANE_AXIS_NAME, toPlane2D } from "../lib/planes";
-import { segmentsIntersect } from "../lib/geom";
+import { isSegment, segmentsIntersect, sweepOf } from "../lib/geom";
 import { fmtLen, fmtNum, parseLen, parseNumber, snapTo } from "../lib/units";
 import { DimLabel, PlaneGroup, ScreenScale, sketchToThreeShape, vLabel } from "./Gizmos";
 import { intersectPlane, pointerState, rayFromEvent, runDrag, toScreen } from "./interaction";
@@ -25,10 +25,16 @@ function outlinePoints(s: SketchShape, z: number): Vec3[] {
   }
   if (s.kind === "circle") {
     const pts: Vec3[] = [];
-    for (let i = 0; i <= 96; i++) {
-      const a = (i / 96) * Math.PI * 2;
+    const sweep = (sweepOf(s) * Math.PI) / 180;
+    const a0 = ((s.start ?? 0) * Math.PI) / 180;
+    const n = Math.max(8, Math.ceil((96 * sweep) / (Math.PI * 2)));
+    // a segment starts and ends in the centre
+    if (isSegment(s)) pts.push([s.cx, s.cy, z]);
+    for (let i = 0; i <= n; i++) {
+      const a = a0 + (i / n) * sweep;
       pts.push([s.cx + (Math.cos(a) * s.d) / 2, s.cy + (Math.sin(a) * s.d) / 2, z]);
     }
+    if (isSegment(s)) pts.push([s.cx, s.cy, z]);
     return pts;
   }
   return [...s.points.map(([x, y]) => [x, y, z] as Vec3), [s.points[0][0], s.points[0][1], z]];

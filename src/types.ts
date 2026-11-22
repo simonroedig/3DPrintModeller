@@ -4,14 +4,23 @@ export type Quat = [number, number, number, number];
 
 export type Unit = "mm" | "cm" | "in";
 
+/**
+ * Round shapes can be a segment of the full circle: `angle` degrees (360 or missing = full),
+ * starting `start` degrees from +X, counter-clockwise seen from above.
+ */
+export interface Segment {
+  angle?: number;
+  start?: number;
+}
+
 /** Parametric shape of a body, in the body's local frame (millimetres). */
 export type Shape =
   | { kind: "box"; w: number; d: number; h: number }
   | { kind: "wedge"; w: number; d: number; h: number }
-  | { kind: "cylinder"; d: number; h: number }
-  | { kind: "cone"; d1: number; d2: number; h: number }
+  | ({ kind: "cylinder"; d: number; h: number } & Segment)
+  | ({ kind: "cone"; d1: number; d2: number; h: number } & Segment)
   | { kind: "sphere"; d: number }
-  | { kind: "tube"; d: number; t: number; h: number }
+  | ({ kind: "tube"; d: number; t: number; h: number } & Segment)
   | { kind: "prism"; points: Vec2[]; h: number }
   /**
    * combination of child bodies (in the group's frame):
@@ -96,7 +105,7 @@ export interface Body {
 
 export type SketchShape =
   | { kind: "rect"; x: number; y: number; w: number; d: number }
-  | { kind: "circle"; cx: number; cy: number; d: number }
+  | ({ kind: "circle"; cx: number; cy: number; d: number } & Segment)
   | { kind: "poly"; points: Vec2[] };
 
 export type PlaneOrient = "top" | "bottom" | "front" | "back" | "right" | "left";
