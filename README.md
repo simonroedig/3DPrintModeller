@@ -149,7 +149,8 @@ Every step stays editable: expand a part in the panel, change its dimensions, do
 | `Shift` + drag an arrow | Move along that arrow instead of resizing (`Ctrl`: scale combined bodies proportionally) |
 | `Q` / `E` | Rotate 90° around Z |
 | `H` | Solid or hole |
-| `Ctrl+D`, `Ctrl+C`, `Ctrl+V` | Duplicate, copy, paste |
+| `Ctrl+C`, `Ctrl+V` | Copy, paste exactly in the same place (in a new color) |
+| `Ctrl+D` | Duplicate right next to the original |
 | `Ctrl+Z` / `Ctrl+Shift+Z` | Undo / redo |
 | Arrow keys, Page Up/Down | Move the selection by one grid step (`Shift` ×10) |
 | `Esc` | Cancel, leave the tool |

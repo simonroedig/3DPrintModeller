@@ -224,8 +224,9 @@ export function BodyView({ body }: { body: Body }) {
             emissive={emissive}
             emissiveIntensity={emissiveIntensity}
             polygonOffset
-            polygonOffsetFactor={1}
-            polygonOffsetUnits={1}
+            // a selected body sits slightly in front: a copy pasted in place does not flicker with its original
+            polygonOffsetFactor={selected ? 0 : 1}
+            polygonOffsetUnits={selected ? -1 : 1}
           />
         )}
       </mesh>

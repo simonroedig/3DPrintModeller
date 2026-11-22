@@ -126,6 +126,12 @@ const de: Record<string, string> = {
   "1/{n} of the circle": "1/{n} des Kreises",
   Full: "Ganz",
 
+  // copy and paste
+  "Duplicate (the copy goes right next to it)": "Duplizieren (die Kopie kommt direkt daneben)",
+  "Copy / Paste (exactly in the same place, in a new color)": "Kopieren / Einfügen (genau an derselben Stelle, in neuer Farbe)",
+  "Pasted in the same place, in a new color. Drag it where you want it":
+    "An derselben Stelle eingefügt, in neuer Farbe. Zieh es dorthin, wo du es haben willst",
+
   // centring buttons, X-ray
   "Center exactly": "Exakt zentrieren",
   "In grid steps": "In Rasterschritten",

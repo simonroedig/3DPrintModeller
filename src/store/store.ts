@@ -769,24 +769,36 @@ export function copySelection() {
   clipboard = selectedBodies().map((b) => structuredClone(b));
 }
 
+/** pastes exactly where the copied bodies were: moving them is up to you */
 export function paste() {
   if (!clipboard.length) return;
-  insertCopies(clipboard);
+  insertCopies(clipboard, false);
+  toast(t("Pasted in the same place, in a new color. Drag it where you want it"));
 }
 
+/** Ctrl+D: the copy goes right next to the original */
 export function duplicateSelection() {
   const bodies = selectedBodies();
   if (!bodies.length) return;
-  insertCopies(bodies);
+  insertCopies(bodies, true);
 }
 
-function insertCopies(src: Body[]) {
+/** a random colour of the palette that is not `avoid` */
+function otherColor(avoid: string) {
+  const choices = PALETTE.filter((c) => c.toLowerCase() !== avoid.toLowerCase());
+  return choices[Math.floor(Math.random() * choices.length)];
+}
+
+function insertCopies(src: Body[], beside: boolean) {
   const doc = get().doc;
   const box = unionBox(src);
-  const dx = Math.ceil((box.max.x - box.min.x + 5) / (doc.settings.snap || 1)) * (doc.settings.snap || 1);
+  const step = doc.settings.snap || 1;
+  const dx = beside ? Math.ceil((box.max.x - box.min.x + 5) / step) * step : 0;
   const copies = src.map((b) => {
     const c = cloneBody(b);
     c.position = [c.position[0] + dx, c.position[1], c.position[2]];
+    // a new colour, so the copy stands out from the original
+    c.color = otherColor(b.color);
     return c;
   });
   commit({ ...doc, bodies: [...doc.bodies, ...copies] });
