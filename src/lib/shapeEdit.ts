@@ -35,9 +35,9 @@ export function resizeLocal(shape: Shape, axis: number, size: number): Shape | n
         const f = s / Math.max(shape.w, shape.w2, MIN);
         return { ...shape, w: shape.w * f, w2: shape.w2 * f };
       }
-      if (axis === 2 && shape.kind === "wedge" && (shape.h0 ?? 0) > 0) {
-        const f = s / Math.max(shape.h, shape.h0 ?? 0, MIN);
-        return { ...shape, h: shape.h * f, h0: (shape.h0 ?? 0) * f };
+      if (axis === 2 && shape.kind === "wedge" && ((shape.h0 ?? 0) > 0 || shape.hr !== undefined)) {
+        const f = s / Math.max(shape.h, shape.hr ?? shape.h, shape.h0 ?? 0, MIN);
+        return { ...shape, h: shape.h * f, h0: (shape.h0 ?? 0) * f, ...(shape.hr !== undefined ? { hr: shape.hr * f } : {}) };
       }
       const k = (["w", "d", "h"] as const)[axis];
       return { ...shape, [k]: s };
@@ -305,6 +305,9 @@ export function handleSpecs(shape: Shape): HandleSpec[] {
       const { d, h } = shape;
       const wedge = shape.kind === "wedge";
       const h0 = wedge ? (shape.h0 ?? 0) : h;
+      // a skewed wedge: the right side of the high end has its own height
+      const hr = wedge ? (shape.hr ?? h) : h;
+      const skewed = wedge && shape.hr !== undefined;
       const { W, front, back } = taperXs(shape);
       const tapered = shape.w2 !== undefined;
       const side = (axis: 0 | 1 | 2, neg: boolean): HandleSpec => {
@@ -326,6 +329,7 @@ export function handleSpecs(shape: Shape): HandleSpec[] {
         if (axis === 1) pos[0] = neg ? (front[0] + front[1]) / 2 : (back[0] + back[1]) / 2;
         if (wedge && axis === 1) pos[2] = neg ? h0 / 2 : h / 2;
         if (wedge && axis === 2) pos[1] = neg ? d / 2 : d;
+        if (wedge && axis === 2 && !neg) pos[2] = (h + hr) / 2;
         const dir: Vec3 = [0, 0, 0];
         dir[axis] = neg ? -1 : 1;
         return {
@@ -342,7 +346,10 @@ export function handleSpecs(shape: Shape): HandleSpec[] {
               return { shape: { ...shape, w: shape.w * f, w2: (shape.w2 ?? shape.w) * f }, shift, value: v };
             }
             // growing a raised wedge from below lifts both ends
-            if (axis === 2 && neg && wedge && h0 > 0) return { shape: { ...shape, h: v, h0: h0 + v - cur }, shift, value: v };
+            if (axis === 2 && neg && wedge && (h0 > 0 || skewed))
+              return { shape: { ...shape, h: v, h0: h0 > 0 ? h0 + v - cur : h0, ...(skewed ? { hr: hr + v - cur } : {}) }, shift, value: v };
+            // a skewed wedge: both sides of the high end go up together
+            if (axis === 2 && !neg && skewed) return { shape: { ...shape, h: v, hr: Math.max(hr + v - cur, MIN) }, shift, value: v };
             return { shape: { ...shape, [k]: v }, shift, value: v };
           },
         };

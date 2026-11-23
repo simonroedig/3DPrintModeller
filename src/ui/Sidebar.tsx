@@ -37,7 +37,7 @@ import {
   Ungroup,
 } from "lucide-react";
 import type { Body, BoolOp, PatternSpec, Segment, Shape, ShapeKind, Sketch, SketchShape, Taper, TiltFeature, Vec2, Vec3 } from "../types";
-import { isTapered } from "../lib/taper";
+import { isSkewed, isTapered } from "../lib/taper";
 import {
   alignCenters,
   alignSelection,
@@ -503,25 +503,48 @@ function ShapeParams({ body, onShape }: { body: Body; onShape?: (shape: Shape) =
       );
     case "wedge": {
       const h0 = s.h0 ?? 0;
-      const angle = (Math.atan2(s.h - h0, s.d) * 180) / Math.PI;
+      const skewed = isSkewed(s);
+      const deg = (hh: number) => (Math.atan2(hh - h0, s.d) * 180) / Math.PI;
+      const heightFor = (a: number) => Math.max(min, Math.round((h0 + s.d * Math.tan((a * Math.PI) / 180)) * 1000) / 1000);
+      // the right side follows the left until it gets its own angle
+      const withRight = (hr: number | undefined, h = s.h) => {
+        const { hr: _old, ...rest } = s;
+        // the same angle as shown (two decimals) on both sides: straight again
+        return hr === undefined || Math.abs(deg(hr) - deg(h)) < 0.01 ? { ...rest, h } : { ...rest, h, hr };
+      };
       return (
         <>
           <div className="grid grid-cols-3 gap-1.5">
             <LenField label={t("W")} title={isTapered(s) ? t("Width at the low end (X)") : t("Width (X)")} mm={s.w} min={min} onChange={(w) => set({ ...s, w })} />
             <LenField label={t("D")} title={t("Depth / ramp length (Y)")} mm={s.d} min={min} onChange={(d) => set({ ...s, d })} />
-            <LenField label={t("H")} title={t("Height at the high end (Z)")} mm={s.h} min={min} onChange={(h) => set({ ...s, h })} />
+            <LenField
+              label={t("H")}
+              title={skewed ? t("Height at the high end, left side (Z)") : t("Height at the high end (Z)")}
+              mm={s.h}
+              min={min}
+              onChange={(h) => set(withRight(skewed ? s.hr : undefined, h))}
+            />
           </div>
           <div className="grid grid-cols-2 gap-1.5 mt-1.5">
-            <NumField
-              label={t("Angle")}
-              value={angle}
-              suffix="°"
-              step={1}
-              min={-89.9}
-              max={89.9}
-              onChange={(a) => set({ ...s, h: Math.max(min, Math.round((h0 + s.d * Math.tan((a * Math.PI) / 180)) * 1000) / 1000) })}
-            />
-            <div className="text-[11px] text-ink-500 self-center leading-tight">{t("Angle changes the height, depth stays")}</div>
+            <div title={t("Angle of the ramp on the left side (seen from the low end). Changes the height, the depth stays")}>
+              <NumField
+                label={skewed ? t("∠ left") : t("Angle")}
+                value={deg(s.h)}
+                suffix="°"
+                step={1}
+                min={-89.9}
+                max={89.9}
+                onChange={(a) => set(withRight(skewed ? s.hr : undefined, heightFor(a)))}
+              />
+            </div>
+            <div title={t("Angle on the right side: a different angle than on the left gives a skewed ramp")}>
+              <NumField label={t("∠ right")} value={deg(s.hr ?? s.h)} suffix="°" step={1} min={-89.9} max={89.9} onChange={(a) => set(withRight(heightFor(a)))} />
+            </div>
+          </div>
+          <div className="text-[11px] text-ink-500 mt-1 leading-snug">
+            {skewed
+              ? t("Left and right rise at different angles: a skewed ramp. The same angle on both sides makes it straight again.")
+              : t("The angle changes the height, the depth stays. Another angle on the right gives a skewed ramp.")}
           </div>
           <div className="flex flex-col gap-1.5 mt-2">
             <Row label={t("Low end")} title={t("Height at the low end: 0 runs out to a sharp edge, more gives a ramp on a block, the same as H a box")}>

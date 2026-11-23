@@ -17,3 +17,6 @@ export function taperXs(s: { w: number } & Taper) {
     s.align === "left" ? [0, width] : s.align === "right" ? [W - width, W] : [(W - width) / 2, (W + width) / 2];
   return { W, front: at(s.w), back: at(w2) };
 }
+
+/** a wedge whose right side rises to another height than its left side */
+export const isSkewed = (s: { h: number; hr?: number }) => s.hr !== undefined && Math.abs(s.hr - s.h) > 1e-9;

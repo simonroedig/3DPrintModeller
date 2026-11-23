@@ -32,7 +32,7 @@ export function localBox(shape: Shape): THREE.Box3 {
     case "box":
     case "wedge": {
       const W = Math.max(shape.w, shape.w2 ?? shape.w);
-      const H = shape.kind === "wedge" ? Math.max(shape.h, shape.h0 ?? 0) : shape.h;
+      const H = shape.kind === "wedge" ? Math.max(shape.h, shape.hr ?? shape.h, shape.h0 ?? 0) : shape.h;
       return b.set(new THREE.Vector3(0, 0, 0), new THREE.Vector3(W, shape.d, H));
     }
     case "cylinder":

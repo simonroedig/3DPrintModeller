@@ -154,6 +154,19 @@ const de: Record<string, string> = {
   "The left side stays straight": "Die linke Seite bleibt gerade",
   "The right side stays straight": "Die rechte Seite bleibt gerade",
 
+  // skewed wedges
+  "Height at the high end, left side (Z)": "Höhe am hohen Ende, linke Seite (Z)",
+  "Angle of the ramp on the left side (seen from the low end). Changes the height, the depth stays":
+    "Winkel der Rampe auf der linken Seite (vom niedrigen Ende aus gesehen). Ändert die Höhe, die Tiefe bleibt",
+  "∠ left": "∠ links",
+  "Angle on the right side: a different angle than on the left gives a skewed ramp":
+    "Winkel auf der rechten Seite: ein anderer Winkel als links ergibt eine schiefe Rampe",
+  "∠ right": "∠ rechts",
+  "Left and right rise at different angles: a skewed ramp. The same angle on both sides makes it straight again.":
+    "Links und rechts steigen verschieden steil an: eine schiefe Rampe. Der gleiche Winkel auf beiden Seiten macht sie wieder gerade.",
+  "The angle changes the height, the depth stays. Another angle on the right gives a skewed ramp.":
+    "Der Winkel ändert die Höhe, die Tiefe bleibt. Ein anderer Winkel rechts ergibt eine schiefe Rampe.",
+
   // nearest view while orbiting
   "{view} view ({key}): the camera is closest to this view, one click snaps there":
     "Ansicht {view} ({key}): die Kamera ist dieser Ansicht am nächsten, ein Klick springt hin",

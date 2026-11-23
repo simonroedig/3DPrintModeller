@@ -16,6 +16,7 @@ import {
   makeFace,
   makeCompound,
   makeSolid,
+  loft,
   Vector,
   type Shape3D,
   type Edge,
@@ -23,7 +24,7 @@ import {
 } from "replicad";
 import type { Body, EdgeFeature, EdgeInfo, EdgeRef, ExportFormat, ExportQuality, FaceInfo, FaceRef, Feature, MeshData, Segment, Shape, Taper, Vec3 } from "../types";
 import { isSegment, sweepOf } from "../lib/segment";
-import { isTapered, taperXs } from "../lib/taper";
+import { isSkewed, isTapered, taperXs } from "../lib/taper";
 import { geometryKey } from "./key";
 import { to3MF, toBinarySTL, type ExportPart } from "./formats";
 import { meshToSolids, readSTEP } from "./meshToBrep";
@@ -128,6 +129,7 @@ function buildBase(shape: Shape): Shape3D {
       if (isTapered(shape)) return hexahedron(shape, shape.d, shape.h, shape.h);
       return makeBox([0, 0, 0], [shape.w, shape.d, shape.h]);
     case "wedge":
+      if (isSkewed(shape)) return skewedWedge(shape, shape.d, Math.max(shape.h0 ?? 0, 0), shape.h, shape.hr ?? shape.h);
       if (isTapered(shape) || (shape.h0 ?? 0) > EPS) return hexahedron(shape, shape.d, Math.max(shape.h0 ?? 0, 0), shape.h);
       // right-triangle profile in the YZ plane, rising towards +Y, extruded along +X
       return draw([0, 0])
@@ -225,6 +227,24 @@ function hexahedron(s: { w: number } & Taper, d: number, hFront: number, hBack: 
     .filter((f) => f.length >= 3)
     .map((f) => makePolygon(f));
   return makeSolid(faces) as unknown as Shape3D;
+}
+
+/**
+ * A wedge whose left and right sides rise at different angles: the two side faces are flat,
+ * the ramp between them is a ruled (slightly twisted) surface.
+ */
+function skewedWedge(s: { w: number } & Taper, d: number, hFront: number, hLeft: number, hRight: number): Shape3D {
+  const { front, back } = taperXs(s);
+  const side = (xf: number, xb: number, hb: number) => {
+    const pts: Vec3[] = [
+      [xf, 0, 0],
+      [xb, d, 0],
+      [xb, d, Math.max(hb, EPS * 10)],
+    ];
+    if (hFront > EPS) pts.push([xf, 0, hFront]);
+    return assembleWire(pts.map((p, i) => makeLine(p, pts[(i + 1) % pts.length])));
+  };
+  return loft([side(front[0], back[0], hLeft), side(front[1], back[1], hRight)], { ruled: true });
 }
 
 /** turns a profile (drawn in XZ) around Z: the whole circle, or a segment from `start` over `angle` degrees */

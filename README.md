@@ -60,6 +60,7 @@ Everything runs in the browser, no installation, no account: **[3d-print-modelle
 - **Primitives**: box, cylinder, wedge (with angle), cone, sphere, tube. Hold `Shift` to add one as a hole.
 - **Wedges for every slant**: the high end gets its own width (e.g. 30 mm at one end, 60 mm at the other), centered
   or flush with one side, and the low end can start at a height instead of a sharp edge: a ramp on a block.
+  The left and right side can rise at different angles (e.g. 50° and 30°) for a skewed ramp.
 - **Circle segments**: cylinders, tubes, cones and circle sketches can be just a part of the circle, e.g. a 45° slice,
   with a free start angle. Turning a segment keeps the tip of the slice in place.
 - **Move with snapping** to faces of other bodies (flush, touching, centered) and to the middle of the print bed;

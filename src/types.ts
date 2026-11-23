@@ -25,8 +25,11 @@ export interface Taper {
 /** Parametric shape of a body, in the body's local frame (millimetres). */
 export type Shape =
   | ({ kind: "box"; w: number; d: number; h: number } & Taper)
-  /** rises from the front (y = 0, height `h0`, 0 = a sharp edge) to the back (y = d, height `h`) */
-  | ({ kind: "wedge"; w: number; d: number; h: number; h0?: number } & Taper)
+  /**
+   * rises from the front (y = 0, height `h0`, 0 = a sharp edge) to the back (y = d, height `h`).
+   * `hr`: another height at the back on the right side (x max): the ramp twists, like a skewed ramp.
+   */
+  | ({ kind: "wedge"; w: number; d: number; h: number; h0?: number; hr?: number } & Taper)
   | ({ kind: "cylinder"; d: number; h: number } & Segment)
   | ({ kind: "cone"; d1: number; d2: number; h: number } & Segment)
   | { kind: "sphere"; d: number }

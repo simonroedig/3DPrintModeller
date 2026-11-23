@@ -60,6 +60,7 @@ Alles läuft im Browser, ohne Installation und ohne Konto: **[3d-print-modeller.
 - **Grundkörper**: Quader, Zylinder, Keil (mit Winkel), Kegel, Kugel, Rohr. Mit `Shift` direkt als Loch.
 - **Keile für jede Schräge**: das hohe Ende bekommt eine eigene Breite (z. B. 30 mm an einem, 60 mm am anderen), mittig oder
   bündig mit einer Seite, und das niedrige Ende kann auf einer Höhe beginnen statt spitz auszulaufen: eine Rampe auf einem Block.
+  Linke und rechte Seite können verschieden steil ansteigen (z. B. 50° und 30°): eine schiefe Rampe.
 - **Kreissegmente**: Zylinder, Rohre, Kegel und Kreis-Skizzen können nur ein Teil des Kreises sein, z. B. ein 45°-Tortenstück,
   mit frei wählbarem Startwinkel. Beim Drehen bleibt die Spitze des Tortenstücks an ihrem Platz.
 - **Verschieben mit Einrasten** an Flächen anderer Körper (bündig, anliegend, mittig) und an der Mitte des Druckbetts,
