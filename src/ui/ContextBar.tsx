@@ -22,12 +22,32 @@ import { isPattern } from "../lib/pattern";
 import { CircularPatternIcon, LinearPatternIcon } from "./icons";
 import type { Body } from "../types";
 
-function CtxButton({ icon, label, kbd, color, onClick, tip, on }: { icon: ReactNode; label?: string; kbd?: string; color?: string; tip: string; onClick: () => void; on?: boolean }) {
+function CtxButton({
+  icon,
+  label,
+  kbd,
+  color,
+  onClick,
+  tip,
+  on,
+  noTip,
+}: {
+  icon: ReactNode;
+  label?: string;
+  kbd?: string;
+  color?: string;
+  tip: string;
+  onClick: () => void;
+  on?: boolean;
+  /** hide the tooltip (e.g. while a menu above the button is open) */
+  noTip?: boolean;
+}) {
   return (
     <button
       className={`ctx-btn ${label ? "" : "icon-only"} ${on ? "on" : ""}`}
       style={color ? ({ "--tc": color } as React.CSSProperties) : undefined}
-      data-tip={on ? undefined : kbd ? `${tip} (${kbd})` : tip}
+      aria-pressed={on || undefined}
+      data-tip={noTip ? undefined : kbd ? `${tip} (${kbd})` : tip}
       onClick={onClick}
     >
       {icon}
@@ -61,6 +81,7 @@ function PatternButton({ body }: { body: Body }) {
         label={current ? t("Pattern · {count}", { count: body.shape.kind === "group" ? body.shape.children.length : 1 }) : t("Pattern")}
         color={TOOL_COLOR.pattern}
         on={open}
+        noTip={open}
         tip={current ? t("Switch between a row and a circle. Count and spacing are in the panel on the right") : t("Repeat this body: in a row, as a grid or around a center")}
         onClick={() => setOpen(!open)}
       />
@@ -121,8 +142,36 @@ export function ContextBar() {
   } else if (sel.length === 1) {
     const b = sel[0];
     const mesh = isMeshBody(b);
+    const combined = b.shape.kind === "group" && !b.shape.pattern ? (b.shape.op ?? "union") : null;
     content = (
       <>
+        {combined && (
+          <>
+            {/* the operation of this combined body: pressed; pressing it again splits the body */}
+            {OPS.map((o) =>
+              o.op === combined ? (
+                <CtxButton
+                  key={o.op}
+                  icon={o.icon(16)}
+                  label={t(o.label)}
+                  on
+                  color={TOOL_COLOR[o.op]}
+                  tip={t("Active. Click again to split the body back into its parts (Ctrl+Shift+G)")}
+                  onClick={() => combineSelection(o.op)}
+                />
+              ) : (
+                <CtxButton
+                  key={o.op}
+                  icon={o.icon(16)}
+                  color={TOOL_COLOR[o.op]}
+                  tip={`${t(o.label)}: ${t("switch to this operation, the parts stay")}`}
+                  onClick={() => combineSelection(o.op)}
+                />
+              ),
+            )}
+            <Sep />
+          </>
+        )}
         {!mesh && (
           <CtxButton
             icon={<SquareRoundCorner size={16} />}

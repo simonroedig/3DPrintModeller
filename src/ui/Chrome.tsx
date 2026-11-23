@@ -26,6 +26,7 @@ import { cancelWork, stalledFor, useMeshes } from "../cad/client";
 import {
   addPrimitive,
   createPattern,
+  selectedCombination,
   fitView,
   combineSelection,
   redo,
@@ -186,6 +187,11 @@ export function ToolRail() {
   const tool = useStore((s) => s.tool);
   const selCount = useStore((s) => s.selection.filter((id) => s.doc.bodies.some((b) => b.id === id)).length);
   const hasGroup = useStore((s) => s.doc.bodies.some((b) => s.selection.includes(b.id) && b.shape.kind === "group"));
+  // a single combined body: its operation shows as pressed, pressing it again splits the body
+  const combinedOp = useStore((s) => {
+    const g = selectedCombination(s);
+    return g ? (g.shape.op ?? "union") : null;
+  });
   const patternHint = selCount === 1 ? "" : `. ${t("Select one body first")}`;
   const pick = (id: Tool) => () => setTool(tool === id && id !== "select" ? "select" : id);
   const prim = (kind: Parameters<typeof addPrimitive>[0]) => (e: React.MouseEvent) => addPrimitive(kind, e.shiftKey);
@@ -233,10 +239,17 @@ export function ToolRail() {
         <ToolButton
           key={o.op}
           icon={o.icon(19)}
-          label={`${t(o.label)}: ${t(o.tip)}${selCount >= 2 ? "" : `. ${t("Select several bodies first (Shift+click)")}`}`}
+          label={
+            combinedOp === o.op
+              ? `${t(o.label)}: ${t("active. Click again to split the body back into its parts")}`
+              : combinedOp
+                ? `${t(o.label)}: ${t("switch the selected combined body to this operation")}`
+                : `${t(o.label)}: ${t(o.tip)}${selCount >= 2 ? "" : `. ${t("Select several bodies first (Shift+click)")}`}`
+          }
           kbd={o.kbd && t(o.kbd)}
           color={TOOL_COLOR[o.op]}
-          dim={selCount < 2}
+          on={combinedOp === o.op}
+          dim={selCount < 2 && !combinedOp}
           onClick={() => combineSelection(o.op)}
         />
       ))}

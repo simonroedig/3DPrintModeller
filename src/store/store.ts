@@ -809,11 +809,26 @@ export function orderedSelection(): Body[] {
   return selection.map((id) => doc.bodies.find((b) => b.id === id)).filter((b): b is Body => !!b);
 }
 
-/** children roles for an operation: subtract = first is the base, the rest are cut away */
+/**
+ * children roles for an operation: subtract = first is the base, the rest are cut away.
+ * A subtraction remembers what each part was before, so leaving it brings that back.
+ */
 function rolesFor(op: BoolOp, children: Body[], from?: BoolOp): Body[] {
-  if (op === "subtract") return children.map((c, i) => ({ ...c, hole: i > 0 }));
-  if (op === "intersect" || from === "subtract") return children.map((c) => ({ ...c, hole: false }));
+  if (op === "subtract") return children.map((c, i) => ({ ...c, hole: i > 0, wasHole: c.wasHole ?? c.hole }));
+  if (op === "intersect") return children.map((c) => restoreRole({ ...c, hole: false }));
+  if (from === "subtract") return children.map((c) => restoreRole({ ...c, hole: c.wasHole ?? false }));
   return children;
+}
+
+/** drops the remembered role (the part is no longer a cutting tool) */
+function restoreRole(c: Body): Body {
+  const { wasHole: _w, ...rest } = c;
+  return rest;
+}
+
+/** a part taken out of a combined body: a cutting tool becomes what it was before the subtraction */
+function released(c: Body, op: BoolOp): Body {
+  return restoreRole(op === "subtract" ? { ...c, hole: c.wasHole ?? c.hole } : c);
 }
 
 /**
@@ -823,6 +838,11 @@ function rolesFor(op: BoolOp, children: Body[], from?: BoolOp): Body[] {
 export function combineSelection(op: BoolOp) {
   const doc = get().doc;
   const bodies = orderedSelection();
+  // one combined body selected: the buttons work like switches
+  if (bodies.length === 1 && bodies[0].shape.kind === "group") {
+    toggleGroupOp(bodies[0].id, op);
+    return;
+  }
   if (bodies.length < 2) {
     toast(
       op === "subtract"
@@ -857,6 +877,36 @@ export function combineSelection(op: BoolOp) {
 }
 
 export const groupSelection = () => combineSelection("union");
+
+/** the combined body selected on its own (not a pattern), if any: the combine buttons switch it */
+export function selectedCombination(s: State = get()): (Body & { shape: Extract<Shape, { kind: "group" }> }) | null {
+  if (s.selection.length !== 1) return null;
+  const b = s.doc.bodies.find((x) => x.id === s.selection[0]);
+  return b && b.shape.kind === "group" && !b.shape.pattern ? (b as Body & { shape: Extract<Shape, { kind: "group" }> }) : null;
+}
+
+/**
+ * Pressing the operation a combined body already has takes it apart again (like Ctrl+Shift+G);
+ * another operation switches it, the parts stay.
+ */
+export function toggleGroupOp(id: string, op: BoolOp) {
+  const g = getBody(id);
+  if (!g || g.shape.kind !== "group") return;
+  if (g.shape.pattern) {
+    if (op === "union") {
+      select([id]);
+      ungroupSelection();
+    } else toast(t("A pattern is always merged. Split it into single bodies first to combine them differently"));
+    return;
+  }
+  if ((g.shape.op ?? "union") === op) {
+    select([id]);
+    ungroupSelection();
+    toast(t("Split back into its parts"));
+    return;
+  }
+  setGroupOp(id, op);
+}
 
 function groupOf(id: string) {
   const g = getBody(id);
@@ -903,16 +953,23 @@ export function extractGroupChild(id: string, childId: string) {
   const rest = g.shape.children.filter((c) => c !== child);
   const gq = new THREE.Quaternion(...g.quaternion);
   const p = new THREE.Vector3(...child.position).applyQuaternion(gq).add(new THREE.Vector3(...g.position));
-  const out: Body = { ...child, position: [round6(p.x), round6(p.y), round6(p.z)], quaternion: cleanQuat(gq.clone().multiply(new THREE.Quaternion(...child.quaternion))) };
+  const op = g.shape.op ?? "union";
+  const out: Body = released(
+    { ...child, position: [round6(p.x), round6(p.y), round6(p.z)], quaternion: cleanQuat(gq.clone().multiply(new THREE.Quaternion(...child.quaternion))) },
+    op,
+  );
   let bodies: Body[];
   if (rest.length === 1 && !g.features.length) {
     // a combination of one part is just that part
     const only = rest[0];
     const q = new THREE.Vector3(...only.position).applyQuaternion(gq).add(new THREE.Vector3(...g.position));
-    const single: Body = { ...only, position: [round6(q.x), round6(q.y), round6(q.z)], quaternion: cleanQuat(gq.clone().multiply(new THREE.Quaternion(...only.quaternion))) };
+    const single: Body = released(
+      { ...only, position: [round6(q.x), round6(q.y), round6(q.z)], quaternion: cleanQuat(gq.clone().multiply(new THREE.Quaternion(...only.quaternion))) },
+      op,
+    );
     bodies = doc.bodies.flatMap((b) => (b.id === id ? [single, out] : [b]));
   } else {
-    const children = rolesFor(g.shape.op ?? "union", rest, g.shape.op);
+    const children = rolesFor(op, rest, g.shape.op);
     bodies = doc.bodies.flatMap((b) => (b.id === id ? [{ ...g, shape: { ...g.shape, children } }, out] : [b]));
   }
   commit({ ...doc, bodies });
@@ -937,7 +994,7 @@ export function ungroupSelection() {
     for (const c of b.shape.children) {
       const p = new THREE.Vector3(...c.position).applyQuaternion(gq).add(gp);
       const q = gq.clone().multiply(new THREE.Quaternion(...c.quaternion));
-      bodies.push({ ...c, position: [round6(p.x), round6(p.y), round6(p.z)], quaternion: cleanQuat(q) });
+      bodies.push(released({ ...c, position: [round6(p.x), round6(p.y), round6(p.z)], quaternion: cleanQuat(q) }, b.shape.op ?? "union"));
       newSel.push(c.id);
     }
   }

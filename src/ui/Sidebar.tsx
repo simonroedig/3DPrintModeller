@@ -51,7 +51,7 @@ import {
   KIND_LABEL,
   OP_NAME,
   setGroupBase,
-  setGroupOp,
+  toggleGroupOp,
   updateGroupChild,
   removeFeature,
   rotateSelection,
@@ -758,8 +758,8 @@ function GroupParts({ body }: { body: GroupBody }) {
             key={o.op}
             className={`flex-1 ${op === o.op ? "on" : ""}`}
             style={op === o.op ? { background: `${TOOL_COLOR[o.op]}33`, color: TOOL_COLOR[o.op], boxShadow: `inset 0 0 0 1px ${TOOL_COLOR[o.op]}99` } : undefined}
-            title={t(o.tip)}
-            onClick={() => setGroupOp(body.id, o.op as BoolOp)}
+            title={op === o.op ? t("Active. Click again to split the body back into its parts (Ctrl+Shift+G)") : t(o.tip)}
+            onClick={() => toggleGroupOp(body.id, o.op as BoolOp)}
           >
             {t(o.short)}
           </button>

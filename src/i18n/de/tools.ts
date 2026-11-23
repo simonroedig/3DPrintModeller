@@ -126,6 +126,16 @@ const de: Record<string, string> = {
   "1/{n} of the circle": "1/{n} des Kreises",
   Full: "Ganz",
 
+  // combine buttons work like switches
+  "A pattern is always merged. Split it into single bodies first to combine them differently":
+    "Ein Muster ist immer vereint. Löse es erst in einzelne Körper auf, um sie anders zu kombinieren",
+  "Split back into its parts": "Wieder in seine Teile aufgelöst",
+  "active. Click again to split the body back into its parts": "aktiv. Nochmal klicken löst den Körper wieder in seine Teile auf",
+  "switch the selected combined body to this operation": "den gewählten kombinierten Körper auf diese Operation umstellen",
+  "Active. Click again to split the body back into its parts (Ctrl+Shift+G)":
+    "Aktiv. Nochmal klicken löst den Körper wieder in seine Teile auf (Strg+Shift+G)",
+  "switch to this operation, the parts stay": "auf diese Operation umstellen, die Teile bleiben",
+
   // nearest view while orbiting
   "{view} view ({key}): the camera is closest to this view, one click snaps there":
     "Ansicht {view} ({key}): die Kamera ist dieser Ansicht am nächsten, ein Klick springt hin",

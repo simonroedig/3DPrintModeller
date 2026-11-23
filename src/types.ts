@@ -101,6 +101,8 @@ export interface Body {
   color: string;
   features: Feature[];
   hidden?: boolean;
+  /** inside a subtraction: whether the part was a hole before it became a cutting tool (restored on splitting) */
+  wasHole?: boolean;
 }
 
 export type SketchShape =

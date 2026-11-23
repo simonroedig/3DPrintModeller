@@ -93,6 +93,8 @@ Everything runs in the browser, no installation, no account: **[3d-print-modelle
 ### Combine
 - **Union** into one real solid, **Subtract** (the body picked first is the base), **Intersect**, and plain **Group**.
 - **Non-destructive**: subtracted tools are kept invisibly, and can be expanded in the panel, edited, swapped or pulled out again.
+- **Buttons work like switches**: on a combined body its operation shows as pressed. Press it again and the body splits back
+  into its parts, exactly as they were before; press another operation to switch.
 - Combined bodies are **scalable** (handles, dimensions or percent), parametrically: round parts stay round, everything stays exact.
 
 ### Patterns

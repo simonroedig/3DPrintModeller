@@ -96,6 +96,8 @@ Alles läuft im Browser, ohne Installation und ohne Konto: **[3d-print-modeller.
 - **Vereinen** zu einem echten Körper, **Abziehen** (der zuerst gewählte Körper ist die Basis), **Schnittmenge** und reines **Gruppieren**.
 - **Nicht-destruktiv**: abgezogene Werkzeuge bleiben unsichtbar erhalten und lassen sich im Panel aufklappen, ändern, tauschen
   oder herauslösen.
+- **Knöpfe als Schalter**: bei einem kombinierten Körper ist seine Operation gedrückt. Nochmal drücken löst ihn wieder in seine
+  Teile auf, genau wie sie vorher waren; eine andere Operation schaltet um.
 - Kombinierte Körper sind **skalierbar** (Griffe, Maße oder Prozent), parametrisch: runde Teile bleiben rund, alles bleibt exakt.
 
 ### Muster

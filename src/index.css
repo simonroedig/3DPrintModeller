@@ -690,6 +690,11 @@ label:has(> input[type="checkbox"]) {
   background: rgba(96, 165, 250, 0.14);
 }
 
+/* an operation that is active on the selected combined body */
+.ctx-btn[aria-pressed="true"] {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tc, #ffffff) 65%, transparent);
+}
+
 /* pattern menu above the context bar */
 .pattern-option {
   display: flex;
