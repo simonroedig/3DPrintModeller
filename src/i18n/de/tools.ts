@@ -136,6 +136,24 @@ const de: Record<string, string> = {
     "Aktiv. Nochmal klicken löst den Körper wieder in seine Teile auf (Strg+Shift+G)",
   "switch to this operation, the parts stay": "auf diese Operation umstellen, die Teile bleiben",
 
+  // boxes and wedges that run apart, raised wedges
+  "Width at the low end (X)": "Breite am niedrigen Ende (X)",
+  "Low end": "Niedriges Ende",
+  "Height at the low end: 0 runs out to a sharp edge, more gives a ramp on a block, the same as H a box":
+    "Höhe am niedrigen Ende: 0 läuft spitz aus, mehr ergibt eine Rampe auf einem Block, gleich H einen Quader",
+  "Need slanted or tapered sides? The wedge can do that (with the same height at both ends it is a box).":
+    "Schräge oder auseinanderlaufende Seiten? Das kann der Keil (mit gleicher Höhe an beiden Enden ist er ein Quader).",
+  "High end": "Hohes Ende",
+  "Width at the high end: different from W and the wedge runs apart (or together) along its length":
+    "Breite am hohen Ende: anders als B, und der Keil läuft über seine Länge auseinander (oder zusammen)",
+  "Narrow end": "Schmales Ende",
+  "Where the narrower end sits: in the middle, or flush with the left or right side":
+    "Wo das schmalere Ende sitzt: in der Mitte oder bündig mit der linken oder rechten Seite",
+  Middle: "Mitte",
+  "Both sides slant evenly": "Beide Seiten laufen gleich schräg",
+  "The left side stays straight": "Die linke Seite bleibt gerade",
+  "The right side stays straight": "Die rechte Seite bleibt gerade",
+
   // nearest view while orbiting
   "{view} view ({key}): the camera is closest to this view, one click snaps there":
     "Ansicht {view} ({key}): die Kamera ist dieser Ansicht am nächsten, ein Klick springt hin",

@@ -36,7 +36,8 @@ import {
   TriangleRight,
   Ungroup,
 } from "lucide-react";
-import type { Body, BoolOp, PatternSpec, Segment, Shape, ShapeKind, Sketch, SketchShape, TiltFeature, Vec2, Vec3 } from "../types";
+import type { Body, BoolOp, PatternSpec, Segment, Shape, ShapeKind, Sketch, SketchShape, Taper, TiltFeature, Vec2, Vec3 } from "../types";
+import { isTapered } from "../lib/taper";
 import {
   alignCenters,
   alignSelection,
@@ -489,18 +490,24 @@ function ShapeParams({ body, onShape }: { body: Body; onShape?: (shape: Shape) =
   switch (s.kind) {
     case "box":
       return (
-        <div className="grid grid-cols-3 gap-1.5">
-          <LenField label={t("W")} title={t("Width (X)")} mm={s.w} min={min} onChange={(w) => set({ ...s, w })} />
-          <LenField label={t("D")} title={t("Depth (Y)")} mm={s.d} min={min} onChange={(d) => set({ ...s, d })} />
-          <LenField label={t("H")} title={t("Height (Z)")} mm={s.h} min={min} onChange={(h) => set({ ...s, h })} />
-        </div>
-      );
-    case "wedge": {
-      const angle = (Math.atan2(s.h, s.d) * 180) / Math.PI;
-      return (
         <>
           <div className="grid grid-cols-3 gap-1.5">
             <LenField label={t("W")} title={t("Width (X)")} mm={s.w} min={min} onChange={(w) => set({ ...s, w })} />
+            <LenField label={t("D")} title={t("Depth (Y)")} mm={s.d} min={min} onChange={(d) => set({ ...s, d })} />
+            <LenField label={t("H")} title={t("Height (Z)")} mm={s.h} min={min} onChange={(h) => set({ ...s, h })} />
+          </div>
+          <div className="text-[11px] text-ink-500 mt-1.5 leading-snug">
+            {t("Need slanted or tapered sides? The wedge can do that (with the same height at both ends it is a box).")}
+          </div>
+        </>
+      );
+    case "wedge": {
+      const h0 = s.h0 ?? 0;
+      const angle = (Math.atan2(s.h - h0, s.d) * 180) / Math.PI;
+      return (
+        <>
+          <div className="grid grid-cols-3 gap-1.5">
+            <LenField label={t("W")} title={isTapered(s) ? t("Width at the low end (X)") : t("Width (X)")} mm={s.w} min={min} onChange={(w) => set({ ...s, w })} />
             <LenField label={t("D")} title={t("Depth / ramp length (Y)")} mm={s.d} min={min} onChange={(d) => set({ ...s, d })} />
             <LenField label={t("H")} title={t("Height at the high end (Z)")} mm={s.h} min={min} onChange={(h) => set({ ...s, h })} />
           </div>
@@ -510,12 +517,18 @@ function ShapeParams({ body, onShape }: { body: Body; onShape?: (shape: Shape) =
               value={angle}
               suffix="°"
               step={1}
-              min={0.1}
+              min={-89.9}
               max={89.9}
-              onChange={(a) => set({ ...s, h: Math.round(s.d * Math.tan((a * Math.PI) / 180) * 1000) / 1000 })}
+              onChange={(a) => set({ ...s, h: Math.max(min, Math.round((h0 + s.d * Math.tan((a * Math.PI) / 180)) * 1000) / 1000) })}
             />
             <div className="text-[11px] text-ink-500 self-center leading-tight">{t("Angle changes the height, depth stays")}</div>
           </div>
+          <div className="flex flex-col gap-1.5 mt-2">
+            <Row label={t("Low end")} title={t("Height at the low end: 0 runs out to a sharp edge, more gives a ramp on a block, the same as H a box")}>
+              <LenField label={t("H")} mm={h0} min={0} onChange={(v) => set({ ...s, h0: v })} />
+            </Row>
+          </div>
+          <TaperFields s={s} set={(patch) => set({ ...s, ...patch })} />
         </>
       );
     }
@@ -637,6 +650,31 @@ function ShapeParams({ body, onShape }: { body: Body; onShape?: (shape: Shape) =
       if (isPattern(body.shape) && onShape) return <NestedPattern shape={body.shape} onShape={onShape} />;
       return <GroupDims body={body} onShape={onShape} />;
   }
+}
+
+/** the high end of a wedge with its own width, and where the narrower end sits */
+function TaperFields({ s, set }: { s: { w: number } & Taper; set: (patch: Taper) => void }) {
+  const w2 = s.w2 ?? s.w;
+  return (
+    <div className="flex flex-col gap-1.5 mt-1.5">
+      <Row label={t("High end")} title={t("Width at the high end: different from W and the wedge runs apart (or together) along its length")}>
+        <LenField label={t("W")} mm={w2} min={0} onChange={(v) => set({ w2: v })} />
+      </Row>
+      {isTapered(s) && (
+        <Row label={t("Narrow end")} title={t("Where the narrower end sits: in the middle, or flush with the left or right side")}>
+          <Seg
+            value={s.align ?? "center"}
+            onChange={(align) => set({ align })}
+            options={[
+              { value: "center", label: t("Middle"), title: t("Both sides slant evenly") },
+              { value: "left", label: t("Left"), title: t("The left side stays straight") },
+              { value: "right", label: t("Right"), title: t("The right side stays straight") },
+            ]}
+          />
+        </Row>
+      )}
+    </div>
+  );
 }
 
 const SEGMENT_PRESETS = [45, 60, 90, 120, 180, 360];

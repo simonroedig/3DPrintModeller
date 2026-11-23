@@ -13,10 +13,20 @@ export interface Segment {
   start?: number;
 }
 
+/**
+ * Boxes and wedges can run apart (or together) along their depth: the back end (y = d) gets
+ * its own width `w2`, the front keeps `w`. The narrower end sits in the middle or flush with one side.
+ */
+export interface Taper {
+  w2?: number;
+  align?: "center" | "left" | "right";
+}
+
 /** Parametric shape of a body, in the body's local frame (millimetres). */
 export type Shape =
-  | { kind: "box"; w: number; d: number; h: number }
-  | { kind: "wedge"; w: number; d: number; h: number }
+  | ({ kind: "box"; w: number; d: number; h: number } & Taper)
+  /** rises from the front (y = 0, height `h0`, 0 = a sharp edge) to the back (y = d, height `h`) */
+  | ({ kind: "wedge"; w: number; d: number; h: number; h0?: number } & Taper)
   | ({ kind: "cylinder"; d: number; h: number } & Segment)
   | ({ kind: "cone"; d1: number; d2: number; h: number } & Segment)
   | { kind: "sphere"; d: number }

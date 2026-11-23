@@ -15,13 +15,15 @@ import {
   assembleWire,
   makeFace,
   makeCompound,
+  makeSolid,
   Vector,
   type Shape3D,
   type Edge,
   type Face,
 } from "replicad";
-import type { Body, EdgeFeature, EdgeInfo, EdgeRef, ExportFormat, ExportQuality, FaceInfo, FaceRef, Feature, MeshData, Segment, Shape, Vec3 } from "../types";
+import type { Body, EdgeFeature, EdgeInfo, EdgeRef, ExportFormat, ExportQuality, FaceInfo, FaceRef, Feature, MeshData, Segment, Shape, Taper, Vec3 } from "../types";
 import { isSegment, sweepOf } from "../lib/segment";
+import { isTapered, taperXs } from "../lib/taper";
 import { geometryKey } from "./key";
 import { to3MF, toBinarySTL, type ExportPart } from "./formats";
 import { meshToSolids, readSTEP } from "./meshToBrep";
@@ -123,8 +125,10 @@ const EPS = 1e-4;
 function buildBase(shape: Shape): Shape3D {
   switch (shape.kind) {
     case "box":
+      if (isTapered(shape)) return hexahedron(shape, shape.d, shape.h, shape.h);
       return makeBox([0, 0, 0], [shape.w, shape.d, shape.h]);
     case "wedge":
+      if (isTapered(shape) || (shape.h0 ?? 0) > EPS) return hexahedron(shape, shape.d, Math.max(shape.h0 ?? 0, 0), shape.h);
       // right-triangle profile in the YZ plane, rising towards +Y, extruded along +X
       return draw([0, 0])
         .lineTo([shape.d, 0])
@@ -189,6 +193,38 @@ function buildBase(shape: Shape): Shape3D {
       return result;
     }
   }
+}
+
+/**
+ * A box or wedge with its own width at the back and its own height at the front: eight corners,
+ * every face flat. Faces that collapse (a wedge running out to an edge, a back end of width 0) are left out.
+ */
+function hexahedron(s: { w: number } & Taper, d: number, hFront: number, hBack: number): Shape3D {
+  const { front, back } = taperXs(s);
+  const hf = hFront > EPS ? hFront : 0;
+  const hb = Math.max(hBack, EPS * 10);
+  const A: Vec3 = [front[0], 0, 0];
+  const B: Vec3 = [front[1], 0, 0];
+  const C: Vec3 = [back[1], d, 0];
+  const D: Vec3 = [back[0], d, 0];
+  const A2: Vec3 = [front[0], 0, hf];
+  const B2: Vec3 = [front[1], 0, hf];
+  const C2: Vec3 = [back[1], d, hb];
+  const D2: Vec3 = [back[0], d, hb];
+  const same = (p: Vec3, q: Vec3) => Math.abs(p[0] - q[0]) < EPS && Math.abs(p[1] - q[1]) < EPS && Math.abs(p[2] - q[2]) < EPS;
+  const clean = (pts: Vec3[]) => pts.filter((p, i) => !same(p, pts[(i + pts.length - 1) % pts.length]));
+  const faces = [
+    [A, B, C, D],
+    [A2, D2, C2, B2],
+    [A, A2, B2, B],
+    [D, C, C2, D2],
+    [A, D, D2, A2],
+    [B, B2, C2, C],
+  ]
+    .map(clean)
+    .filter((f) => f.length >= 3)
+    .map((f) => makePolygon(f));
+  return makeSolid(faces) as unknown as Shape3D;
 }
 
 /** turns a profile (drawn in XZ) around Z: the whole circle, or a segment from `start` over `angle` degrees */

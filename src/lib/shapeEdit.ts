@@ -3,6 +3,7 @@ import type { Body, Feature, Shape, Vec3 } from "../types";
 import { bodyMatrix, isSegment, localBox, polyBounds } from "./geom";
 import { snapTo } from "./units";
 import { buildPattern, isPattern } from "./pattern";
+import { taperXs } from "./taper";
 
 const MIN = 0.1;
 
@@ -29,6 +30,15 @@ export function resizeLocal(shape: Shape, axis: number, size: number): Shape | n
   switch (shape.kind) {
     case "box":
     case "wedge": {
+      // a box or wedge that runs apart scales both widths; a raised wedge both heights
+      if (axis === 0 && shape.w2 !== undefined) {
+        const f = s / Math.max(shape.w, shape.w2, MIN);
+        return { ...shape, w: shape.w * f, w2: shape.w2 * f };
+      }
+      if (axis === 2 && shape.kind === "wedge" && (shape.h0 ?? 0) > 0) {
+        const f = s / Math.max(shape.h, shape.h0 ?? 0, MIN);
+        return { ...shape, h: shape.h * f, h0: (shape.h0 ?? 0) * f };
+      }
       const k = (["w", "d", "h"] as const)[axis];
       return { ...shape, [k]: s };
     }
@@ -292,18 +302,29 @@ export function handleSpecs(shape: Shape): HandleSpec[] {
   switch (shape.kind) {
     case "box":
     case "wedge": {
-      const { w, d, h } = shape;
+      const { d, h } = shape;
       const wedge = shape.kind === "wedge";
+      const h0 = wedge ? (shape.h0 ?? 0) : h;
+      const { W, front, back } = taperXs(shape);
+      const tapered = shape.w2 !== undefined;
       const side = (axis: 0 | 1 | 2, neg: boolean): HandleSpec => {
         const k = (["w", "d", "h"] as const)[axis];
-        const cur = shape[k];
-        const pos: Vec3 = [w / 2, d / 2, h / 2];
+        // across a box or wedge that runs apart: the overall width, both ends scale
+        const cur = axis === 0 ? W : shape[k];
+        const pos: Vec3 = [W / 2, d / 2, h / 2];
         if (wedge) {
           pos[1] = (2 * d) / 3;
-          pos[2] = h / 3;
+          pos[2] = (h0 + (h - h0) * (2 / 3)) / 2;
         }
-        pos[axis] = neg ? 0 : cur;
-        if (wedge && axis === 1) pos[2] = neg ? 0 : h / 2;
+        if (axis === 0) {
+          // on the (maybe slanted) side, halfway along
+          pos[0] = neg ? (front[0] + back[0]) / 2 : (front[1] + back[1]) / 2;
+          pos[1] = d / 2;
+          pos[2] = (h0 + h) / 4;
+        } else pos[axis] = neg ? 0 : cur;
+        // front and back face: in the middle of that end
+        if (axis === 1) pos[0] = neg ? (front[0] + front[1]) / 2 : (back[0] + back[1]) / 2;
+        if (wedge && axis === 1) pos[2] = neg ? h0 / 2 : h / 2;
         if (wedge && axis === 2) pos[1] = neg ? d / 2 : d;
         const dir: Vec3 = [0, 0, 0];
         dir[axis] = neg ? -1 : 1;
@@ -316,6 +337,12 @@ export function handleSpecs(shape: Shape): HandleSpec[] {
             const v = sn(cur + t, snap);
             const shift: Vec3 = [0, 0, 0];
             if (neg) shift[axis] = cur - v;
+            if (axis === 0 && tapered) {
+              const f = v / Math.max(cur, MIN);
+              return { shape: { ...shape, w: shape.w * f, w2: (shape.w2 ?? shape.w) * f }, shift, value: v };
+            }
+            // growing a raised wedge from below lifts both ends
+            if (axis === 2 && neg && wedge && h0 > 0) return { shape: { ...shape, h: v, h0: h0 + v - cur }, shift, value: v };
             return { shape: { ...shape, [k]: v }, shift, value: v };
           },
         };
