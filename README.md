@@ -93,8 +93,8 @@ Everything runs in the browser, no installation, no account: **[3d-print-modelle
 - `F` or double click a body: edges and faces light up on hover.
 - **Edge**: drag the arrow outwards for a fillet, inwards for a chamfer. Works at the seams of combined parts too.
 - **Face**: push it (outwards or inwards) or tilt it around one of its edges.
-- **Stretch or squeeze**: cut across any body (even a combined one) and make it longer or shorter right there, the ends
-  stay as they are. A cut plane in the model can be moved, an arrow at the end pulls; shorter removes a band around the cut.
+- **Stretch or squeeze**: make any body (even a combined one) longer or shorter in a zone between two planes, the ends stay
+  as they are. The zone is rebuilt with straight bridges between its two cuts, so a tapered piece stays a smooth taper.
 - Everything stays in the panel as an editing step that can be changed or removed later.
 
 ### Combine

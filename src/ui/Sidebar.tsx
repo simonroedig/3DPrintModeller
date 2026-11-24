@@ -40,7 +40,7 @@ import {
   Ungroup,
 } from "lucide-react";
 import type { Body, BoolOp, PatternSpec, Segment, Shape, ShapeKind, Sketch, SketchShape, StretchFeature, Taper, TiltFeature, Vec2, Vec3 } from "../types";
-import { stretchInWorld } from "../lib/stretch";
+import { stretchInWorld, zoneOf } from "../lib/stretch";
 import { isSkewed, isTapered } from "../lib/taper";
 import {
   alignCenters,
@@ -493,9 +493,16 @@ function StretchRow({ body, f, index }: { body: Body; f: StretchFeature; index: 
       </div>
       <AxisSeg value={w.axis} title={t("The cut runs across this axis; the body gets longer or shorter along it")} onChange={(a) => setStretchAxis(body.id, f.id, a)} />
       <div className="grid grid-cols-2 gap-1.5">
-        <LenField label={t("Cut")} mm={w.at} title={t("Where the cut is (position along the axis)")} onChange={(v) => setStretchAt(body.id, f.id, v)} />
-        <LenField label="±" mm={f.amount} title={t("How much longer (+) or shorter (-). Shorter removes a band around the cut")} onChange={(v) => updateFeature(body.id, f.id, { amount: v })} />
+        <LenField label={t("Middle")} mm={w.at} title={t("Middle of the zone (position along the axis)")} onChange={(v) => setStretchAt(body.id, f.id, v)} />
+        <LenField
+          label={t("Zone")}
+          mm={zoneOf(f)}
+          min={0}
+          title={t("Length of the part that gets stretched or squeezed evenly. Keep it inside the plain middle piece, the parts beyond it stay as they are")}
+          onChange={(v) => updateFeature(body.id, f.id, { zone: v })}
+        />
       </div>
+      <LenField label="±" mm={f.amount} title={t("How much longer (+) or shorter (-)")} onChange={(v) => updateFeature(body.id, f.id, { amount: v })} />
     </div>
   );
 }

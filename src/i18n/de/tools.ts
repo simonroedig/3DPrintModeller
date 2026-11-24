@@ -198,8 +198,6 @@ const de: Record<string, string> = {
   "Mesh bodies (large STL/3MF/OBJ) cannot be stretched. Convert them to a CAD body in the panel first":
     "Netzkörper (große STL/3MF/OBJ) lassen sich nicht strecken. Wandle sie vorher im Panel in einen CAD-Körper um",
   "Only possible when the body is turned in 90° steps": "Nur möglich, wenn der Körper in 90°-Schritten gedreht ist",
-  "Move the cut plane where the body should get longer or shorter, then drag the arrow at its end":
-    "Schiebe die Schnittebene dorthin, wo der Körper länger oder kürzer werden soll, und zieh dann den Pfeil an seinem Ende",
   Stretch: "Strecken",
   "Cut across the body and make it longer or shorter there; the ends stay as they are":
     "Quer durch den Körper schneiden und ihn dort länger oder kürzer machen; die Enden bleiben, wie sie sind",
@@ -211,15 +209,22 @@ const de: Record<string, string> = {
   "The cut runs across this axis; the body gets longer or shorter along it":
     "Der Schnitt liegt quer zu dieser Achse; entlang ihr wird der Körper länger oder kürzer",
   Cut: "Schnitt",
-  "Where the cut is (position along the axis)": "Wo der Schnitt liegt (Position entlang der Achse)",
-  "How much longer (+) or shorter (-). Shorter removes a band around the cut":
-    "Um wie viel länger (+) oder kürzer (-). Kürzer nimmt ein Stück rund um den Schnitt heraus",
   Longer: "Länger",
+  Zone: "Zone",
+  "Move the zone (between the two planes) onto the plain middle piece, then drag the arrow at the end":
+    "Schiebe die Zone (zwischen den beiden Ebenen) auf das schlichte Mittelstück und zieh dann den Pfeil am Ende",
+  "Middle of the zone (position along the axis)": "Mitte der Zone (Position entlang der Achse)",
+  "Length of the part that gets stretched or squeezed evenly. Keep it inside the plain middle piece, the parts beyond it stay as they are":
+    "Länge des Abschnitts, der gleichmäßig gestreckt oder gestaucht wird. Lass ihn im schlichten Mittelstück, alles außerhalb bleibt, wie es ist",
+  "How much longer (+) or shorter (-)": "Um wie viel länger (+) oder kürzer (-)",
+  "Move the zone": "Zone verschieben",
+  "Drag out: longer zone · in: shorter zone": "Nach außen ziehen: längere Zone · nach innen: kürzere Zone",
+  "Stretch: the zone must lie inside the body and be longer than the part taken out":
+    "Strecken: die Zone muss im Körper liegen und länger sein als das Stück, das herausgenommen wird",
+  "Stretch: the two cut faces differ, the gap is filled straight from the first one":
+    "Strecken: die beiden Schnittflächen sind verschieden, die Lücke wird gerade von der ersten aus gefüllt",
   Shorter: "Kürzer",
-  "Move the cut": "Schnitt verschieben",
   "Drag out: longer · in: shorter": "Nach außen ziehen: länger · nach innen: kürzer",
-  "Stretch: the cut (and the part removed around it) must lie inside the body":
-    "Strecken: der Schnitt (und das Stück, das herausgenommen wird) muss innerhalb des Körpers liegen",
   "Body could not be stretched here": "Der Körper ließ sich hier nicht strecken",
 
   // nearest view while orbiting

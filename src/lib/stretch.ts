@@ -26,3 +26,18 @@ export function stretchFromWorld(body: Body, axis: 0 | 1 | 2, worldAt: number): 
   const p = new THREE.Vector3().setComponent(axis, worldAt).applyMatrix4(inv);
   return { axis: l as 0 | 1 | 2, at: Math.round(p.getComponent(l) * 1e6) / 1e6 };
 }
+
+/** the zone that gets stretched when none was set (older files) */
+export const zoneOf = (f: StretchFeature) => f.zone ?? Math.max(2 * Math.abs(f.amount), 10);
+
+/** world position along the stretch's world axis of a coordinate along the body's own axis */
+export function worldAlong(body: Body, f: StretchFeature, local: number): number {
+  const p = new THREE.Vector3().setComponent(f.axis, local).applyMatrix4(bodyMatrix(body));
+  return p.getComponent(stretchInWorld(body, f).axis);
+}
+
+/** a first zone: a third of the length, on the grid */
+export function defaultZone(length: number, snap: number) {
+  const step = snap > 0 ? snap : 1;
+  return Math.max(step, Math.round(length / 3 / step) * step);
+}

@@ -531,16 +531,75 @@ function blendEdges(shape: Shape3D, f: EdgeFeature): Shape3D {
   }
 }
 
+/** notes from a feature that worked, but not quite as asked (shown like other warnings) */
+let softWarnings: string[] = [];
+
+/** the flat faces a cut left on `solid` at `value` along `axis` */
+function cutFaces(solid: Shape3D, axis: number, value: number): Face[] {
+  return solid.faces.filter((face) => {
+    const c = face.center.toTuple() as Vec3;
+    if (Math.abs(c[axis] - value) > 1e-3) return false;
+    try {
+      const n = face.normalAt().normalized().toTuple() as Vec3;
+      return Math.abs(Math.abs(n[axis]) - 1) < 1e-6;
+    } catch {
+      return false;
+    }
+  });
+}
+
 /**
- * Cuts across `axis` at `at` and moves everything beyond the cut: stretching pulls the cut section
- * out to fill the gap, squeezing removes a band centred on the cut and closes it.
+ * Straight (ruled) bridges between two sets of cross-sections, face by face: a taper running through
+ * the gap continues smoothly instead of leaving a step. Holes in the sections are bridged and cut out.
  */
-function stretchShape(shape: Shape3D, axis: 0 | 1 | 2, at: number, amount: number): Shape3D {
+function bridgeSections(a: Face[], b: Face[], axis: number): Shape3D[] {
+  if (!a.length || a.length !== b.length) throw new Error("sections differ");
+  const others = [0, 1, 2].filter((x) => x !== axis);
+  const order = (list: Face[]) =>
+    [...list].sort((p, q) => {
+      const cp = p.center.toTuple() as Vec3;
+      const cq = q.center.toTuple() as Vec3;
+      return cp[others[0]] - cq[others[0]] || cp[others[1]] - cq[others[1]];
+    });
+  const A = order(a);
+  const B = order(b);
+  const wireOrder = (ws: ReturnType<Face["innerWires"]>) =>
+    [...ws].sort((p, q) => {
+      const cp = p.boundingBox.center as Vec3;
+      const cq = q.boundingBox.center as Vec3;
+      return cp[others[0]] - cq[others[0]] || cp[others[1]] - cq[others[1]];
+    });
+  return A.map((fa, i) => {
+    const fb = B[i];
+    // (outerWire() uses up the face it is called on: work on copies)
+    const ia = wireOrder(fa.clone().innerWires());
+    const ib = wireOrder(fb.clone().innerWires());
+    if (ia.length !== ib.length) throw new Error("holes differ");
+    let solid = loft([fa.clone().outerWire(), fb.clone().outerWire()], { ruled: true });
+    for (let j = 0; j < ia.length; j++) {
+      const hole = loft([ia[j], ib[j]], { ruled: true });
+      const cut = solid.cut(hole);
+      solid.delete();
+      hole.delete();
+      solid = cut;
+    }
+    return solid;
+  });
+}
+
+/**
+ * Stretches or squeezes a zone across `axis` (from at - zone/2 to at + zone/2) by `amount`:
+ * the zone is taken out, the far part moves by `amount`, and the gap is bridged straight from one
+ * cut to the other. A tapered piece stays a smooth taper (just steeper or flatter); the ends do not change.
+ */
+function stretchShape(shape: Shape3D, axis: 0 | 1 | 2, at: number, amount: number, zone: number): Shape3D {
   if (Math.abs(amount) < 1e-6) return shape;
   const [min, max] = shape.boundingBox.bounds as [Vec3, Vec3];
-  const lo = amount > 0 ? at : at + amount / 2;
-  const hi = amount > 0 ? at : at - amount / 2;
+  const w = Math.max(zone, 0);
+  const lo = at - w / 2;
+  const hi = at + w / 2;
   if (lo <= min[axis] + 1e-3 || hi >= max[axis] - 1e-3) throw new FeatureError("cut");
+  if (w + amount < 0.2) throw new FeatureError("zone");
   const slab = (from: number, to: number) => {
     const a: Vec3 = [min[0] - 1, min[1] - 1, min[2] - 1];
     const b: Vec3 = [max[0] + 1, max[1] + 1, max[2] + 1];
@@ -556,22 +615,18 @@ function stretchShape(shape: Shape3D, axis: 0 | 1 | 2, at: number, amount: numbe
   const upper = shape.intersect(highTool).translate(move[0], move[1], move[2]);
   lowTool.delete();
   highTool.delete();
-  const parts: Shape3D[] = [lower];
-  if (amount > 0) {
-    // the cross-section at the cut, pulled out over the gap
-    for (const face of lower.faces) {
-      const c = face.center.toTuple() as Vec3;
-      let n: Vec3;
-      try {
-        n = face.normalAt().normalized().toTuple() as Vec3;
-      } catch {
-        continue;
-      }
-      if (Math.abs(c[axis] - at) < 1e-4 && Math.abs(Math.abs(n[axis]) - 1) < 1e-6) parts.push(basicFaceExtrusion(face, new Vector(move)) as Shape3D);
-    }
+  let bridge: Shape3D[];
+  try {
+    bridge = bridgeSections(cutFaces(lower, axis, lo), cutFaces(upper, axis, hi + amount), axis);
+  } catch {
+    // the two cuts look different (other holes, other pieces): fill the gap with the near cut instead
+    softWarnings.push("Stretch: the two cut faces differ, the gap is filled straight from the first one");
+    bridge = [];
+    const gap: Vec3 = [0, 0, 0];
+    gap[axis] = w + amount;
+    for (const face of cutFaces(lower, axis, lo)) bridge.push(basicFaceExtrusion(face, new Vector(gap)) as Shape3D);
   }
-  parts.push(upper);
-  const fused = fuseAll(parts);
+  const fused = fuseAll([lower, ...bridge, upper]);
   // one face where the pieces meet, not a seam
   const clean = fused.simplify() as Shape3D;
   fused.delete();
@@ -579,7 +634,7 @@ function stretchShape(shape: Shape3D, axis: 0 | 1 | 2, at: number, amount: numbe
 }
 
 function applyFeature(shape: Shape3D, f: Feature): Shape3D {
-  if (f.type === "stretch") return stretchShape(shape, f.axis, f.at, f.amount);
+  if (f.type === "stretch") return stretchShape(shape, f.axis, f.at, f.amount, f.zone ?? Math.max(2 * Math.abs(f.amount), 10));
   if (f.type === "push") return pushFace(shape, f.face, f.distance);
   if (f.type === "tilt") return tiltFace(shape, f.face, f.hinge, f.angle);
   return blendEdges(shape, f);
@@ -598,7 +653,9 @@ function featureWarning(f: Feature, err: unknown) {
     case "tilt":
       return lost ? "Tilt face: face or hinge edge no longer found" : "Face could not be tilted";
     case "stretch":
-      return lost ? "Stretch: the cut (and the part removed around it) must lie inside the body" : "Body could not be stretched here";
+      return lost
+        ? "Stretch: the zone must lie inside the body and be longer than the part taken out"
+        : "Body could not be stretched here";
   }
 }
 
@@ -640,7 +697,9 @@ function getShape(shape: Shape, features: Feature[]): Built {
   for (let i = start; i < features.length; i++) {
     const f = features[i];
     try {
+      softWarnings = [];
       current = applyFeature(current, f);
+      warnings.push(...softWarnings);
     } catch (err) {
       warnings.push(featureWarning(f, err));
     }

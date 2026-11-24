@@ -95,9 +95,9 @@ Alles läuft im Browser, ohne Installation und ohne Konto: **[3d-print-modeller.
 - `F` oder Doppelklick auf einen Körper: Kanten und Flächen leuchten beim Darüberfahren auf.
 - **Kante**: Pfeil nach außen ziehen ergibt eine Rundung, nach innen eine Fase. Klappt auch an den Übergängen vereinter Teile.
 - **Fläche**: verschieben (nach außen oder innen) oder um eine Kante neigen.
-- **Strecken oder Stauchen**: quer durch einen Körper schneiden (auch einen kombinierten) und ihn genau dort länger oder kürzer
-  machen, die Enden bleiben, wie sie sind. Eine Schnittebene im Modell lässt sich verschieben, ein Pfeil am Ende zieht;
-  kürzer nimmt ein Stück rund um den Schnitt heraus.
+- **Strecken oder Stauchen**: einen Körper (auch einen kombinierten) in einer Zone zwischen zwei Ebenen länger oder kürzer machen,
+  die Enden bleiben, wie sie sind. Die Zone wird mit geraden Übergängen zwischen ihren beiden Schnitten neu gebaut, ein konisches
+  Teil bleibt also eine durchgehende Schräge.
 - Alles bleibt als Bearbeitungsschritt im Panel änderbar oder entfernbar.
 
 ### Kombinieren

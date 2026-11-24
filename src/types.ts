@@ -112,10 +112,10 @@ export type PushFeature = { id: string; type: "push"; face: FaceRef; distance: n
 /** tilts a face around one of its straight edges: positive angle adds a wedge, negative removes one */
 export type TiltFeature = { id: string; type: "tilt"; face: FaceRef; hinge: EdgeRef; angle: number };
 /**
- * cuts the body across one of its own axes at `at` (local coordinate) and moves the far part:
- * `amount` > 0 stretches (the cut section is pulled out), < 0 squeezes (a band around the cut is removed)
+ * makes the body longer (`amount` > 0) or shorter (< 0) across one of its own axes: the zone of length
+ * `zone` around `at` (local coordinates) is stretched or squeezed evenly, the parts beyond it stay as they are
  */
-export type StretchFeature = { id: string; type: "stretch"; axis: 0 | 1 | 2; at: number; amount: number };
+export type StretchFeature = { id: string; type: "stretch"; axis: 0 | 1 | 2; at: number; amount: number; zone?: number };
 export type Feature = EdgeFeature | PushFeature | TiltFeature | StretchFeature;
 
 export interface Body {

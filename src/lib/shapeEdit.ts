@@ -101,7 +101,13 @@ export function scaleFeaturesAbout(features: Feature[], anchor: Vec3, f: Vec3): 
   return features.map((ft) => {
     if (ft.type === "fillet" || ft.type === "chamfer") return { ...ft, edges: ft.edges.map((e) => ({ mid: P(e.mid), dir: D(e.dir) })) };
     if (ft.type === "push") return { ...ft, face: { center: P(ft.face.center), normal: N(ft.face.normal) } };
-    if (ft.type === "stretch") return { ...ft, at: anchor[ft.axis] + (ft.at - anchor[ft.axis]) * f[ft.axis], amount: ft.amount * f[ft.axis] };
+    if (ft.type === "stretch")
+      return {
+        ...ft,
+        at: anchor[ft.axis] + (ft.at - anchor[ft.axis]) * f[ft.axis],
+        amount: ft.amount * f[ft.axis],
+        ...(ft.zone !== undefined ? { zone: ft.zone * Math.abs(f[ft.axis]) } : {}),
+      };
     if (ft.type !== "tilt") return ft;
     return { ...ft, face: { center: P(ft.face.center), normal: N(ft.face.normal) }, hinge: { mid: P(ft.hinge.mid), dir: D(ft.hinge.dir) } };
   });

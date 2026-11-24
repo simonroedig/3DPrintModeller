@@ -8,7 +8,7 @@ import { BREP_TRIANGLE_LIMIT } from "../cad/regions";
 import { detectFormat, payloadFromAsset, toBase64 } from "../cad/importers";
 import { bodyMatrix, cleanQuat, isSegment, localBox, polyBounds, polygonArea, quatFromEulerDeg, sweepOf, unionBox, worldBox } from "../lib/geom";
 import { buildPattern, defaultPattern, isPattern, withOriginal, withPattern, type PatternShape } from "../lib/pattern";
-import { stretchFromWorld, stretchInWorld } from "../lib/stretch";
+import { defaultZone, stretchFromWorld, stretchInWorld } from "../lib/stretch";
 import { locale, t, tMsg } from "../i18n";
 
 export type Tool = "select" | "rect" | "circle" | "poly" | "edit" | "layflat";
@@ -1202,9 +1202,10 @@ export function startStretch() {
     return;
   }
   const id = uid();
-  updateBody(b.id, { features: [...b.features, { id, type: "stretch", axis: local.axis, at: local.at, amount: 0 }] });
+  const zone = defaultZone(size.getComponent(axis), get().doc.settings.snap);
+  updateBody(b.id, { features: [...b.features, { id, type: "stretch", axis: local.axis, at: local.at, amount: 0, zone }] });
   set({ stretchEdit: { bodyId: b.id, featureId: id } });
-  toast(t("Move the cut plane where the body should get longer or shorter, then drag the arrow at its end"));
+  toast(t("Move the zone (between the two planes) onto the plain middle piece, then drag the arrow at the end"));
 }
 
 /** puts the cut of a stretch across another world axis (in the middle of the body) */
@@ -1219,7 +1220,8 @@ export function setStretchAxis(bodyId: string, fid: string, axis: 0 | 1 | 2) {
     toast(t("Only possible when the body is turned in 90° steps"), "error");
     return;
   }
-  updateFeature(bodyId, fid, { axis: local.axis, at: local.at });
+  const zone = defaultZone(box.getSize(new THREE.Vector3()).getComponent(axis), get().doc.settings.snap);
+  updateFeature(bodyId, fid, { axis: local.axis, at: local.at, zone });
 }
 
 /** moves the cut of a stretch to a world position along its axis */
