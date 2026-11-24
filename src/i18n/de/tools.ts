@@ -167,6 +167,32 @@ const de: Record<string, string> = {
   "The angle changes the height, the depth stays. Another angle on the right gives a skewed ramp.":
     "Der Winkel ändert die Höhe, die Tiefe bleibt. Ein anderer Winkel rechts ergibt eine schiefe Rampe.",
 
+  // mirroring
+  "Select the body to mirror first": "Wähle zuerst den Körper aus, der gespiegelt werden soll",
+  "Mesh bodies (large STL/3MF/OBJ) cannot be mirrored. Convert them to a CAD body in the panel first":
+    "Netzkörper (große STL/3MF/OBJ) lassen sich nicht spiegeln. Wandle sie vorher im Panel in einen CAD-Körper um",
+  "{name} (mirrored)": "{name} (gespiegelt)",
+  Mirror: "Spiegeln",
+  Mirrored: "Gespiegelt",
+  "Mirror the selected parts together, they stay in place": "Die ausgewählten Teile gemeinsam spiegeln, sie bleiben an ihrem Platz",
+  "Mirror this body in place, e.g. a part for the right side into one for the left":
+    "Diesen Körper an Ort und Stelle spiegeln, z. B. ein Teil für die rechte Seite in eines für die linke",
+  "Mirrored this way. Click to undo": "So gespiegelt. Klicken macht es rückgängig",
+  "Left ↔ Right": "Links ↔ Rechts",
+  "Front ↔ Back": "Vorne ↔ Hinten",
+  "Top ↔ Bottom": "Oben ↔ Unten",
+  "Along X: a part for the right side becomes one for the left": "Entlang X: aus einem Teil für rechts wird eines für links",
+  "Along Y": "Entlang Y",
+  "Along Z: upside down, but mirrored instead of turned": "Entlang Z: auf den Kopf, aber gespiegelt statt gedreht",
+  "Mirror left ↔ right (along X), in place": "Links ↔ rechts spiegeln (entlang X), an Ort und Stelle",
+  "Mirror front ↔ back (along Y), in place": "Vorne ↔ hinten spiegeln (entlang Y), an Ort und Stelle",
+  "Mirror top ↔ bottom (along Z), in place": "Oben ↔ unten spiegeln (entlang Z), an Ort und Stelle",
+  "Mirrored along {axis}. Click to undo": "Entlang {axis} gespiegelt. Klicken macht es rückgängig",
+  "Also mirror along {axis}": "Zusätzlich entlang {axis} spiegeln",
+  "Remove mirror (back to the original)": "Spiegelung entfernen (zurück zum Original)",
+  "The original stays inside: change it below and the mirrored body follows.":
+    "Das Original bleibt erhalten: ändere es unten, und der gespiegelte Körper zieht mit.",
+
   // nearest view while orbiting
   "{view} view ({key}): the camera is closest to this view, one click snaps there":
     "Ansicht {view} ({key}): die Kamera ist dieser Ansicht am nächsten, ein Klick springt hin",

@@ -711,6 +711,13 @@ label:has(> input[type="checkbox"]) {
   background: color-mix(in srgb, #2dd4bf 20%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, #2dd4bf 55%, transparent);
 }
+.mirror-option:hover {
+  background: color-mix(in srgb, #e879f9 14%, transparent);
+}
+.mirror-option.on {
+  background: color-mix(in srgb, #e879f9 20%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #e879f9 55%, transparent);
+}
 .pattern-option-icon {
   width: 34px;
   height: 34px;

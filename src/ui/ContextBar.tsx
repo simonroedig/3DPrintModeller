@@ -1,11 +1,12 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowDownToLine, Copy, Layers2, LocateFixed, RotateCw, SquareRoundCorner, Target, Trash2, MoveUp, SquareDashed } from "lucide-react";
+import { ArrowDownToLine, Copy, FlipHorizontal2, Layers2, LocateFixed, RotateCw, SquareRoundCorner, Target, Trash2, MoveUp, SquareDashed } from "lucide-react";
 import {
   alignCenters,
   centerOnBed,
   combineSelection,
   createPattern,
   deleteSelection,
+  mirrorSelection,
   duplicateSelection,
   extrudeSketch,
   isMeshBody,
@@ -17,6 +18,7 @@ import {
 import { OPS } from "./ops";
 import { fmtLen } from "../lib/units";
 import { TOOL_COLOR } from "./theme";
+import { AXIS_COLOR } from "../lib/planes";
 import { t } from "../i18n";
 import { isPattern } from "../lib/pattern";
 import { CircularPatternIcon, LinearPatternIcon } from "./icons";
@@ -107,6 +109,62 @@ function PatternButton({ body }: { body: Body }) {
   );
 }
 
+const MIRROR_AXES = [
+  { axis: 0, label: "Left ↔ Right", hint: "Along X: a part for the right side becomes one for the left" },
+  { axis: 1, label: "Front ↔ Back", hint: "Along Y" },
+  { axis: 2, label: "Top ↔ Bottom", hint: "Along Z: upside down, but mirrored instead of turned" },
+] as const;
+
+/** "Mirror" with a small menu: which way to flip (the selection stays in place) */
+function MirrorButton({ bodies }: { bodies: Body[] }) {
+  const [open, setOpen] = useState(false);
+  const single = bodies.length === 1 ? bodies[0] : null;
+  const active = single && single.shape.kind === "group" && single.shape.mirror ? single.shape.mirror.axes : null;
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: PointerEvent) => {
+      if (!(e.target as HTMLElement).closest?.(".mirror-menu-host")) setOpen(false);
+    };
+    window.addEventListener("pointerdown", close);
+    return () => window.removeEventListener("pointerdown", close);
+  }, [open]);
+  return (
+    <span className="relative mirror-menu-host">
+      <CtxButton
+        icon={<FlipHorizontal2 size={16} />}
+        label={t("Mirror")}
+        color={TOOL_COLOR.mirror}
+        on={open || !!active}
+        noTip={open}
+        tip={bodies.length > 1 ? t("Mirror the selected parts together, they stay in place") : t("Mirror this body in place, e.g. a part for the right side into one for the left")}
+        onClick={() => setOpen(!open)}
+      />
+      {open && (
+        <div className="overlay-card absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 p-1 flex flex-col gap-0.5 w-[262px]">
+          {MIRROR_AXES.map(({ axis, label, hint }) => (
+            <button
+              key={axis}
+              className={`pattern-option mirror-option ${active?.[axis] ? "on" : ""}`}
+              onClick={() => {
+                setOpen(false);
+                mirrorSelection(axis);
+              }}
+            >
+              <span className="pattern-option-icon !text-[13px] font-semibold" style={{ color: AXIS_COLOR[axis] }}>
+                {["X", "Y", "Z"][axis]}
+              </span>
+              <span className="flex flex-col items-start text-left">
+                <span className="text-[12.5px] font-medium text-ink-100">{t(label)}</span>
+                <span className="text-[11px] text-ink-400 leading-snug">{active?.[axis] ? t("Mirrored this way. Click to undo") : t(hint)}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </span>
+  );
+}
+
 /**
  * Floating actions for what is selected, so the next useful steps (rounding edges, combining, …)
  * are right there instead of hidden behind a shortcut.
@@ -142,7 +200,7 @@ export function ContextBar() {
   } else if (sel.length === 1) {
     const b = sel[0];
     const mesh = isMeshBody(b);
-    const combined = b.shape.kind === "group" && !b.shape.pattern ? (b.shape.op ?? "union") : null;
+    const combined = b.shape.kind === "group" && !b.shape.pattern && !b.shape.mirror ? (b.shape.op ?? "union") : null;
     content = (
       <>
         {combined && (
@@ -186,6 +244,7 @@ export function ContextBar() {
         <CtxButton icon={<RotateCw size={16} />} kbd="E" tip={t("Rotate 90° around the vertical axis")} color={TOOL_COLOR.select} onClick={() => rotateSelection(2, -90)} />
         <CtxButton icon={<LocateFixed size={16} />} kbd="M" tip={t("Exactly in the middle of the print bed (Shift+M: in whole grid steps)")} color={TOOL_COLOR.select} onClick={() => centerOnBed(false)} />
         {!mesh && <PatternButton body={b} />}
+        {!mesh && <MirrorButton bodies={[b]} />}
         {!mesh && (
           <CtxButton
             icon={<Layers2 size={16} />}
@@ -215,6 +274,7 @@ export function ContextBar() {
           tip={t("Put the middles of all on the middle of the body picked first (X and Y), e.g. to stack cylinders exactly")}
           onClick={alignCenters}
         />
+        <MirrorButton bodies={sel} />
         <CtxButton icon={<LocateFixed size={16} />} kbd="M" tip={t("All together exactly in the middle of the print bed (Shift+M: in whole grid steps)")} color={TOOL_COLOR.select} onClick={() => centerOnBed(false)} />
         <CtxButton icon={<Copy size={16} />} tip={t("Duplicate")} kbd={t("Ctrl D")} onClick={duplicateSelection} />
         <CtxButton icon={<Trash2 size={16} />} tip={t("Delete")} kbd={t("Del")} color="#f87171" onClick={deleteSelection} />

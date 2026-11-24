@@ -839,7 +839,7 @@ export function combineSelection(op: BoolOp) {
   const doc = get().doc;
   const bodies = orderedSelection();
   // one combined body selected: the buttons work like switches
-  if (bodies.length === 1 && bodies[0].shape.kind === "group") {
+  if (bodies.length === 1 && bodies[0].shape.kind === "group" && !bodies[0].shape.mirror) {
     toggleGroupOp(bodies[0].id, op);
     return;
   }
@@ -882,7 +882,7 @@ export const groupSelection = () => combineSelection("union");
 export function selectedCombination(s: State = get()): (Body & { shape: Extract<Shape, { kind: "group" }> }) | null {
   if (s.selection.length !== 1) return null;
   const b = s.doc.bodies.find((x) => x.id === s.selection[0]);
-  return b && b.shape.kind === "group" && !b.shape.pattern ? (b as Body & { shape: Extract<Shape, { kind: "group" }> }) : null;
+  return b && b.shape.kind === "group" && !b.shape.pattern && !b.shape.mirror ? (b as Body & { shape: Extract<Shape, { kind: "group" }> }) : null;
 }
 
 /**
@@ -1001,6 +1001,95 @@ export function ungroupSelection() {
   commit({ ...doc, bodies });
   set({ selection: newSel, ...noEdit });
   if (lostFeatures) toast(t("The group's fillets were removed when splitting"));
+}
+
+/* ------------------------------------------------------------------ */
+/* mirroring                                                            */
+/* ------------------------------------------------------------------ */
+
+const isUnturned = (q: Quat) => Math.abs(Math.abs(q[3]) - 1) < 1e-9;
+
+/** the original inside a mirrored body, placed back in the world */
+function unwrapMirror(b: Body): Body {
+  const child = (b.shape as Extract<Shape, { kind: "group" }>).children[0];
+  const gq = new THREE.Quaternion(...b.quaternion);
+  const p = new THREE.Vector3(...child.position).applyQuaternion(gq).add(new THREE.Vector3(...b.position));
+  return { ...child, position: [round6(p.x), round6(p.y), round6(p.z)], quaternion: cleanQuat(gq.clone().multiply(new THREE.Quaternion(...child.quaternion))) };
+}
+
+/**
+ * Mirrors the selection along a world axis (0 = left/right, 1 = front/back, 2 = top/bottom), in place:
+ * the mirror plane runs through the middle of the selection, so several parts flip as one piece.
+ * The originals stay inside the mirrored bodies and remain editable; mirroring the same way again undoes it.
+ */
+export function mirrorSelection(axis: 0 | 1 | 2) {
+  const doc = get().doc;
+  const sel = orderedSelection();
+  if (!sel.length) {
+    toast(t("Select the body to mirror first"));
+    return;
+  }
+  if (sel.some(isMeshBody)) {
+    toast(t("Mesh bodies (large STL/3MF/OBJ) cannot be mirrored. Convert them to a CAD body in the panel first"), "error");
+    return;
+  }
+  const mid = unionBox(sel).getCenter(new THREE.Vector3());
+  const ids = new Set(sel.map((b) => b.id));
+  const newSel: string[] = [];
+  const bodies = doc.bodies.map((b) => {
+    if (!ids.has(b.id)) return b;
+    // already mirrored about the same plane: switch that axis (all off = the original again)
+    if (b.shape.kind === "group" && b.shape.mirror && isUnturned(b.quaternion) && Math.abs(b.shape.mirror.center[axis] + b.position[axis] - mid.getComponent(axis)) < 1e-6) {
+      const axes = [...b.shape.mirror.axes] as [boolean, boolean, boolean];
+      axes[axis] = !axes[axis];
+      if (!axes.some(Boolean)) {
+        const original = unwrapMirror(b);
+        newSel.push(original.id);
+        return original;
+      }
+      newSel.push(b.id);
+      return { ...b, shape: { ...b.shape, mirror: { ...b.shape.mirror, axes } } };
+    }
+    const axes: [boolean, boolean, boolean] = [false, false, false];
+    axes[axis] = true;
+    const wrapped: Body = {
+      id: uid(),
+      name: t("{name} (mirrored)", { name: b.name }),
+      shape: { kind: "group", op: "union", children: [{ ...b, hidden: false }], mirror: { axes, center: [round6(mid.x), round6(mid.y), round6(mid.z)] } },
+      position: [0, 0, 0],
+      quaternion: [0, 0, 0, 1],
+      hole: b.hole,
+      color: b.color,
+      features: [],
+    };
+    newSel.push(wrapped.id);
+    return wrapped;
+  });
+  commit({ ...doc, bodies });
+  set({ selection: newSel, ...noEdit, groupFocus: null });
+}
+
+/** a mirrored body becomes its original again */
+export function removeMirror(id: string) {
+  const doc = get().doc;
+  const b = getBody(id);
+  if (!b || b.shape.kind !== "group" || !b.shape.mirror) return;
+  const original = unwrapMirror(b);
+  commit({ ...doc, bodies: doc.bodies.map((x) => (x.id === id ? original : x)) });
+  set({ selection: [original.id], ...noEdit, groupFocus: null });
+}
+
+/** switches one mirror axis of a mirrored body (in its own frame); none left = the original again */
+export function toggleMirrorAxis(id: string, axis: 0 | 1 | 2) {
+  const b = getBody(id);
+  if (!b || b.shape.kind !== "group" || !b.shape.mirror) return;
+  const axes = [...b.shape.mirror.axes] as [boolean, boolean, boolean];
+  axes[axis] = !axes[axis];
+  if (!axes.some(Boolean)) {
+    removeMirror(id);
+    return;
+  }
+  updateBody(id, { shape: { ...b.shape, mirror: { ...b.shape.mirror, axes } } });
 }
 
 /* ------------------------------------------------------------------ */

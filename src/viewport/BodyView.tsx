@@ -303,8 +303,9 @@ export function startMoveDrag(
 function GroupGhosts({ body }: { body: Body }) {
   const focus = useStore((s) => (s.groupFocus?.groupId === body.id ? s.groupFocus.childId : null));
   if (body.shape.kind !== "group") return null;
-  // a pattern shows which part is the original
+  // a pattern shows which part is the original; a mirrored body shows nothing extra
   if (body.shape.pattern) return <GhostPart part={body.shape.children[0]} focused />;
+  if (body.shape.mirror) return null;
   const op = body.shape.op ?? "union";
   return (
     <>

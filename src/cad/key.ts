@@ -6,6 +6,7 @@ function geomShape(shape: Shape): unknown {
   return {
     kind: "group",
     op: shape.op ?? "union",
+    ...(shape.mirror ? { m: shape.mirror } : {}),
     children: shape.children.map((c) => ({
       s: geomShape(c.shape),
       f: geomFeatures(c.features),

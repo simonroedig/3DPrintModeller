@@ -209,6 +209,12 @@ export function scaleGroupShape(shape: Extract<Shape, { kind: "group" }>, anchor
     approx ||= r.approx;
     return r.body;
   });
+  // a mirrored body: the mirror planes move along with the scaling
+  if (shape.mirror) {
+    const m = shape.mirror;
+    const center = m.center.map((v, a) => r6(anchor[a] + (v - anchor[a]) * f[a])) as Vec3;
+    return { shape: { ...shape, children, mirror: { ...m, center } }, approx };
+  }
   return { shape: { ...shape, children }, approx };
 }
 

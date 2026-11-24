@@ -9,6 +9,7 @@ export const TOOL_COLOR = {
   edit: "#f97316",
   layflat: "#facc15",
   pattern: "#2dd4bf",
+  mirror: "#e879f9",
   union: "#22c55e",
   subtract: "#f43f5e",
   intersect: "#a855f7",

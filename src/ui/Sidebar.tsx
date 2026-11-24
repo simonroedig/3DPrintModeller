@@ -16,6 +16,8 @@ import {
   Cone,
   Copy,
   Crosshair,
+  FlipHorizontal2,
+  Undo2,
   Cylinder,
   Eye,
   EyeOff,
@@ -61,6 +63,9 @@ import {
   setBodyShape,
   setSelectionMin,
   setCenterLines,
+  mirrorSelection,
+  removeMirror,
+  toggleMirrorAxis,
   setXray,
   setSettings,
   setShowBed,
@@ -99,6 +104,7 @@ const ICON: Record<ShapeKind, ReactNode> = {
 };
 
 function iconFor(b: Body): ReactNode {
+  if (b.shape.kind === "group" && b.shape.mirror) return <FlipHorizontal2 size={14} />;
   if (isPattern(b.shape)) return b.shape.pattern.type === "linear" ? <LinearPatternIcon size={14} /> : <CircularPatternIcon size={14} />;
   return ICON[b.shape.kind];
 }
@@ -290,12 +296,14 @@ function BodyProps({ body }: { body: Body }) {
       <div className="px-3.5 pt-3 pb-3">
         <div className="flex items-center gap-2 text-ink-400 text-[11px] mb-1">
           <span style={{ color: body.hole ? "#94a3b8" : body.color }}>{iconFor(body)}</span>
-          {isPattern(body.shape)
+          {body.shape.kind === "group" && body.shape.mirror
+            ? `${t("Mirrored")} · ${["X", "Y", "Z"].filter((_, a) => body.shape.kind === "group" && body.shape.mirror?.axes[a]).join(" ")}`
+            : isPattern(body.shape)
             ? t(body.shape.pattern.type === "linear" ? "Linear pattern" : "Circular pattern")
             : body.shape.kind === "group"
               ? t(`name|${OP_NAME[body.shape.op ?? "union"]}`)
               : t(KIND_LABEL[body.shape.kind])}
-          {body.shape.kind === "group" && ` · ${t("{count} parts", { count: body.shape.children.length })}`}
+          {body.shape.kind === "group" && !body.shape.mirror && ` · ${t("{count} parts", { count: body.shape.children.length })}`}
           {(body.shape.kind === "cylinder" || body.shape.kind === "tube" || body.shape.kind === "cone") && isSegment(body.shape) && ` · ${t("{angle}° segment", { angle: fmtDeg(sweepOf(body.shape)) })}`}
         </div>
         <NameField value={body.name} onChange={(name) => updateBody(body.id, { name })} />
@@ -329,7 +337,9 @@ function BodyProps({ body }: { body: Body }) {
         ))}
       </div>
 
-      {isPattern(body.shape) ? (
+      {body.shape.kind === "group" && body.shape.mirror ? (
+        <MirrorProps body={body as GroupBody} />
+      ) : isPattern(body.shape) ? (
         <PatternProps body={body as Body & { shape: PatternShape }} />
       ) : (
         <>
@@ -431,12 +441,71 @@ function BodyProps({ body }: { body: Body }) {
               </button>
             </>
           )}
-          {body.shape.kind === "group" && (
+          {!isMeshBody(body) && <MirrorRow />}
+          {body.shape.kind === "group" && !body.shape.mirror && (
             <button className="btn col-span-2" onClick={ungroupSelection} title={isPattern(body.shape) ? t("Every copy becomes a body of its own (the pattern values are gone then)") : undefined}>
               <Ungroup size={14} /> {isPattern(body.shape) ? t("Split into single bodies") : t("Ungroup")}
             </button>
           )}
         </div>
+      </Section>
+    </>
+  );
+}
+
+/** "Mirror" buttons for the actions grid: flips the selection in place along X, Y or Z */
+function MirrorRow() {
+  return (
+    <div className="col-span-2 flex items-center gap-1.5">
+      <span className="flex items-center gap-1.5 text-[12px] text-ink-300 w-[86px] shrink-0" style={{ color: TOOL_COLOR.mirror }}>
+        <FlipHorizontal2 size={14} /> <span className="text-ink-200">{t("Mirror")}</span>
+      </span>
+      {(["X", "Y", "Z"] as const).map((n, a) => (
+        <button
+          key={n}
+          className="btn flex-1 !px-1"
+          style={{ color: AXIS_COLOR[a] }}
+          title={t(["Mirror left ↔ right (along X), in place", "Mirror front ↔ back (along Y), in place", "Mirror top ↔ bottom (along Z), in place"][a])}
+          onClick={() => mirrorSelection(a as 0 | 1 | 2)}
+        >
+          {n}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** a mirrored body: which way it is flipped, and its original (still editable) */
+function MirrorProps({ body }: { body: GroupBody }) {
+  const m = body.shape.mirror;
+  const src = body.shape.children[0];
+  if (!m || !src) return null;
+  return (
+    <>
+      <Section title={<span style={{ color: TOOL_COLOR.mirror }}>{t("Mirror")}</span>}>
+        <div className="grid grid-cols-3 gap-1.5">
+          {(["X", "Y", "Z"] as const).map((n, a) => (
+            <button
+              key={n}
+              className={`btn ${m.axes[a] ? "primary" : ""}`}
+              title={m.axes[a] ? t("Mirrored along {axis}. Click to undo", { axis: n }) : t("Also mirror along {axis}", { axis: n })}
+              onClick={() => toggleMirrorAxis(body.id, a as 0 | 1 | 2)}
+            >
+              <span style={m.axes[a] ? undefined : { color: AXIS_COLOR[a] }}>{n}</span>
+            </button>
+          ))}
+        </div>
+        <button className="btn w-full mt-2" onClick={() => removeMirror(body.id)}>
+          <Undo2 size={14} /> {t("Remove mirror (back to the original)")}
+        </button>
+        <div className="text-[11px] text-ink-500 mt-2 leading-snug">{t("The original stays inside: change it below and the mirrored body follows.")}</div>
+      </Section>
+      <Section title={t("Original")}>
+        <div className="flex items-center gap-1.5 text-[12px] text-ink-300 mb-2">
+          <span style={{ color: src.hole ? "#94a3b8" : src.color }}>{iconFor(src)}</span>
+          <span className="truncate">{src.name}</span>
+        </div>
+        <ShapeParams body={src} onShape={(shape) => updateGroupChild(body.id, src.id, { shape })} />
       </Section>
     </>
   );
@@ -1186,6 +1255,7 @@ function MultiProps({ bodies }: { bodies: Body[] }) {
           <button className="btn danger" onClick={deleteSelection}>
             <Trash2 size={14} /> {t("Delete")}
           </button>
+          <MirrorRow />
         </div>
       </Section>
     </>

@@ -70,6 +70,8 @@ Alles läuft im Browser, ohne Installation und ohne Konto: **[3d-print-modeller.
 - **Exakte Maße**: runde Teile messen genau, was du eingibst (24 mm bleiben 24 mm, nicht die vom Dreiecksnetz gerundeten 23,99 mm).
 - **Drehen** in 90°-Schritten oder frei, **Fläche aufs Bett legen** per Klick, **Zentrieren** exakt auf dem Druckbett
   (oder in ganzen Rasterschritten), **Ausrichten** mehrerer Teile oder ihre **Mitten übereinander legen** (z. B. Zylinder stapeln).
+- **Spiegeln** an Ort und Stelle entlang X, Y oder Z, z. B. wird ein Teil für die rechte Seite zum linken. Mehrere Teile werden
+  zusammen als ein Stück gespiegelt. Das Original bleibt erhalten und änderbar; nochmal gleich spiegeln macht es rückgängig.
 - **Mittellinien** auf Wunsch: die Mitte des Betts bleibt durch alle Körper hindurch sichtbar, die Mitte der Auswahl wird markiert.
 - **Röntgen**-Ansicht: durch alle Körper hindurchsehen, damit Teile innen oder dahinter sichtbar bleiben.
 

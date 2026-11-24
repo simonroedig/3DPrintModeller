@@ -3,6 +3,7 @@ import type { Body, MeshData, Quat, Shape, Vec2, Vec3 } from "../types";
 import { geometryKey } from "../cad/key";
 import { useMeshes } from "../cad/client";
 import { arcBounds, sweepOf } from "./segment";
+import { mirrorBox } from "./mirror";
 
 export { arcBounds, isSegment, sweepOf } from "./segment";
 
@@ -66,7 +67,7 @@ export function localBox(shape: Shape): THREE.Box3 {
         return b;
       }
       for (const c of parts) b.union(worldBox(c));
-      return b;
+      return shape.mirror ? mirrorBox(b, shape.mirror) : b;
     }
   }
 }

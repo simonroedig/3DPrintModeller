@@ -181,16 +181,27 @@ function buildBase(shape: Shape): Shape3D {
         const placed = placeBody(child);
         (child.hole ? holes : solids).push(placed);
       }
-      if (solids.length === 0) return fuseAll(holes);
-      // "subtract" stores its tools as holes, so it builds like a union
-      let result =
-        op === "intersect" ? commonAll(solids) : op === "group" && solids.length > 1 ? (makeCompound(solids) as Shape3D) : fuseAll(solids);
-      if (holes.length) {
-        const tool = fuseAll(holes);
-        const cut = result.cut(tool);
-        result.delete();
-        tool.delete();
-        result = cut;
+      let result: Shape3D;
+      if (solids.length === 0) result = fuseAll(holes);
+      else {
+        // "subtract" stores its tools as holes, so it builds like a union
+        result = op === "intersect" ? commonAll(solids) : op === "group" && solids.length > 1 ? (makeCompound(solids) as Shape3D) : fuseAll(solids);
+        if (holes.length) {
+          const tool = fuseAll(holes);
+          const cut = result.cut(tool);
+          result.delete();
+          tool.delete();
+          result = cut;
+        }
+      }
+      // a mirrored body: flipped about planes through its stored middle
+      if (shape.mirror) {
+        for (let a = 0; a < 3; a++) {
+          if (!shape.mirror.axes[a]) continue;
+          const n: Vec3 = [0, 0, 0];
+          n[a] = 1;
+          result = result.mirror(n, shape.mirror.center);
+        }
       }
       return result;
     }

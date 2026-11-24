@@ -40,7 +40,7 @@ export type Shape =
    * union = solids fused, holes cut · subtract = like union, the first child is the base and the others are holes ·
    * intersect = common volume of the solids · group = solids kept as separate pieces
    */
-  | { kind: "group"; children: Body[]; op?: BoolOp; pattern?: PatternSpec }
+  | { kind: "group"; children: Body[]; op?: BoolOp; pattern?: PatternSpec; mirror?: MirrorSpec }
   /** solid `part` of an imported file (see Doc.assets); min/max = its bounds before scaling */
   | {
       kind: "imported";
@@ -54,6 +54,15 @@ export type Shape =
     };
 
 export type BoolOp = "union" | "subtract" | "intersect" | "group";
+
+/**
+ * A group that shows its single child mirrored: flipped along each marked axis, about planes
+ * through `center` (in the group's frame). The child itself stays as it is and remains editable.
+ */
+export interface MirrorSpec {
+  axes: [boolean, boolean, boolean];
+  center: Vec3;
+}
 
 /**
  * Repeats the first child of a group (the original). The other children are generated from it,

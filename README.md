@@ -70,6 +70,8 @@ Everything runs in the browser, no installation, no account: **[3d-print-modelle
 - **Exact dimensions**: round parts measure exactly what you typed (24 mm stays 24 mm, not the tessellated 23.99 mm).
 - **Rotate** in 90° steps or freely, **lay a face flat** on the bed with one click, **center** exactly on the print bed
   (or in whole grid steps), **align** several parts, or put their **centers on top of each other** (e.g. to stack cylinders).
+- **Mirror** in place along X, Y or Z, e.g. a part designed for the right side becomes the left one. Several parts flip
+  together as one piece. The original stays inside and editable; mirroring the same way again undoes it.
 - **Center lines** on demand: the middle of the bed stays visible through all bodies, and the middle of the selection is marked.
 - **X-ray** view: see through all bodies, so parts inside or behind others stay visible.
 
