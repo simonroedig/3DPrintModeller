@@ -111,7 +111,12 @@ export type EdgeFeature = { id: string; type: "fillet" | "chamfer"; radius: numb
 export type PushFeature = { id: string; type: "push"; face: FaceRef; distance: number };
 /** tilts a face around one of its straight edges: positive angle adds a wedge, negative removes one */
 export type TiltFeature = { id: string; type: "tilt"; face: FaceRef; hinge: EdgeRef; angle: number };
-export type Feature = EdgeFeature | PushFeature | TiltFeature;
+/**
+ * cuts the body across one of its own axes at `at` (local coordinate) and moves the far part:
+ * `amount` > 0 stretches (the cut section is pulled out), < 0 squeezes (a band around the cut is removed)
+ */
+export type StretchFeature = { id: string; type: "stretch"; axis: 0 | 1 | 2; at: number; amount: number };
+export type Feature = EdgeFeature | PushFeature | TiltFeature | StretchFeature;
 
 export interface Body {
   id: string;

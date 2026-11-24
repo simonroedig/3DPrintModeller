@@ -531,7 +531,55 @@ function blendEdges(shape: Shape3D, f: EdgeFeature): Shape3D {
   }
 }
 
+/**
+ * Cuts across `axis` at `at` and moves everything beyond the cut: stretching pulls the cut section
+ * out to fill the gap, squeezing removes a band centred on the cut and closes it.
+ */
+function stretchShape(shape: Shape3D, axis: 0 | 1 | 2, at: number, amount: number): Shape3D {
+  if (Math.abs(amount) < 1e-6) return shape;
+  const [min, max] = shape.boundingBox.bounds as [Vec3, Vec3];
+  const lo = amount > 0 ? at : at + amount / 2;
+  const hi = amount > 0 ? at : at - amount / 2;
+  if (lo <= min[axis] + 1e-3 || hi >= max[axis] - 1e-3) throw new FeatureError("cut");
+  const slab = (from: number, to: number) => {
+    const a: Vec3 = [min[0] - 1, min[1] - 1, min[2] - 1];
+    const b: Vec3 = [max[0] + 1, max[1] + 1, max[2] + 1];
+    a[axis] = from;
+    b[axis] = to;
+    return makeBox(a, b);
+  };
+  const move: Vec3 = [0, 0, 0];
+  move[axis] = amount;
+  const lowTool = slab(min[axis] - 1, lo);
+  const highTool = slab(hi, max[axis] + 1);
+  const lower = shape.intersect(lowTool);
+  const upper = shape.intersect(highTool).translate(move[0], move[1], move[2]);
+  lowTool.delete();
+  highTool.delete();
+  const parts: Shape3D[] = [lower];
+  if (amount > 0) {
+    // the cross-section at the cut, pulled out over the gap
+    for (const face of lower.faces) {
+      const c = face.center.toTuple() as Vec3;
+      let n: Vec3;
+      try {
+        n = face.normalAt().normalized().toTuple() as Vec3;
+      } catch {
+        continue;
+      }
+      if (Math.abs(c[axis] - at) < 1e-4 && Math.abs(Math.abs(n[axis]) - 1) < 1e-6) parts.push(basicFaceExtrusion(face, new Vector(move)) as Shape3D);
+    }
+  }
+  parts.push(upper);
+  const fused = fuseAll(parts);
+  // one face where the pieces meet, not a seam
+  const clean = fused.simplify() as Shape3D;
+  fused.delete();
+  return clean;
+}
+
 function applyFeature(shape: Shape3D, f: Feature): Shape3D {
+  if (f.type === "stretch") return stretchShape(shape, f.axis, f.at, f.amount);
   if (f.type === "push") return pushFace(shape, f.face, f.distance);
   if (f.type === "tilt") return tiltFace(shape, f.face, f.hinge, f.angle);
   return blendEdges(shape, f);
@@ -549,6 +597,8 @@ function featureWarning(f: Feature, err: unknown) {
       return lost ? "Push face: face no longer found" : "Face could not be pushed";
     case "tilt":
       return lost ? "Tilt face: face or hinge edge no longer found" : "Face could not be tilted";
+    case "stretch":
+      return lost ? "Stretch: the cut (and the part removed around it) must lie inside the body" : "Body could not be stretched here";
   }
 }
 

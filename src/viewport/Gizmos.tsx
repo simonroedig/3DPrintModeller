@@ -254,6 +254,8 @@ export function SelectionGizmos() {
   const unit = useStore((s) => s.doc.settings.unit);
   // re-render when meshes arrive so the boxes are exact
   useMeshes((s) => s.meshes);
+  // while a stretch is edited its own arrows take over
+  const stretching = useStore((s) => !!s.stretchEdit);
   const get = useThree((s) => s.get);
 
   const sel = bodies.filter((b) => selection.includes(b.id));
@@ -284,7 +286,7 @@ export function SelectionGizmos() {
       <DimLabel position={[max.x + off, (min.y + max.y) / 2, min.z]} mm={size.y} prefix="Y" onCommit={editable ? commitWorld(1) : undefined} />
       <DimLine a={[min.x - off, max.y + off, min.z]} b={[min.x - off, max.y + off, max.z]} />
       <DimLabel position={[min.x - off, max.y + off, (min.z + max.z) / 2]} mm={size.z} prefix="Z" onCommit={editable ? commitWorld(2) : undefined} />
-      {single && <ResizeHandles body={single} snap={snap} unit={unit} get={get} />}
+      {single && !stretching && <ResizeHandles body={single} snap={snap} unit={unit} get={get} />}
     </group>
   );
 }

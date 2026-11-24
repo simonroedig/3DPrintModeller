@@ -10,6 +10,7 @@ export const TOOL_COLOR = {
   layflat: "#facc15",
   pattern: "#2dd4bf",
   mirror: "#e879f9",
+  stretch: "#fb7185",
   union: "#22c55e",
   subtract: "#f43f5e",
   intersect: "#a855f7",

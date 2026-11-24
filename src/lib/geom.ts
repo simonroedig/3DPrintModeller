@@ -80,7 +80,7 @@ const _v = new THREE.Vector3();
 
 /** true if the shape (or a part of it) has edits that can grow it beyond its parametric box */
 function canGrow(b: Pick<Body, "shape" | "features">): boolean {
-  if (b.features.some((f) => f.type === "push" || f.type === "tilt")) return true;
+  if (b.features.some((f) => f.type === "push" || f.type === "tilt" || f.type === "stretch")) return true;
   return b.shape.kind === "group" && b.shape.children.some(canGrow);
 }
 

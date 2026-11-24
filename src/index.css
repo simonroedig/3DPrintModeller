@@ -690,6 +690,16 @@ label:has(> input[type="checkbox"]) {
   background: rgba(96, 165, 250, 0.14);
 }
 
+/* narrow screens: the less common context buttons show only their icon */
+@media (max-width: 1320px) {
+  .ctx-btn.compact > span {
+    display: none;
+  }
+  .ctx-btn.compact {
+    padding: 0 8px;
+  }
+}
+
 /* an operation that is active on the selected combined body */
 .ctx-btn[aria-pressed="true"] {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tc, #ffffff) 65%, transparent);

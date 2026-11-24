@@ -10,6 +10,7 @@ import { BodyView } from "./BodyView";
 import { SketchTool, SketchView } from "./Sketching";
 import { SelectionGizmos, SketchGizmos } from "./Gizmos";
 import { EditTool } from "./EditTool";
+import { StretchGizmo } from "./StretchGizmo";
 import { InsetRenderer, InsetScene } from "./PlaneInset";
 import { ViewHoverIndicator } from "./ViewHover";
 import { registerCanvas } from "./capture";
@@ -108,6 +109,7 @@ export function Viewport() {
       <InsetScene />
       <group userData={{ noInset: true }}>
         <SelectionGizmos />
+        <StretchGizmo />
         <SketchGizmos />
         <EditTool />
         <Guides />

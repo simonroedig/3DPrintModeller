@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowDownToLine, Copy, FlipHorizontal2, Layers2, LocateFixed, RotateCw, SquareRoundCorner, Target, Trash2, MoveUp, SquareDashed } from "lucide-react";
+import { ArrowDownToLine, Copy, FlipHorizontal2, Layers2, LocateFixed, RotateCw, SquareRoundCorner, Target, Trash2, MoveUp, SquareDashed, UnfoldVertical } from "lucide-react";
 import {
   alignCenters,
   centerOnBed,
@@ -7,6 +7,7 @@ import {
   createPattern,
   deleteSelection,
   mirrorSelection,
+  startStretch,
   duplicateSelection,
   extrudeSketch,
   isMeshBody,
@@ -33,6 +34,7 @@ function CtxButton({
   tip,
   on,
   noTip,
+  compact,
 }: {
   icon: ReactNode;
   label?: string;
@@ -43,10 +45,12 @@ function CtxButton({
   on?: boolean;
   /** hide the tooltip (e.g. while a menu above the button is open) */
   noTip?: boolean;
+  /** on narrow screens only the icon is shown (the tooltip still names it) */
+  compact?: boolean;
 }) {
   return (
     <button
-      className={`ctx-btn ${label ? "" : "icon-only"} ${on ? "on" : ""}`}
+      className={`ctx-btn ${label ? "" : "icon-only"} ${on ? "on" : ""} ${compact ? "compact" : ""}`}
       style={color ? ({ "--tc": color } as React.CSSProperties) : undefined}
       aria-pressed={on || undefined}
       data-tip={noTip ? undefined : kbd ? `${tip} (${kbd})` : tip}
@@ -82,6 +86,7 @@ function PatternButton({ body }: { body: Body }) {
         icon={current === "circular" ? <CircularPatternIcon size={16} /> : <LinearPatternIcon size={16} />}
         label={current ? t("Pattern · {count}", { count: body.shape.kind === "group" ? body.shape.children.length : 1 }) : t("Pattern")}
         color={TOOL_COLOR.pattern}
+        compact
         on={open}
         noTip={open}
         tip={current ? t("Switch between a row and a circle. Count and spacing are in the panel on the right") : t("Repeat this body: in a row, as a grid or around a center")}
@@ -133,6 +138,7 @@ function MirrorButton({ bodies }: { bodies: Body[] }) {
       <CtxButton
         icon={<FlipHorizontal2 size={16} />}
         label={t("Mirror")}
+        compact
         color={TOOL_COLOR.mirror}
         on={open || !!active}
         noTip={open}
@@ -176,6 +182,7 @@ export function ContextBar() {
   const bodies = useStore((s) => s.doc.bodies);
   const sketches = useStore((s) => s.doc.sketches);
   const height = useStore((s) => s.extrudeHeight);
+  const stretchEdit = useStore((s) => s.stretchEdit);
   const unit = useStore((s) => s.doc.settings.unit);
   if (tool !== "select" || dragging || !selection.length) return null;
   const sel = bodies.filter((b) => selection.includes(b.id));
@@ -201,6 +208,7 @@ export function ContextBar() {
     const b = sel[0];
     const mesh = isMeshBody(b);
     const combined = b.shape.kind === "group" && !b.shape.pattern && !b.shape.mirror ? (b.shape.op ?? "union") : null;
+    const stretching = stretchEdit?.bodyId === b.id;
     content = (
       <>
         {combined && (
@@ -213,6 +221,7 @@ export function ContextBar() {
                   icon={o.icon(16)}
                   label={t(o.label)}
                   on
+                  compact
                   color={TOOL_COLOR[o.op]}
                   tip={t("Active. Click again to split the body back into its parts (Ctrl+Shift+G)")}
                   onClick={() => combineSelection(o.op)}
@@ -240,15 +249,27 @@ export function ContextBar() {
             onClick={() => setTool("edit")}
           />
         )}
-        <CtxButton icon={<ArrowDownToLine size={16} />} label={t("btn|Lay flat")} kbd="L" color={TOOL_COLOR.layflat} tip={t("Click a face that should rest on the bed")} onClick={() => setTool("layflat")} />
+        <CtxButton icon={<ArrowDownToLine size={16} />} label={t("btn|Lay flat")} compact kbd="L" color={TOOL_COLOR.layflat} tip={t("Click a face that should rest on the bed")} onClick={() => setTool("layflat")} />
         <CtxButton icon={<RotateCw size={16} />} kbd="E" tip={t("Rotate 90° around the vertical axis")} color={TOOL_COLOR.select} onClick={() => rotateSelection(2, -90)} />
         <CtxButton icon={<LocateFixed size={16} />} kbd="M" tip={t("Exactly in the middle of the print bed (Shift+M: in whole grid steps)")} color={TOOL_COLOR.select} onClick={() => centerOnBed(false)} />
         {!mesh && <PatternButton body={b} />}
         {!mesh && <MirrorButton bodies={[b]} />}
         {!mesh && (
           <CtxButton
+            icon={<UnfoldVertical size={16} />}
+            label={t("Stretch")}
+            compact
+            color={TOOL_COLOR.stretch}
+            on={stretching}
+            tip={t("Cut across the body and make it longer or shorter there; the ends stay as they are")}
+            onClick={startStretch}
+          />
+        )}
+        {!mesh && (
+          <CtxButton
             icon={<Layers2 size={16} />}
             label={b.hole ? t("Solid") : t("Hole")}
+            compact
             kbd="H"
             color={b.hole ? TOOL_COLOR.body : TOOL_COLOR.subtract}
             tip={b.hole ? t("Make it a normal body again") : t("Make it a hole, subtracted on union")}

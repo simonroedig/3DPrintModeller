@@ -18,6 +18,7 @@ import {
   Crosshair,
   FlipHorizontal2,
   Undo2,
+  UnfoldVertical,
   Cylinder,
   Eye,
   EyeOff,
@@ -38,7 +39,8 @@ import {
   TriangleRight,
   Ungroup,
 } from "lucide-react";
-import type { Body, BoolOp, PatternSpec, Segment, Shape, ShapeKind, Sketch, SketchShape, Taper, TiltFeature, Vec2, Vec3 } from "../types";
+import type { Body, BoolOp, PatternSpec, Segment, Shape, ShapeKind, Sketch, SketchShape, StretchFeature, Taper, TiltFeature, Vec2, Vec3 } from "../types";
+import { stretchInWorld } from "../lib/stretch";
 import { isSkewed, isTapered } from "../lib/taper";
 import {
   alignCenters,
@@ -63,6 +65,9 @@ import {
   setBodyShape,
   setSelectionMin,
   setCenterLines,
+  setStretchAt,
+  setStretchAxis,
+  startStretch,
   mirrorSelection,
   removeMirror,
   toggleMirrorAxis,
@@ -278,7 +283,7 @@ function NameField({ value, onChange }: { value: string; onChange: (v: string) =
   );
 }
 
-const FEATURE_NAME = { fillet: "Fillet", chamfer: "Chamfer", push: "Face offset", tilt: "Face tilt" } as const;
+const FEATURE_NAME = { fillet: "Fillet", chamfer: "Chamfer", push: "Face offset", tilt: "Face tilt", stretch: "Stretch" } as const;
 
 const COLORS = ["#4f8ff7", "#f5a524", "#22c55e", "#ef4444", "#a855f7", "#14b8a6", "#e5e7eb", "#475569"];
 
@@ -399,7 +404,10 @@ function BodyProps({ body }: { body: Body }) {
           </div>
         ) : (
           <div className="flex flex-col gap-1.5">
-            {body.features.map((f, i) => (
+            {body.features.map((f, i) =>
+              f.type === "stretch" ? (
+                <StretchRow key={f.id} body={body} f={f} index={i} />
+              ) : (
               <div key={f.id} className="flex items-center gap-1.5">
                 <span className="text-ink-400 text-[12px] w-[104px] shrink-0 truncate" title={t(FEATURE_NAME[f.type])}>
                   {i + 1}. {t(FEATURE_NAME[f.type])}
@@ -418,9 +426,17 @@ function BodyProps({ body }: { body: Body }) {
                   <Trash2 size={14} />
                 </button>
               </div>
-            ))}
+              ),
+            )}
           </div>
         )}
+        <button
+          className="btn w-full mt-2"
+          title={t("Cut across the body and make it longer or shorter there; the ends stay as they are")}
+          onClick={startStretch}
+        >
+          <UnfoldVertical size={14} style={{ color: TOOL_COLOR.stretch }} /> {t("Stretch or squeeze…")}
+        </button>
       </Section>}
 
       <Section title={t("Actions")}>
@@ -450,6 +466,37 @@ function BodyProps({ body }: { body: Body }) {
         </div>
       </Section>
     </>
+  );
+}
+
+/** one stretch in the edits list: across which axis, where the cut is, how much longer or shorter */
+function StretchRow({ body, f, index }: { body: Body; f: StretchFeature; index: number }) {
+  const w = stretchInWorld(body, f);
+  const editing = useStore((s) => s.stretchEdit?.featureId === f.id);
+  return (
+    <div className={`rounded-md border p-1.5 flex flex-col gap-1.5 ${editing ? "bg-ink-850" : "border-ink-750"}`} style={editing ? { borderColor: `${TOOL_COLOR.stretch}99` } : undefined}>
+      <div className="flex items-center gap-1.5">
+        <UnfoldVertical size={13} style={{ color: TOOL_COLOR.stretch }} />
+        <span className="text-[12px] text-ink-300 flex-1 truncate">
+          {index + 1}. {t("Stretch")}
+        </span>
+        <button
+          className="btn ghost !h-6 !px-1.5 text-[11px]"
+          title={editing ? t("Hide the cut plane") : t("Show the cut plane and its arrows in the model")}
+          onClick={() => useStore.setState({ stretchEdit: editing ? null : { bodyId: body.id, featureId: f.id } })}
+        >
+          {editing ? t("Done") : t("Show in model")}
+        </button>
+        <button className="btn ghost danger !px-1.5 !h-6" title={t("Remove")} onClick={() => removeFeature(body.id, f.id)}>
+          <Trash2 size={13} />
+        </button>
+      </div>
+      <AxisSeg value={w.axis} title={t("The cut runs across this axis; the body gets longer or shorter along it")} onChange={(a) => setStretchAxis(body.id, f.id, a)} />
+      <div className="grid grid-cols-2 gap-1.5">
+        <LenField label={t("Cut")} mm={w.at} title={t("Where the cut is (position along the axis)")} onChange={(v) => setStretchAt(body.id, f.id, v)} />
+        <LenField label="±" mm={f.amount} title={t("How much longer (+) or shorter (-). Shorter removes a band around the cut")} onChange={(v) => updateFeature(body.id, f.id, { amount: v })} />
+      </div>
+    </div>
   );
 }
 

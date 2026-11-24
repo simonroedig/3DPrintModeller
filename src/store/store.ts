@@ -8,6 +8,7 @@ import { BREP_TRIANGLE_LIMIT } from "../cad/regions";
 import { detectFormat, payloadFromAsset, toBase64 } from "../cad/importers";
 import { bodyMatrix, cleanQuat, isSegment, localBox, polyBounds, polygonArea, quatFromEulerDeg, sweepOf, unionBox, worldBox } from "../lib/geom";
 import { buildPattern, defaultPattern, isPattern, withOriginal, withPattern, type PatternShape } from "../lib/pattern";
+import { stretchFromWorld, stretchInWorld } from "../lib/stretch";
 import { locale, t, tMsg } from "../i18n";
 
 export type Tool = "select" | "rect" | "circle" | "poly" | "edit" | "layflat";
@@ -43,8 +44,8 @@ export interface FaceOp {
 
 export const emptyFaceOp = (): FaceOp => ({ mode: "push", distance: 0, angle: 0, hinge: null });
 
-/** clears every edge / face selection of the edit mode */
-export const noEdit = { edgeSel: null, faceSel: null } as const;
+/** clears every edge / face selection of the edit mode (and an open stretch) */
+export const noEdit = { edgeSel: null, faceSel: null, stretchEdit: null } as const;
 
 export interface Toast {
   id: number;
@@ -94,6 +95,8 @@ export interface State {
   xray: boolean;
   /** height used by the extrude buttons */
   extrudeHeight: number;
+  /** a stretch being edited in the model (its cut plane and arrows are shown) */
+  stretchEdit: { bodyId: string; featureId: string } | null;
 }
 
 /** quick snapshot of the open document (small documents only) for an instant first paint */
@@ -196,6 +199,7 @@ export const useStore = create<State>(() => ({
   showBed: readFlag(BED_KEY, true),
   centerLines: readFlag(CENTER_KEY, false),
   xray: readFlag(XRAY_KEY, false),
+  stretchEdit: null,
   extrudeHeight: 10,
 }));
 
@@ -1168,6 +1172,63 @@ export function removeFeature(bodyId: string, fid: string) {
   const b = getBody(bodyId);
   if (!b) return;
   updateBody(bodyId, { features: b.features.filter((f) => f.id !== fid) });
+}
+
+/* ------------------------------------------------------------------ */
+/* stretching                                                           */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Starts a stretch on the selected body: a cut across its longer horizontal side, in the middle,
+ * nothing moved yet. The cut plane and the arrows show up in the model.
+ */
+export function startStretch() {
+  const sel = selectedBodies();
+  if (sel.length !== 1) {
+    toast(t("Select one body to stretch or squeeze"));
+    return;
+  }
+  const b = sel[0];
+  if (isMeshBody(b)) {
+    toast(t("Mesh bodies (large STL/3MF/OBJ) cannot be stretched. Convert them to a CAD body in the panel first"), "error");
+    return;
+  }
+  const box = worldBox(b);
+  const size = box.getSize(new THREE.Vector3());
+  const axis: 0 | 1 = size.y >= size.x ? 1 : 0;
+  const local = stretchFromWorld(b, axis, round6(box.getCenter(new THREE.Vector3()).getComponent(axis)));
+  if (!local) {
+    toast(t("Only possible when the body is turned in 90° steps"), "error");
+    return;
+  }
+  const id = uid();
+  updateBody(b.id, { features: [...b.features, { id, type: "stretch", axis: local.axis, at: local.at, amount: 0 }] });
+  set({ stretchEdit: { bodyId: b.id, featureId: id } });
+  toast(t("Move the cut plane where the body should get longer or shorter, then drag the arrow at its end"));
+}
+
+/** puts the cut of a stretch across another world axis (in the middle of the body) */
+export function setStretchAxis(bodyId: string, fid: string, axis: 0 | 1 | 2) {
+  const b = getBody(bodyId);
+  const f = b?.features.find((x) => x.id === fid);
+  if (!b || !f || f.type !== "stretch") return;
+  // the middle without this stretch
+  const box = worldBox({ ...b, features: b.features.filter((x) => x.id !== fid) });
+  const local = stretchFromWorld(b, axis, round6(box.getCenter(new THREE.Vector3()).getComponent(axis)));
+  if (!local) {
+    toast(t("Only possible when the body is turned in 90° steps"), "error");
+    return;
+  }
+  updateFeature(bodyId, fid, { axis: local.axis, at: local.at });
+}
+
+/** moves the cut of a stretch to a world position along its axis */
+export function setStretchAt(bodyId: string, fid: string, worldAt: number) {
+  const b = getBody(bodyId);
+  const f = b?.features.find((x) => x.id === fid);
+  if (!b || !f || f.type !== "stretch") return;
+  const local = stretchFromWorld(b, stretchInWorld(b, f).axis, worldAt);
+  if (local) updateFeature(bodyId, fid, { at: local.at });
 }
 
 /* ------------------------------------------------------------------ */

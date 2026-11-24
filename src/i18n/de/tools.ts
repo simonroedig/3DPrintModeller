@@ -193,6 +193,35 @@ const de: Record<string, string> = {
   "The original stays inside: change it below and the mirrored body follows.":
     "Das Original bleibt erhalten: ändere es unten, und der gespiegelte Körper zieht mit.",
 
+  // stretch and squeeze
+  "Select one body to stretch or squeeze": "Wähle einen Körper zum Strecken oder Stauchen",
+  "Mesh bodies (large STL/3MF/OBJ) cannot be stretched. Convert them to a CAD body in the panel first":
+    "Netzkörper (große STL/3MF/OBJ) lassen sich nicht strecken. Wandle sie vorher im Panel in einen CAD-Körper um",
+  "Only possible when the body is turned in 90° steps": "Nur möglich, wenn der Körper in 90°-Schritten gedreht ist",
+  "Move the cut plane where the body should get longer or shorter, then drag the arrow at its end":
+    "Schiebe die Schnittebene dorthin, wo der Körper länger oder kürzer werden soll, und zieh dann den Pfeil an seinem Ende",
+  Stretch: "Strecken",
+  "Cut across the body and make it longer or shorter there; the ends stay as they are":
+    "Quer durch den Körper schneiden und ihn dort länger oder kürzer machen; die Enden bleiben, wie sie sind",
+  "Stretch or squeeze…": "Strecken oder stauchen…",
+  "Hide the cut plane": "Schnittebene ausblenden",
+  "Show the cut plane and its arrows in the model": "Schnittebene und ihre Pfeile im Modell zeigen",
+  "Show in model": "Im Modell zeigen",
+  Done: "Fertig",
+  "The cut runs across this axis; the body gets longer or shorter along it":
+    "Der Schnitt liegt quer zu dieser Achse; entlang ihr wird der Körper länger oder kürzer",
+  Cut: "Schnitt",
+  "Where the cut is (position along the axis)": "Wo der Schnitt liegt (Position entlang der Achse)",
+  "How much longer (+) or shorter (-). Shorter removes a band around the cut":
+    "Um wie viel länger (+) oder kürzer (-). Kürzer nimmt ein Stück rund um den Schnitt heraus",
+  Longer: "Länger",
+  Shorter: "Kürzer",
+  "Move the cut": "Schnitt verschieben",
+  "Drag out: longer · in: shorter": "Nach außen ziehen: länger · nach innen: kürzer",
+  "Stretch: the cut (and the part removed around it) must lie inside the body":
+    "Strecken: der Schnitt (und das Stück, das herausgenommen wird) muss innerhalb des Körpers liegen",
+  "Body could not be stretched here": "Der Körper ließ sich hier nicht strecken",
+
   // nearest view while orbiting
   "{view} view ({key}): the camera is closest to this view, one click snaps there":
     "Ansicht {view} ({key}): die Kamera ist dieser Ansicht am nächsten, ein Klick springt hin",
