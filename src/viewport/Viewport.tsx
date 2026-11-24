@@ -14,6 +14,7 @@ import { StretchGizmo } from "./StretchGizmo";
 import { InsetRenderer, InsetScene } from "./PlaneInset";
 import { ViewHoverIndicator } from "./ViewHover";
 import { registerCanvas } from "./capture";
+import { registerPoseCanvas } from "./cameraPose";
 
 THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
 
@@ -94,6 +95,7 @@ export function Viewport() {
       onCreated={(state) => {
         state.gl.setClearColor("#1b1d23");
         registerCanvas(state.get);
+        registerPoseCanvas(state.get);
         if (import.meta.env.DEV) Object.assign(window, { __r3f: state.get });
       }}
     >

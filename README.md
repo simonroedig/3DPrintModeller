@@ -121,6 +121,7 @@ Everything runs in the browser, no installation, no account: **[3d-print-modelle
 
 ### Comfort
 - **Projects** in a collapsible bar at the bottom, with preview images, saved automatically in the browser (IndexedDB).
+  Each project remembers its view: switch back (or reload) and the camera is where you left it.
 - **Nearest view**: while orbiting in 3D, the view button the camera is closest to lights up, one click snaps there.
 - **Context bar** for the selection with the next useful steps, **tooltips** with shortcuts on every button.
 - **Colors with meaning**: sketch light blue, bodies indigo, edges and faces orange, union green, subtract red, intersect purple, patterns teal.

@@ -3,6 +3,7 @@ import type { Doc, Unit } from "../types";
 import { idbDel, idbGet, idbSet } from "../lib/persist";
 import { useMeshes } from "../cad/client";
 import { captureThumbnail } from "../viewport/capture";
+import { readCameraPose, requestCameraPose, type CameraPose } from "../viewport/cameraPose";
 import { t } from "../i18n";
 import {
   STORAGE_KEY,
@@ -32,6 +33,8 @@ export interface ProjectMeta {
   bodies: number;
   /** small JPEG data URL */
   thumb?: string;
+  /** where the camera was when the project was left */
+  camera?: CameraPose;
 }
 
 interface ProjectIndex {
@@ -145,9 +148,12 @@ useStore.subscribe((s, prev) => {
   thumbTimer = setTimeout(refreshThumb, 1500);
 });
 
-// leaving the page: write what is pending
+// leaving the page: write what is pending (and where the camera is)
 window.addEventListener("pagehide", () => {
   if (dirty) saveNow();
+  const id = P().current;
+  const camera = readCameraPose();
+  if (id && hydrated && camera) patchMeta(id, { camera });
 });
 
 /** stores the open project (document + fresh preview) before another one takes its place */
@@ -157,10 +163,12 @@ function flushCurrent() {
   clearTimeout(thumbTimer);
   if (dirty) saveNow();
   const thumb = captureThumbnail();
-  if (thumb) patchMeta(id, { thumb });
+  const camera = readCameraPose();
+  patchMeta(id, { ...(thumb ? { thumb } : {}), ...(camera ? { camera } : {}) });
 }
 
-function showDoc(doc: Doc) {
+/** puts a stored project into the editor; with a camera pose the view is restored, otherwise everything is fitted */
+function showDoc(doc: Doc, camera?: CameraPose) {
   loading = true;
   normalizeDoc(doc);
   syncAssets(doc);
@@ -173,9 +181,10 @@ function showDoc(doc: Doc) {
     groupFocus: null,
     tool: "select",
     startDialog: false,
-    view: "iso",
+    view: camera?.view ?? "iso",
   });
   loading = false;
+  requestCameraPose(camera);
   fitView();
 }
 
@@ -194,7 +203,7 @@ export async function switchProject(id: string) {
   flushCurrent();
   useProjects.setState({ current: id });
   writeIndex();
-  showDoc(doc);
+  showDoc(doc, meta.camera);
   snapshotLocal(getDoc());
 }
 
@@ -265,7 +274,7 @@ export async function deleteProject(id: string) {
     if (doc) {
       useProjects.setState({ current: next.id });
       writeIndex();
-      showDoc(doc);
+      showDoc(doc, next.camera);
       snapshotLocal(getDoc());
       return;
     }
@@ -312,7 +321,7 @@ async function hydrate() {
   useProjects.setState({ list: index.list, current: valid(doc) ? index.current : null, ready: true });
   hydrated = true;
   if (valid(doc)) {
-    showDoc(doc);
+    showDoc(doc, index.list.find((p) => p.id === index.current)?.camera);
     // the very first preview of migrated projects
     if (!index.list.find((p) => p.id === index.current)?.thumb) thumbTimer = setTimeout(refreshThumb, 2500);
   } else {

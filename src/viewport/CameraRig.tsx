@@ -8,6 +8,7 @@ import { useStore } from "../store/store";
 import { polyBounds, unionBox } from "../lib/geom";
 import { fromPlane2D, VIEW_DIR } from "../lib/planes";
 import { useNearestView } from "./nearestView";
+import { takeCameraPose } from "./cameraPose";
 
 const FOV = 35;
 
@@ -126,6 +127,20 @@ export function CameraRig() {
       const el = (controls as unknown as { domElement: HTMLElement }).domElement ?? gl.domElement;
       requestAnimationFrame(() => el.dispatchEvent(new PointerEvent("pointerdown", t.init)));
       return;
+    }
+    // back in a project: the camera goes where it was left
+    const pose = takeCameraPose(!!(camera as THREE.PerspectiveCamera).isPerspectiveCamera);
+    if (pose) {
+      camera.up.set(...pose.up);
+      camera.position.set(...pose.position);
+      camera.zoom = pose.zoom;
+      (camera as THREE.PerspectiveCamera | THREE.OrthographicCamera).updateProjectionMatrix();
+      controls.target.set(...pose.target);
+      camera.lookAt(controls.target);
+      controls.update();
+      invalidate();
+      const raf = requestAnimationFrame(() => invalidate());
+      return () => cancelAnimationFrame(raf);
     }
     const box = sceneBox();
     const center = box.getCenter(new THREE.Vector3());

@@ -125,6 +125,7 @@ Alles läuft im Browser, ohne Installation und ohne Konto: **[3d-print-modeller.
 
 ### Komfort
 - **Projekte** in einer einklappbaren Leiste unten, mit Vorschaubild, automatisch im Browser gespeichert (IndexedDB).
+  Jedes Projekt merkt sich seine Ansicht: zurückwechseln (oder neu laden), und die Kamera ist, wo du sie gelassen hast.
 - **Nächste Ansicht**: beim Drehen in 3D leuchtet der Ansichts-Knopf auf, dem die Kamera am nächsten ist, ein Klick springt hin.
 - **Kontextleiste** zur Auswahl mit den nächsten sinnvollen Schritten, **Tooltips** mit Tastenkürzeln an allen Buttons.
 - **Farben mit Bedeutung**: Skizze hellblau, Körper indigo, Kanten und Flächen orange, Vereinen grün, Abziehen rot, Schnittmenge lila, Muster türkis.
